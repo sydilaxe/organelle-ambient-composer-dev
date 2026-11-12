@@ -225,13 +225,16 @@ def voice():
     for i, n in ((1, "$0-ld"), (2, "$0-la"), (3, "$0-lb")):
         v.c(lu, i, v.obj("s " + n), 0)
     v.col()
-    ft = v.to(v.recv("ac-v$1-flav"), "t f f f f f f")
-    for i in range(6):
+    from gen_sounds import NEW_FLAVS
+    nf = 6 + len(NEW_FLAVS)
+    ft = v.to(v.recv("ac-v$1-flav"), "t " + " ".join(["f"] * nf))
+    for i in range(nf):
         v.c(v.m(v.to((ft, i), f"== {i}"), "$1 4000"), 0, v.obj(f"s $0-fw{i}"), 0)
     v.col()
     body = v.obj("*~")
     v.c(amp, 0, body, 1)
-    for i, fl in enumerate((flav_fm(), flav_vox(), flav_bow(), flav_part(), flav_fold(), flav_pulsar())):
+    for i, fl in enumerate((flav_fm(), flav_vox(), flav_bow(), flav_part(), flav_fold(), flav_pulsar())
+                           + tuple(f() for f in NEW_FLAVS)):
         sp = v.sub(fl, 20 + i * 120, 700)
         v.c(f2, 0, sp, 0)
         v.c(bsig, 0, sp, 1)
@@ -262,7 +265,6 @@ def drone():
     iv = s.to(f, "*~ 1.5")
     s.c(s.recv("ac-dint"), 0, iv, 1)
     s.c(mul(s, s.to(iv, "osc~"), s.ch(s.obj("osc~ 0.031"), "*~ 0.06", "+~ 0.1")), 0, sm, 0)
-    s.c(s.ch(f, "*~ 0.5", "osc~", "*~ 0.2"), 0, sm, 0)
     harm = s.ch(s.recv("ac-dharm"), "line~")
     tube = s.obj("vcf~ 40")
     s.c(s.obj("noise~"), 0, tube, 0)
@@ -525,7 +527,18 @@ def master():
     pg = s.ch(s.recv("ac-g-pad"), "line~")
     pL = mul(s, s.obj("catch~ ac-padL"), pg)
     pR = mul(s, s.obj("catch~ ac-padR"), pg)
+    # the piece's character on the pads (chorus, tape, ring, crush) - dry scaled by ac-chdry
+    from gen_sounds import CHARS
+    cd = s.ch(s.recv("ac-chdry"), "line~")
+    pdL, pdR = mul(s, pL, cd), mul(s, pR, cd)
+    for fn in CHARS:
+        sp = s.sub(fn())
+        s.c(pL, 0, sp, 0)
+        s.c(pR, 0, sp, 1)
+        s.c((sp, 0), 0, s.obj("throw~ ac-mixL"), 0)
+        s.c((sp, 1), 0, s.obj("throw~ ac-mixR"), 0)
     pm = add(s, pL, pR)
+    s.c(s.to(pm, "*~ 0.5"), 0, s.obj("s~ ac-padsig"), 0)
     rin = s.obj("*~ 0.35")
     s.c(s.obj("catch~ ac-send"), 0, rin, 0)
     s.c(s.to(pm, "*~ 0.3"), 0, rin, 0)
@@ -547,7 +560,7 @@ def master():
     s.col()
     mg = s.ch(s.recv("ac-master"), "line~")
     outs = []
-    for bus, p, w in (("ac-mixL", pL, wL), ("ac-mixR", pR, wR)):
+    for bus, p, w in (("ac-mixL", pdL, wL), ("ac-mixR", pdR, wR)):
         sm = s.obj("hip~ 8")
         s.c(s.obj("catch~ " + bus), 0, sm, 0)
         s.c(p, 0, sm, 0)
@@ -671,15 +684,17 @@ def live_voice():
     # the synthesis type: on (10 ms) at a note-on, all off 1.6 s after the release
     ty = v.obj("f")
     v.c(v.recv("ac-lvtype"), 0, ty, 1)
-    st = v.to(ty, "t f f f f f f")
-    for i in range(6):
+    from gen_sounds import NEW_FLAVS
+    nf = 6 + len(NEW_FLAVS)
+    st = v.to(ty, "t " + " ".join(["f"] * nf))
+    for i in range(nf):
         v.c(v.m(v.to((st, i), f"== {i}"), "$1 10"), 0, v.obj(f"s $0-fw{i}"), 0)
     d = v.obj("delay 1600")
     v.c(off, 0, d, 0)
     v.c(v.m(c_vel, "stop"), 0, d, 0)
     tb = v.to((c_vel, 0), "t b")
     v.c(tb, 0, ty, 0)
-    for i in range(6):
+    for i in range(nf):
         v.c(v.m(d, "0 50"), 0, v.obj(f"s $0-fw{i}"), 0)
     lb = v.ch(v.obj("loadbang"), "f $1")
     v.c(v.to(lb, "expr 0.11 + 0.03*$f1"), 0, v.obj("s $0-la"), 0)
@@ -687,7 +702,8 @@ def live_voice():
     v.col()
     body = v.obj("*~")
     v.c(amp, 0, body, 1)
-    for i, fl in enumerate((flav_fm(), flav_vox(), flav_bow(), flav_part(), flav_fold(), flav_pulsar())):
+    for i, fl in enumerate((flav_fm(), flav_vox(), flav_bow(), flav_part(), flav_fold(), flav_pulsar())
+                           + tuple(f() for f in NEW_FLAVS)):
         sp = v.sub(fl, 20 + i * 120, 760)
         v.c(fsig, 0, sp, 0)
         v.c(bright, 0, sp, 1)

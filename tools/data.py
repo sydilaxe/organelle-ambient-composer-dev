@@ -35,9 +35,12 @@ FAMILIES = [
     ("sus",      0, [0, 3, 4, 8]),        # root, 4th, 5th, 9th
 ]
 
-FLAVOURS = ["fm", "vox", "bow", "part", "fold", "pulsr"]          # pad synthesis types
-TEXTURES = ["rain", "wind", "ember", "chirp"]
-INMODES = ["auto", "reso", "cloud", "tape", "ghost", "bands"]
+FLAVOURS = ["fm", "vox", "bow", "part", "fold", "pulsr", "saws", "pwm", "digi", "sync"]          # pad synthesis types
+TEXTURES = ["rain", "wind", "ember", "chirp", "radio", "data", "buzz"]
+DRONES = ["pure", "analog", "organ", "fm"]
+CHARACTERS = ["clean", "chorus", "tape", "ring", "crush"]
+SUBMODES = ["pedal", "bassline", "both"]
+INMODES = ["auto", "reso", "cloud", "tape", "ghost", "bands", "vocode", "morph"]
 NOTE_NAMES = "C Db D Eb E F Gb G Ab A Bb B".split()
 
 # chord-root moves in scale degrees (weighted by repetition): 4ths/5ths, steps, 3rds

@@ -15,15 +15,24 @@ fades out: B for a new piece.
 DRIFT: endless sections, for backing a performance.
 
 LAYERS AND THEIR RHYTHMS (one clock, 40-72 BPM, meter 3-7 per piece)
-  Drone    tonic, beating twin, interval, sub, breath tube; swells on each
-           bar in intense sections
-  Pads     4 voices, 6 synthesis types (fm, vox, bow, part, fold, pulsr),
-           voice-led; each breathes in its own cycle (7, 9, 11, 13 half-bars)
-           so they phase against each other
+  Drone    one of 4 designs per piece (the break may switch): pure (tonic,
+           beating twin, interval, breath tube), analog (saws and a square
+           through a slow resonant sweep), organ (drawbars, rotary shimmer),
+           fm (an electric growl); swells on each bar in intense sections
+  Sub      a sine under everything, softly saturated so small speakers hear
+           it: the pedal an octave under the tonic, the chord root as a
+           bass line, or both (alternating by section)
+  Pads     4 voices, 10 synthesis types: fm, vox, bow, part, fold, pulsr,
+           saws (detuned analog ensemble), pwm (Juno-like), digi (ring mod,
+           bit-crush), sync (hard-sync sweep); voice-led; each breathes in
+           its own cycle (7, 9, 11, 13 half-bars) so they phase
+  Character  per piece on the pads: clean, chorus, tape (wow, saturation,
+           hiss), ring, crush
   Motion   Euclidean patterns (e.g. 5 in 8, 7 in 16) arpeggiating the chord on
            FM pings, swing, tempo echoes
   Bells    the motif, phrased in beats with rubato
-  Textures rain, wind, embers, chirps (random weather)
+  Textures rain, wind, embers, chirps, radio (static, whistles), data (blip
+           bursts), buzz (electric hum on the tonic)
   Cloud    grains of the recent sound or your input; locked to the beat in
            intense sections, free otherwise
 
@@ -64,7 +73,8 @@ FUNCTION KEYS (aux + key standalone, plain keys with external MIDI)
   C   COMPOSE / DRIFT          C#  chord change now    D  next section
   D#  drone on/off   E pads   F textures   F# cloud   G bells
   G#  capture 8 s of input (cloud + a memory)
-  A   input mode: auto / reso / cloud / tape / ghost / bands
+  A   input mode: auto / reso / cloud / tape / ghost / bands / vocode /
+      morph
   A#  HOLD: freeze the reverb tail and the cloud
   B   new piece
   Aux alone: next knob page.  Footswitch: chord change now
@@ -80,6 +90,9 @@ and noisiness and calls it pitched, plucked or texture (screen line 5).
   tape   long wobbling echoes
   ghost  unheard: loudness brightens, attacks ring bells
   bands  8 narrow bands on the chord tones (field recordings sing)
+  vocode your sound speaks through a synth choir singing the chord
+         (10-band vocoder; auto mode vocodes pitched input in some pieces)
+  morph  your sound speaks through the pads themselves
 MEMORIES: while the piece develops Amble keeps 8 s of what you played (up to
 4). Break, return and dissolve sections bring them back: reversed, slowed,
 or retuned to the chord.

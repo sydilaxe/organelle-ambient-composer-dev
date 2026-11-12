@@ -26,6 +26,11 @@ DEMOS = [
     # drifting backing track, the input (a plucked test tone) ringing the chord resonators
     ("amble_drift_resonate_input_seed_808", [(40, "acmode 0"), (50, "ac-setseed 808"), (60, "acinput 0.6"), (61, "ac-inputupd bang"),
                                        (60, "acdens 0.7"), (61, "ac-layers bang")], 150, "tone"),
+    # an electric piece: digi and saw pads, an analog drone, a sub bass line, chorus, buzz and radio, Hall
+    ("amble_electric_composition_seed_3612", [(50, "aclen 0"), (60, "ac-setseed 3612")], 345, None),
+    # the vocoder: a (synthetic) singer speaking through a synth choir on the chords
+    ("amble_vocoder_voice_input_seed_4139", [(40, "acmode 0"), (50, "ac-setseed 4139"), (60, "acinmode 6"),
+                                             (60, "acinput 0.8"), (61, "ac-inputupd bang")], 75, "voice"),
     # live: a breath-controlled MPE part (notes, swells, bends) and a plucked tone on the audio input (Auto mode)
     ("amble_live_breath_mpe_and_input_seed_77", [(40, "acmode 0"), (50, "ac-setseed 77"), (60, "acinput 0.5"),
                                                   (61, "ac-inputupd bang")] + breath_phrases(), 70, "tone"),
@@ -44,4 +49,4 @@ if __name__ == "__main__":
         log, a = run(ev, secs, inp=inp)
         p = os.path.join(OUT, name + ".mp3")
         write_mp3(a, p)
-        print(p, [l for l in log.splitlines() if l.startswith("screenLine2")][-1:])
+        print(p, [l for l in log.splitlines() if l.startswith("ac-txt2")][-1:])

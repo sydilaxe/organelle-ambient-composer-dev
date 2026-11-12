@@ -19,6 +19,8 @@ vanilla Pd objects only. How to play it: [`patches/Amble/README.txt`](patches/Am
 
 **Demos** (offline renders, unedited):
 - [`demos/amble_composition_seed_2718.mp3`](demos/amble_composition_seed_2718.mp3): a complete 5-minute composition. The form runs emerge, establish, develop, climax, dissolve. The key goes out and comes home, and the tempo and the motion layer follow the form.
+- [`demos/amble_electric_composition_seed_3612.mp3`](demos/amble_electric_composition_seed_3612.mp3): an electric 5-minute piece: digi and saw pads, an analog drone, a sub bass line, chorus, buzz and radio textures.
+- [`demos/amble_vocoder_voice_input_seed_4139.mp3`](demos/amble_vocoder_voice_input_seed_4139.mp3): a synthetic singer on the input, vocoded through a synth choir on Amble's chords.
 - [`demos/amble_live_breath_mpe_and_input_seed_77.mp3`](demos/amble_live_breath_mpe_and_input_seed_77.mp3): a breath-controlled MPE part, sent as a DM48X would (notes on their own channels, breath swells, bends), with a plucked tone on the audio input in Auto mode.
 - [`demos/amble_drift_resonate_input_seed_808.mp3`](demos/amble_drift_resonate_input_seed_808.mp3): DRIFT mode, with a plucked test tone on the input ringing the chord-tuned strings.
 
@@ -79,6 +81,20 @@ emulator, so the font only approximates the Organelle's.
 
 **Sync:** Amble leads, or it follows an incoming clock. Incoming ticks drive its rhythm and Start resets the bar.
 
+## Sounds
+
+| | Choices (each piece picks its own) |
+|---|---|
+| **Pads** | 10 types: fm, vox formants, bowed string, drifting partials, wavefolder, pulsar, **saws** (detuned analog ensemble through a tracking resonant low-pass), **pwm** (Juno-like), **digi** (ring mod, bit crush, sample-rate reduction), **sync** (hard-sync sweep). A piece uses a palette of 3, per voice and per section. |
+| **Drone** | 4 designs: pure, analog (saws and a square through a slow resonant sweep), organ (drawbars with a rotary shimmer), fm (an electric growl). The break may switch to the piece's second design. |
+| **Sub** | A dedicated layer: the pedal an octave under the tonic, the chord root as a bass line, or both. Softly saturated, so small speakers still hear it. |
+| **Character** | On the pads: clean, chorus, tape (wow, saturation, hiss that follows the music), ring modulation, or crush. |
+| **Textures** | 7: rain, wind, embers, chirps, radio (static and drifting whistles), data (blip bursts), buzz (electric hum on the tonic). |
+| **Input** | Besides chord strings, cloud, tape, ghost and tuned bands: **vocode** (a 10-band vocoder; your sound speaks through a synth choir singing the chord) and **morph** (it speaks through the pads themselves). Auto mode vocodes pitched input in some pieces. |
+
+The four random streams are seeded through a hash, so nearby seeds don't share their sound choices. The
+tests check that 10 consecutive seeds give 10 different palettes.
+
 ## Reverb
 
 - **Bloom 1 / Bloom 2:** after the Alesis MidiVerb II *Bloom* programs (45 and 49).
@@ -90,8 +106,8 @@ emulator, so the font only approximates the Organelle's.
 - **Shimmer:** the Hall with an octave-up shifter in its loop.
 - **Auto:** the piece chooses. Each section change blooms the reverb up, the climax lengthens it, and the dissolve darkens it.
 
-CPU, measured offline: about 1.9 % of one x86 core with every layer, input processing, 4 live voices, the OLED
-and the clock running. That should be roughly 15 to 20 % of the Organelle's CM3.
+CPU, measured offline: about 2.2 % of one x86 core with every layer, the vocoder, a character effect, 4 live voices,
+the OLED and the clock running. That should be roughly 18 to 22 % of the Organelle's CM3.
 
 ## Source (`tools/`)
 
@@ -104,12 +120,13 @@ files.
 - `gen_live.py`: MIDI in, live voices, listening, audio analysis and class, memories.
 - `gen_ui.py`: knobs, keys, screen.
 - `gen_dsp.py`: voices, layers, input, master.
+- `gen_sounds.py`: the electric pad types, drone designs, sub, electric textures, character effects and vocoder.
 - `gen_oled.py`: the OLED score.
 - `gen_setup.py`: SETUP, settings, MIDI clock and notes out, clock in.
 - `gen_verb.py`: the reverbs.
 - `data.py`: the tables.
 - `harness.py` runs the patch offline (`pd -batch`).
-- `ci_check.py` is the test suite (84 checks).
+- `ci_check.py` is the test suite (101 checks).
 - `shots.py` renders OLED screenshots with `oledemu.py`.
 - `ref/` holds Conduit's Bloom in C, the reference for the reverb tests.
 

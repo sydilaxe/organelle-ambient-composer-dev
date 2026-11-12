@@ -94,7 +94,7 @@ def keys():
         mute("acmdrone", "drone"), mute("acmpad", "pads"), mute("acmtex", "texture"),
         mute("acmcloud", "cloud"), mute("acmbell", "bells"),
         [Call("ac-capture")],
-        [V("acinmode", "(acinmode+1) % 6"), Call("ac-inputupd"), Call("ac-inmodetoast"), Call("ac-scr5")],
+        [V("acinmode", "(acinmode+1) % 8"), Call("ac-inputupd"), Call("ac-inmodetoast"), Call("ac-scr5")],
         [V("acvfreeze", "1-acvfreeze"), V("acfreeze", "acvfreeze"), Call("ac-freezeupd"), Call("ac-revupd"),
          If("acvfreeze", [Toast("hold - reverb and cloud")], [Toast("hold released")])],
         [Call("ac-reseed"), Toast("new piece")],
@@ -149,7 +149,7 @@ def screen():
     Line("ac-scr4p0", "list Dens $1 Tide $2", [("f", "int(acdens*100)"), ("f", "int(actide*100)")], "ac-txt4")(c)
     Line("ac-scr5p0", "list Colr $1 In $2 $3",
          [("f", "int(accolor*100)"), ("f", "int(acinput*100)"),
-          ("s", "if(acinmode==0, 6 + acinclass, acinmode)", INMODES + ["auto", "pitched", "plucked", "texture"])],
+          ("s", "if(acinmode==0, 8 + acinclass, acinmode)", INMODES + ["auto", "pitched", "plucked", "texture"])],
          "ac-txt5")(c)
     Line("ac-scr4p1", "list Mix $1 Verb $2", [("f", "int(acrvmix*100)"),
                                               ("s", "if(acrvtype < 0.2, 0, 1 + min(3, int((acrvtype-0.2)/0.2)))", VERBS)],

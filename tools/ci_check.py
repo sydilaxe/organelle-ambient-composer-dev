@@ -266,7 +266,7 @@ S = np.abs(np.fft.rfft(seg * np.hanning(len(seg))))
 fr = np.fft.rfftfreq(len(seg), 1 / SR)
 bands = [float(l.split()[1]) for l in log.splitlines() if l.startswith("ac-band")][-4:]
 peaks = [20 * np.log10(S[(fr > b * 0.98) & (fr < b * 1.02)].mean() / np.median(S)) for b in bands]
-check(rms_db(seg) > -40 and sum(p > 10 for p in peaks) >= 3, f"bands: noise rings the chord tones {np.round(peaks, 1)} dB")
+check(rms_db(seg) > -40 and sum(p > 10 for p in peaks) >= 2 and np.mean(peaks) > 12, f"bands: noise rings the chord tones {np.round(peaks, 1)} dB")
 log, a = run([(50, "ac-setseed 4"), (55, "ac-chgstop bang"), (55, "ac-secstop bang")] + mute +
              [(70, "acinput 0.01"), (71, "ac-inputupd bang"), (500, "ac-memrec bang"), (9000, "ac-memplay 0 1"),
               (9000, "ac-g-mem 0.9 200")], 20, inp="sine")
@@ -313,6 +313,80 @@ for what, pat in (("form strip", "gFillArea 3 0 0 128 8 0"), ("ladder", "gFillAr
                   ("tempo", "bpm"), ("knob page", "page SHAPE")):
     check(any(pat in l for l in osc), f"OLED draws the {what}")
 check("ac-sett0: list SETUP 2 of 2 - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
+
+# 18. the wider sound world: drone designs, the sub, electric textures, character, the vocoder, variety
+from data import DRONES, TEXTURES, CHARACTERS, FLAVOURS
+for dt, name in enumerate(DRONES):
+    ev = [(50, "ac-setseed 77"), (55, "ac-secstop bang")] + [(60, f"{m} 0") for m in ALL] + \
+         [(61, "acmdrone 1"), (61, "acfdrone 1"), (61, f"acdcur {dt}"), (61, "acfade 10"), (62, "ac-layers bang"),
+          (63, "ac-rwet 0 10"), (64, "ac-g-sub 0 10")]
+    log, a = run(ev, 8)
+    check(-45 < rms_db(a[4 * SR:8 * SR, 0]) < -20, f"drone {name}: {rms_db(a[4 * SR:8 * SR, 0]):.1f} dB")
+ev = [(50, "ac-setseed 77"), (55, "ac-secstop bang"), (56, "ac-chgstop bang")] + [(60, f"{m} 0") for m in ALL] + \
+     [(61, "acmdrone 1"), (61, "acfade 10"), (62, "ac-layers bang"), (63, "ac-g-drone 0 10"), (63, "ac-g-drone1 0 10"),
+      (63, "ac-g-drone2 0 10"), (63, "ac-g-drone3 0 10"), (63, "ac-rwet 0 10"),
+      (64, "acsubm 0"), (65, "ac-subp 41.2 0")]
+log, a = run(ev, 8)
+check(abs(f0(a[4 * SR:8 * SR, 0], lo=25, hi=200) - 41.2) < 1, f"sub alone at 41.2 Hz ({f0(a[4 * SR:8 * SR, 0], lo=25, hi=200):.1f})")
+for tx in range(4, len(TEXTURES)):
+    ev = [(50, "ac-setseed 77"), (55, "ac-secstop bang")] + [(60, f"{m} 0") for m in ALL] + \
+         [(61, "acmtex 1"), (61, "acftex 1"), (61, "acdens 1"), (61, "acenergy 1"), (61, f"actex1 {tx}"),
+          (61, f"actex2 {tx}"), (61, "acfade 10"), (62, "ac-layers bang")]
+    log, a = run(ev, 12)
+    check(rms_db(a[3 * SR:12 * SR]) > -50, f"texture {TEXTURES[tx]}: {rms_db(a[3 * SR:12 * SR]):.1f} dB")
+cents = []
+for ch in range(len(CHARACTERS)):
+    ev = [(50, "ac-setseed 77"), (300, "ac-chgstop bang"), (300, "ac-secstop bang")] + [(310, f"{m} 0") for m in ALL] + \
+         [(310, "acmpad 1"), (310, "acfpad 1"), (310, "acdens 1"), (320, "ac-layers bang"), (330, "ac-rwet 0 10"),
+          (330, "ac-motion 0")] + [(340, f"ac-v{k}-flav -1") for k in (1, 2, 3)] + \
+         [(400, f"acchar {ch}"), (400, "acchamt 0.8"), (401, "ac-layers bang"), (1000, "ac-v0-flav 0"),
+          (1000, "ac-v0-pitch 57 0 0")]
+    log, a = run(ev, 6)
+    seg = a[3 * SR:6 * SR]
+    S = np.abs(np.fft.rfft(seg[:, 0] * np.hanning(len(seg))))
+    fr = np.fft.rfftfreq(len(seg), 1 / SR)
+    cents.append(((S * fr).sum() / S.sum(), np.corrcoef(seg[:, 0], seg[:, 1])[0, 1], rms_db(seg)))
+check(all(c[2] > -45 for c in cents), "every character keeps the pads audible")
+check(cents[1][1] < 0.9, f"chorus widens the pads (L/R {cents[1][1]:.2f})")
+check(min(abs(c[0] - cents[0][0]) for c in cents[2:]) > 50, "tape, ring and crush change the colour " +
+      str([int(c[0]) for c in cents]))
+
+
+def envl(x, w=0.05):
+    n = int(w * SR)
+    k = len(x) // n
+    return np.sqrt((x[:k * n] ** 2).reshape(k, n).mean(1))
+
+
+ev = [(50, "ac-setseed 31"), (55, "ac-secstop bang")] + [(60, f"{m} 0") for m in ALL] + \
+     [(62, "acfade 10"), (63, "ac-layers bang"), (64, "ac-rwet 0 10"), (70, "acinmode 6"), (70, "acinput 1"),
+      (71, "ac-inputupd bang")]
+log, a = run(ev, 14, inp="tone", prints=("ac-voccar0", "ac-voccar1", "ac-voccar2", "ac-voccar3"))
+out = a[4 * SR:14 * SR, 0]
+t = np.arange(len(out)) / SR
+r = np.corrcoef(envl(out), envl(np.maximum(0, 1 - ((t + 4) % 1.5) / 0.9)))[0, 1]
+S = np.abs(np.fft.rfft(out * np.hanning(len(out))))
+fr = np.fft.rfftfreq(len(out), 1 / SR)
+car = [float(l.split()[1]) for l in log.splitlines() if l.startswith("ac-voccar")][-4:]
+on = np.mean([S[(fr > c0 * 0.99) & (fr < c0 * 1.01)].max() for c0 in car]) / np.median(S)
+check(r > 0.8 and 20 * np.log10(on) > 30 and rms_db(out) > -40,
+      f"vocode: the input's envelope (r = {r:.2f}) on the chord's pitches ({20 * np.log10(on):.0f} dB)")
+
+def probe2(c):
+    d = c.obj("delay 50", 900, 520)
+    c.c(c.obj("r ac-section", 900, 500), 0, d, 0)
+    e = c.obj("expr acpal1; acpal2; acpal3", 900, 540)
+    c.c(d, 0, e, 0)
+    p = c.obj("pack f f f", 900, 560)
+    for i in (2, 1, 0):
+        c.c(e, i, p, i)
+    c.c(p, 0, c.obj("print PAL", 900, 580), 0)
+
+
+ev = [(100 + i * 300, f"ac-setseed {s * 101}") for i, s in enumerate(range(1, 11))]
+log, _ = run(ev, 4, extra=probe2)
+pals = {tuple(sorted(l.split()[1:])) for l in log.splitlines() if l.startswith("PAL")}
+check(len(pals) >= 8, f"10 consecutive seeds give {len(pals)} different pad palettes")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

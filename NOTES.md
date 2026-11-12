@@ -108,6 +108,27 @@ Working memory for this project: read it first in a new session.
   incoming 248s bang `ac-tick`. Tempo = EMA of 60000/(24·tick ms); `[timer]` is read (right inlet), then
   restarted (left inlet).
 
+## Wider sound world (after feedback: "more electric and synthetic", "I liked the sub", "vocode or morph")
+- **Pad types 6-9** (`gen_sounds.py`): saws, pwm, digi and sync. They are added after the first six, so
+  `acvoice` and `amlive` now hold 10 switched subpatches, with at most two running at once.
+- **Drones:**
+  - Each design is its own switched subpatch: `ac-g-drone` (pure), `ac-g-drone1..3`.
+  - The layers proc sends `acgdrone*(acdcur==i)`.
+  - `acdcur` is the piece's design, or its second design in a break.
+- **Sub** (`ac-g-sub`, pitch `ac-subp`):
+  - Mode 0: tonic − 12. Mode 1: `acnew[0]` folded into 28..42. Mode 2: they alternate by section.
+  - The bar pulse swells it too.
+  - Its level sits about −5 dB under a drone design: on its own, it had been louder than the drone.
+- **Character:** 4 switched subpatches on the pad bus (in `master`). Their output goes to the mix, and
+  the dry pads are scaled by `ac-chdry`. The gain also follows the pad layer (`acgpad`), so a muted pad
+  layer turns the character off too. Tape hiss follows the signal's envelope: with a fixed hiss level,
+  silence still hissed at −71 dB.
+- **Vocoder:** 10 bands from 150 Hz to 7 kHz, `vcf~` Q 5 on both the modulator (`ac-in`) and the carrier,
+  with envelope = `abs~` → `lop~ 30`. The carrier is 4 detuned saw pairs on the chord (`ac-voccar0..3`)
+  plus noise for sibilance (vocode), or the pad bus `s~ ac-padsig` (morph).
+- **RNG:** each stream's seed goes through `fract(sin(seed·12.9898 + k·78.233)·43758.5453)`. Without it,
+  the 4 LCG streams seeded `seed + k·7919` moved together, and neighbouring seeds picked the same palettes.
+
 ## Pd gotchas met here
 - Screen lines: `[pack]` parts must be fed right to left: the hot inlet (part 0) goes last.
 - A message box `list word` with a single word arrives as `symbol word`. Toasts use two or more words.

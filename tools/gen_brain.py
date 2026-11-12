@@ -4,6 +4,7 @@ Conventions: global state lives in [value]s named ac<word> (no dash, so [expr] c
 every [send]/[receive] name has a dash (ac-<word>), so values and sends never share a symbol."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Arm, Toast, RNG
 from data import *
+from data import DRONES, CHARACTERS
 
 NF = len(FAMILIES)
 NS = len(SCALES)
@@ -25,7 +26,7 @@ GLOBALS = dict(
     acmtr=2, acbld=1, acblp=0.5, acvauto=1, acvsec=1, acvtype=1, acrvsize=1,
     # rhythm
     acbpm0=56, acbpm=56, acmeter=4, actick=0, acstep=0, acms=0, acmk=5, acmn=8, acmei=0, acmrot=0, acmdiv=1,
-    acmarp=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
+    acmarp=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acdtype=0, acdtype2=1, acdcur=0, acsubm=0, acchar=0, acchamt=0.5, acavoc=0, acgvoc=0, acdb=0, acgt4=0, acgt5=0, acgt6=0, acgsub=0, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
 )
 for page in PAGES:
     for _, name, d in page:
@@ -111,7 +112,8 @@ def rng():
         rnd = c.to((t, k), "random 1000000")
         c.ch(rnd, "/ 1e+06", f"v acr{k + 1}")
         # the first draws after a seed are close for some seeds (Pd's LCG): seed, then discard 5 draws
-        tw = c.to(c.to((ts, k), f"+ {k * 7919 + 1}"), "t b b b b b f")
+        h = c.to((ts, k), f"expr int(fmod(abs(sin(fmod($f1, 100000)*12.9898 + {k + 1}*78.233))*43758.5453, 1)*16777000) + {k + 1}")
+        tw = c.to(h, "t b b b b b f")
         c.c(c.m((tw, 5), "seed $1"), 0, rnd, 0)
         for j in range(5):
             c.c(tw, j, rnd, 0)
@@ -162,13 +164,20 @@ def piece():
         X("int(acr1*%d); int(acr2*%d); int(acr3*%d)" % ((len(FLAVOURS),) * 3), "v acpal1", "v acpal2", "v acpal3"),
         SendL("ac-fmr", ["acfmrt[int(acr4*8)]"]),
         RNG,
-        X("int(acr1*%d); int(acr2*4); int(acr3*4); int(acr4*%d)" % (len(PARTIAL_SETS), len(BELL_SETS)),
+        X("int(acr1*%d); int(acr2*%d); int(acr3*%d); int(acr4*%d)" % (len(PARTIAL_SETS), len(TEXTURES), len(TEXTURES),
+                                                                        len(BELL_SETS)),
           "v acpartI", "v actexA", "v actexB", "v acbellI"),
         SendL("ac-partials", ["acpartt[int(acpartI)*4+1]", "acpartt[int(acpartI)*4+2]", "acpartt[int(acpartI)*4+3]"]),
         SendL("ac-bellset", ["acbellt[int(acbellI)*3]", "acbellt[int(acbellI)*3+1]", "acbellt[int(acbellI)*3+2]"]),
         RNG,
         SendL("ac-dint", ["acdintt[int(acr1*5)]"]),
         SendL("ac-lvtype", ["acpal1"]),
+        # the piece's drone design (and one for its break), sub mode, character on the pads, auto-vocode
+        RNG,
+        X(f"int(acr1*{len(DRONES)}); int(acr2*{len(DRONES)}); int(acr3*3); if(acr4 < 0.22, 0, 1 + int(acr4*4.99) % 4)",
+          "v acdtype", "v acdtype2", "v acsubm", "v acchar"),
+        RNG,
+        X("0.35 + acr1*0.45; acr2 < 0.5", "v acchamt", "v acavoc"),
         # tempo, meter, motion timbre
         X("40 + int(acr2*33); acmeters[int(acr3*6)]", "v acbpm0", "v acmeter"),
         SendL("ac-mtimbre", ["acmratios[int(acr4*6)]"]),
@@ -260,6 +269,7 @@ def section():
         V("acfam", f"if(acrole==6, acfamA, if(acr3<0.55, acfamA, if(acr3<0.88, acfamB, int(acr4*{NF}))))"),
         RNG,
         V("actidef", "acrtide[int(acrole)] * (0.85 + acr1*0.3)"),
+        V("acdcur", "if(acrole == 5 && acr2 < 0.6, acdtype2, acdtype)"),
         V("acsecbright", "min(1, max(0.3, 0.55 + 0.45*acenergy + (acr2-0.5)*0.25))"),
     ]
     for k in range(4):
@@ -270,7 +280,7 @@ def section():
         rest += [RNG, V("acf" + lay, f"acr1 < acrmask[int(acrole)*6+{i}]{extra}")]
     rest += [
         RNG,
-        X("if(acr1<0.5, actexA, actexB); if(acr2<0.5, actexB, int(acr3*4))", "v actex1", "v actex2"),
+        X("if(acr1<0.5, actexA, actexB); if(acr2<0.5, actexB, int(acr3*%d))" % len(TEXTURES), "v actex1", "v actex2"),
         # rhythm of the motion layer: a Euclidean pattern, its rotation, 16ths or 8ths, arpeggio shape
         RNG,
         X("int(acr1*10); int(acr2*8); 1 + (acr3<0.35); int(acr4*4)", "v acmei", "v acmrot", "v acmdiv", "v acmarp"),
@@ -352,9 +362,16 @@ def layers():
     steps = [V("acdeff", "min(1, if(acmode==1, acenergy*(0.35+1.3*acdens), acdens*(0.8+0.4*acenergy)) + 0.35*acbreath)")]
     for name, e in lay:
         steps += [V("acg" + name, e)]
-        if name != "tex":
+        if name == "drone":
+            steps += [SendL("ac-g-drone", ["acgdrone*(acdcur==0)", "acfade"])]
+            steps += [SendL(f"ac-g-drone{i}", [f"acgdrone*(acdcur=={i})", "acfade"]) for i in range(1, len(DRONES))]
+            steps += [V("acgsub", "acgdrone*acmdrone*(1-acended)"), SendL("ac-g-sub", ["acgsub", "acfade"])]
+        elif name != "tex":
             steps += [SendL("ac-g-" + name, ["acg" + name, "acfade"])]
-    for i in range(4):
+    steps += [SendL(f"ac-g-ch{i}", [f"(acchar=={i})*min(1, acchamt*if(acrole==4, 1.3, 1))*min(1, acgpad*4)", "acfade"])
+              for i in range(1, len(CHARACTERS))]
+    steps += [SendL("ac-chdry", ["1 - (acchar==2)*0.9*acchamt - (acchar==4)*0.6*acchamt", "acfade"])]
+    for i in range(len(TEXTURES)):
         steps += [V(f"acgt{i}", f"acgtex*((actex1=={i}) || (actex2=={i}))"),
                   SendL(f"ac-g-tex{i}", [f"acgt{i}", "acfade"])]
     proc(c, "ac-layers", steps)
@@ -372,10 +389,14 @@ def layers():
     ])
     A = "(acinmode==0)"
     proc(c, "ac-inputupd", [
-        V("acgres", f"acinput * if(acinmode==1, 1, {A}*if(acinclass==1, 0.8, if(acinclass==2, 0.4, 0)))"),
+        V("acgres", f"acinput * if(acinmode==1, 1, {A}*if(acinclass==1, if(acavoc, 0.3, 0.8), if(acinclass==2, 0.4, 0)))"),
+        V("acgvoc", f"acinput * ((acinmode==6) || (acinmode==7) || {A}*(acinclass==1)*acavoc)"),
+        SendL("ac-g-voc", ["acgvoc", "1500"]),
+        SendL("ac-vcsyn", [f"(acinmode==6) || {A}", "800"]),
+        SendL("ac-vcpad", ["acinmode==7", "800"]),
         V("acgbands", f"acinput * ((acinmode==5) || {A}*(acinclass==3))"),
         V("acharm", f"((acinmode==2) || {A}) && acinclass==1 && acinput > 0.05"),
-        V("acgdry", "acinput * if(acinmode==4, 0, if(acinmode==2 || acinmode==5, 0.3, "
+        V("acgdry", "acinput * if(acinmode==4 || acinmode >= 6, 0.15*(acinmode >= 6), if(acinmode==2 || acinmode==5, 0.3, "
                     f"if({A} && acinclass==3, 0.3, 0.6)))"),
         SendL("ac-g-res", ["acgres", "1500"]),
         SendL("ac-g-bands", ["acgbands", "1500"]),
@@ -499,6 +520,11 @@ def change():
     steps += [SendL(f"ac-band{k}", [f"mtof(min(120, acnew[{k % 4}] + {12 * (k // 4) + 12}))", "3000"]) for k in range(8)]
     steps += [
         SendL("ac-dronep", ["actonic", "if(acfirst, 0, if(acmodflag, 9000, 200))"]),
+        SendL("ac-subp", ["mtof(if(acsubm==0 || (acsubm==2 && int(acsec) % 2 == 0), actonic - 12, "
+                          "acnew[0] - 12*ceil((acnew[0] - 42)/12)))", "if(acfirst, 0, if(acmodflag, 9000, 1800))"]),
+        SendL("ac-ringf", ["mtof(acnew[1] + 12)", "3000"]),
+        SendL("ac-radio", ["mtof(min(115, acnew[2] + 36))", "4000"]),
+    ] + [SendL(f"ac-voccar{k}", [f"mtof(acnew[{k}])", "600"]) for k in range(4)] + [
         RNG,
         SendL("ac-dharm", ["2 + int(acr1*5)", "6000"]),
         SendL("ac-wind", ["mtof(acnew[1]+24)", "mtof(acnew[3]+12)", "5000"]),
@@ -553,6 +579,14 @@ def players():
         Arm("ac-ctick", "if(acbc>0, 80 + acr2*240, 1500 + acr3*9000)"),
     ])
     # ghost input mode: a played onset rings the next bell note
+    # data texture: bursts of blips on chord tones
+    proc(c, "ac-dtick", [
+        If("acgt5 > 0.01", [If("acdb > 0", [
+            RNG, SendL("ac-data", ["min(110, acnew[int(acr1*4)] + 36 + 12*int(acr2*2))", "25 + acr3*50"]),
+            V("acdb", "acdb - 1")], [RNG, V("acdb", "4 + int(acr1*10)")])]),
+        RNG,
+        Arm("ac-dtick", "if(acdb > 0, 45 + acr2*80, 1200 + acr3*6000)"),
+    ])
     # input onsets: counted for the class; in ghost mode (and for plucked sounds in auto) they ring a bell
     proc(c, "ac-inonset", [Call("ac-inonset2"),
                            If("(acinmode==4 || (acinmode==0 && acinclass==2)) && acinput > 0.05",
