@@ -129,6 +129,23 @@ Working memory for this project: read it first in a new session.
 - **RNG:** each stream's seed goes through `fract(sin(seed·12.9898 + k·78.233)·43758.5453)`. Without it,
   the 4 LCG streams seeded `seed + k·7919` moved together, and neighbouring seeds picked the same palettes.
 
+## Stereo (feedback: "wide and interesting by default; I may also go mono into external effects")
+- **Measured before:** L/R correlation 0.97–1.00 in openings and side/mid −16 to −20 dB, because a mono
+  drone and sub dominated.
+- **Measured now:** side/mid −5 to −10 dB, correlation above 200 Hz about 0, balance movement about 2 dB,
+  mono sum −0.5 to −1.7 dB. These are checked in `ci_check` section 19.
+- **`span()`:** equal-power pan by a *signal* position (`cos~` of pos·¼ and pos·¼ − ¼). It's used for the
+  pad orbits, live voices, the drone's moving parts and per-grain cloud positions (`samphold~` of noise
+  at each grain start).
+- **Drone designs:**
+  - pure: real stereo parts
+  - analog: a saw and its own sweep on each side
+  - organ: opposite rotary swells, the right a moving delayed copy
+  - fm: a delayed copy
+  - The sub stays mono.
+- **Master:** M/S with `ac-width` = role width × SETUP Width, or 0 when SETUP Output is mono. Mono sums
+  are unaffected by the side gain.
+
 ## Pd gotchas met here
 - Screen lines: `[pack]` parts must be fed right to left: the hot inlet (part 0) goes last.
 - A message box `list word` with a single word arrives as `symbol word`. Toasts use two or more words.

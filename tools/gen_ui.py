@@ -14,7 +14,7 @@ SIDE = {  # what to do after a knob changes a value (index = page*4 + knob)
     6: [Call("ac-revupd")],
     7: [Call("ac-revupd")],
     9: [SendL("ac-weird", ["acweird"]), Call("ac-brightupd")],
-    10: [SendL("ac-motion", ["acmotion"])],
+    10: [SendL("ac-motion", ["acmotion"]), Call("ac-stereo")],
     11: [Send("ac-densch"), SendL("ac-pulse", ["acrpulse[int(acrole)] * (0.3 + 1.4*acrhythm)"])],
 }
 NP = len(PAGES)
@@ -111,7 +111,7 @@ def keys():
     b = c.to((a, 1), "t b")
     run_steps(c, (b, 0), [X("1; 0; acnow", "v acauxheld", "v acauxused", "v acauxt")])
     run_steps(c, (a, 0), [V("acauxheld", "0"), If("acauxused == 0", [If("acsetup", [
-        V("acsetpg", "1 - acsetpg"), Call("ac-oledsetup")], [
+        V("acsetpg", "(acsetpg + 1) % 3"), Call("ac-oledsetup")], [
         V("acpage", f"(acpage+1) % {NP}"), Call("ac-oledpop")])])])
     f = c.ch(c.recv("fs"), "sel 0")
     c.c(c.to((f, 1), "t b"), 0, c.obj("s ac-change"), 0)

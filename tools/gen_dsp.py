@@ -70,6 +70,14 @@ def throws(c, L, R, mix=1.0, send=0.0, src=0.0):
             c.c(c.to(m, f"*~ {src * 0.5}"), 0, c.obj("throw~ ac-src"), 0)
 
 
+def span(c, sig, pos):
+    """equal-power pan of sig by a signal position (0 left .. 1 right) -> (L, R)"""
+    q = c.to(pos, "*~ 0.25")
+    gl = c.to(q, "cos~")
+    gr = c.ch(q, "-~ 0.25", "cos~")
+    return mul(c, sig, gl), mul(c, sig, gr)
+
+
 def pan(c, sig, l, r):
     return c.to(sig, f"*~ {l}"), c.to(sig, f"*~ {r}")
 
@@ -242,11 +250,17 @@ def voice():
             v.c(dsig, 0, sp, 2)
         v.c(sp, 0, body, 0)
     out = v.to(body, "*~ 0.2")
-    pn = v.ch(v.obj("loadbang"), "f $1", "expr cos((0.12+0.25*$f1)*1.5708); sin((0.12+0.25*$f1)*1.5708)")
-    for i, bus in ((0, "ac-padL"), (1, "ac-padR")):
-        m = v.to(out, "*~ 0.7")
-        v.c(pn, i, m, 1)
-        v.c(m, 0, v.obj("throw~ " + bus), 0)
+    # stereo: each voice has a home across the field (8 %, 36 %, 64 %, 92 %) and orbits around it on its own
+    # slow cycle (a fraction of its breathing), as far as ac-pandepth (SETUP Pan motion x Motion knob)
+    home = v.ch(v.obj("loadbang"), "f $1", "expr 0.08 + 0.28*$f1")
+    orb = v.to(v.to((lu, 0), "* 0.37"), "osc~")
+    dep = v.to(orb, "*~ 0.2")
+    v.c(v.recv("ac-pandepth"), 0, dep, 1)
+    posn = v.to(dep, "+~ 0.5")
+    v.c(home, 0, posn, 1)
+    L, R = span(v, out, v.to(posn, "clip~ 0.02 0.98"))
+    for sig, bus in ((L, "ac-padL"), (R, "ac-padR")):
+        v.c(sig, 0, v.obj("throw~ " + bus), 0)
     return v
 
 
@@ -258,18 +272,34 @@ def drone():
     s, ln = switched("drone", "ac-g-drone")
     s.comment("Drone on the tonic: root, a beating twin, a per-piece interval, sub, and a breathing tube")
     f = s.ch(s.m(s.ch(s.recv("ac-dronep"), "line 0 40", "mtof"), "$1 40"), "line~")
-    sm = s.obj("lop~ 1000")
-    ctl(s, sm, "ac-bright", "350 + 3500*$f1", first=True)
-    s.c(s.ch(f, "osc~", "*~ 0.26"), 0, sm, 0)
-    s.c(s.ch(f, "*~ 1.0035", "osc~", "*~ 0.13"), 0, sm, 0)
+    # stereo: the root in the middle, the beating twin left, the interval right, a breath tube each side
+    sL, sR = s.obj("lop~ 1000"), s.obj("lop~ 1000")
+    for sm in (sL, sR):
+        ctl(s, sm, "ac-bright", "350 + 3500*$f1", first=True)
+    root = s.ch(f, "osc~", "*~ 0.26")
+    twin = s.ch(f, "*~ 1.0035", "osc~", "*~ 0.13")
     iv = s.to(f, "*~ 1.5")
     s.c(s.recv("ac-dint"), 0, iv, 1)
-    s.c(mul(s, s.to(iv, "osc~"), s.ch(s.obj("osc~ 0.031"), "*~ 0.06", "+~ 0.1")), 0, sm, 0)
+    ivs = mul(s, s.to(iv, "osc~"), s.ch(s.obj("osc~ 0.031"), "*~ 0.06", "+~ 0.1"))
     harm = s.ch(s.recv("ac-dharm"), "line~")
-    tube = s.obj("vcf~ 40")
-    s.c(s.obj("noise~"), 0, tube, 0)
-    s.c(mul(s, f, harm), 0, tube, 1)
-    s.c(mul(s, s.to(tube, "*~ 5"), s.ch(s.obj("osc~ 0.023"), "*~ 0.5", "+~ 0.5")), 0, sm, 0)
+    tubes = []
+    for k, (hm, rt) in enumerate(((1.0, 0.023), (1.5, 0.017))):
+        tube = s.obj("vcf~ 40")
+        s.c(s.obj("noise~"), 0, tube, 0)
+        s.c(mul(s, f, s.to(harm, f"*~ {hm}")), 0, tube, 1)
+        tubes.append(mul(s, s.to(tube, "*~ 5"), s.ch(s.obj(f"osc~ {rt}"), "*~ 0.5", "+~ 0.5")))
+    # the twin and the interval orbit in opposite directions; the two tubes drift on their own cycles
+    s.c(s.to(root, "*~ 0.7"), 0, sL, 0)
+    s.c(s.to(root, "*~ 0.7"), 0, sR, 0)
+    orb = s.obj("osc~ 0.013")
+    for src, sign, g in ((twin, 1, 1.2), (ivs, -1, 1.2)):
+        pl, pr = span(s, s.to(src, f"*~ {g}"), s.ch(orb, f"*~ {0.4 * sign}", "+~ 0.5"))
+        s.c(pl, 0, sL, 0)
+        s.c(pr, 0, sR, 0)
+    for k, (tb, rt) in enumerate(zip(tubes, (0.0091, 0.0067))):
+        pl, pr = span(s, s.to(tb, "*~ 0.9"), s.ch(s.obj(f"osc~ {rt}"), f"*~ {0.42 if k == 0 else -0.42}", "+~ 0.5"))
+        s.c(pl, 0, sL, 0)
+        s.c(pr, 0, sR, 0)
     # the pulse: a swell on every bar, its depth set by the section (0 = steady)
     env = s.ch(s.m(s.to(s.recv("ac-dpulse"), "expr max(100, $f1-450)"), "1 450, 0 $1 450"), "vline~")
     dep = s.to(env, "*~ 0")
@@ -277,8 +307,9 @@ def drone():
     s.c(pu, 1, dep, 1)
     pa = s.to(dep, "+~ 1")
     s.c(s.to((pu, 0), "expr 1-$f1"), 0, pa, 1)
-    o = mul(s, mul(s, s.to(sm, "hip~ 25"), pa), ln)
-    throws(s, o, o, mix=0.6, send=0.3, src=1)
+    oL = mul(s, mul(s, s.to(sL, "hip~ 25"), pa), ln)
+    oR = mul(s, mul(s, s.to(sR, "hip~ 25"), pa), ln)
+    throws(s, oL, oR, mix=0.6, send=0.3, src=1)
     return s
 
 
@@ -377,7 +408,7 @@ def cloud():
               "(sometimes reversed)")
     rate = s.to(s.recv("ac-gdur"), "expr 1000/$f1")
     on = s.recv("ac-cloud-on")
-    L, R = s.obj("*~ 0.5"), s.obj("*~ 0.5")
+    L, R = s.obj("*~ 0.7"), s.obj("*~ 0.7")
     for i in range(4):
         ph = s.obj("phasor~")
         s.c(rate, 0, ph, 0)
@@ -390,7 +421,11 @@ def cloud():
         s.c(ph, 0, ksh, 1)
         idx = add(s, mul(s, ph, ksh), pos)
         g = mul(s, s.to(idx, "tabread4~ acbuf"), win)
-        s.c(g, 0, L if i % 2 == 0 else R, 0)
+        gp = s.ch(s.obj("noise~"), "*~ 0.48", "+~ 0.5", "samphold~")
+        s.c(ph, 0, gp, 1)
+        gl, gr = span(s, g, gp)
+        s.c(gl, 0, L, 0)
+        s.c(gr, 0, R, 0)
         s.col(160)
     throws(s, mul(s, L, ln), mul(s, R, ln), mix=0.85, send=1.2)
     return s
@@ -427,16 +462,19 @@ def bells():
     s.c(ln, 0, L, 1)
     s.c(ln, 0, R, 1)
     for j in range(2):
-        up = s.to((rt, j), "unpack f f")
+        up = s.to((rt, j), "unpack f f f")
         mf = s.to((up, 0), "mtof")
         sm = s.obj("*~ 1")
+        bpn = s.to((up, 2), "expr cos($f1*1.5708); sin($f1*1.5708)")
         for k, (amp, dec) in enumerate(((0.32, 5200), (0.15, 2600), (0.08, 1100))):
             fr = s.to(mf, "* 1")
             s.c(bs, k, fr, 1)
             env = s.ch(s.m(s.to((up, 1), f"* {amp}"), f"$1, 0 {dec}"), "vline~")
             s.c(mul(s, s.to(fr, "osc~"), mul(s, env, env)), 0, sm, 0)
-        s.c(s.to(sm, f"*~ {0.85 if j == 0 else 0.45}"), 0, L, 0)
-        s.c(s.to(sm, f"*~ {0.45 if j == 0 else 0.85}"), 0, R, 0)
+        for k, dst in ((0, L), (1, R)):
+            m = s.to(sm, "*~ 0.7")
+            s.c(bpn, k, m, 1)
+            s.c(m, 0, dst, 0)
         s.col(160)
     throws(s, L, R, mix=1.1, send=1.0)
     return s
@@ -568,8 +606,18 @@ def master():
         outs.append(mul(s, sm, mg))
     comp = s.ch(s.m(s.ch(add(s, outs[0], outs[1]), "env~ 1024 512", "expr pow(10, -max(0, ($f1-82)*0.75)/20)"),
                     "$1 25"), "line~")
-    for o, bus in zip(outs, ("outL", "outR")):
-        s.c(s.ch(mul(s, o, comp), "clip~ -0.98 0.98"), 0, s.obj("throw~ " + bus), 0)
+    # width: side x ac-width (the section's role x SETUP Width; 0 = SETUP Output mono)
+    cL, cR = mul(s, outs[0], comp), mul(s, outs[1], comp)
+    mid = s.to(add(s, cL, cR), "*~ 0.5")
+    side = s.obj("-~")
+    s.c(cL, 0, side, 0)
+    s.c(cR, 0, side, 1)
+    sw = mul(s, s.to(side, "*~ 0.5"), s.ch(s.recv("ac-width"), "line~"))
+    oR = s.obj("-~")
+    s.c(mid, 0, oR, 0)
+    s.c(sw, 0, oR, 1)
+    for o, bus in ((add(s, mid, sw), "outL"), (oR, "outR")):
+        s.c(s.ch(o, "clip~ -0.98 0.98"), 0, s.obj("throw~ " + bus), 0)
     return s
 
 
@@ -588,13 +636,15 @@ def motion():
     t2 = s.to(s.recv("ac-mtimbre2"), "unpack f f")
     L, R = s.obj("*~"), s.obj("*~")
     for j in range(3):
-        up = s.to((rt, j), "unpack f f f")
-        pk = s.obj("pack f f")
-        pp = s.obj("pipe f f 0")
-        s.c(up, 2, pp, 2)
+        up = s.to((rt, j), "unpack f f f f")
+        pk = s.obj("pack f f f")
+        pp = s.obj("pipe f f f 0")
+        s.c(up, 2, pp, 3)
+        s.c(up, 3, pk, 2)
         s.c(up, 1, pk, 1)
         s.c(up, 0, pk, 0)
         s.c(pk, 0, pp, 0)
+        mpn = s.to((pp, 2), "expr cos($f1*1.5708); sin($f1*1.5708)")
         # velocity (the pipe's right outlet fires first): amplitude and FM-index envelopes
         vel = s.to((pp, 1), "t f f")
         ap = s.obj("pack f 500")
@@ -612,8 +662,10 @@ def motion():
         dev = mul(s, mul(s, s.to(modf, "osc~"), ienv), fsig)
         car = s.to(add(s, fsig, dev), "osc~")
         sig = mul(s, car, mul(s, aenv, aenv))
-        for dst, g in ((L, [0.8, 0.5, 0.65][j]), (R, [0.5, 0.8, 0.65][j])):
-            s.c(s.to(sig, f"*~ {g * 0.35}"), 0, dst, 0)
+        for k, dst in ((0, L), (1, R)):
+            m = s.to(sig, "*~ 0.35")
+            s.c(mpn, k, m, 1)
+            s.c(m, 0, dst, 0)
         s.col(170)
     s.c(ln, 0, L, 1)
     s.c(ln, 0, R, 1)
@@ -711,10 +763,13 @@ def live_voice():
             v.c(dsig, 0, sp, 2)
         v.c(sp, 0, body, 0)
     out = v.to(body, "*~ 0.42")
-    pn = v.ch(v.obj("loadbang"), "f $1", "expr cos((0.2+0.2*$f1)*1.5708); sin((0.2+0.2*$f1)*1.5708)")
-    L, R = v.to(out, "*~ 0.7"), v.to(out, "*~ 0.7")
-    v.c(pn, 0, L, 1)
-    v.c(pn, 1, R, 1)
+    home = v.ch(v.obj("loadbang"), "f $1", "expr 0.2 + 0.2*$f1")
+    orb = v.to(v.ch(v.obj("loadbang"), "f $1", "expr 0.05 + 0.017*$f1"), "osc~")
+    dep = v.to(orb, "*~ 0.06")
+    v.c(v.to(v.recv("ac-pandepth"), "* 0.4"), 0, dep, 1)
+    posn = v.to(dep, "+~ 0.5")
+    v.c(home, 0, posn, 1)
+    L, R = span(v, out, v.to(posn, "clip~ 0.02 0.98"))
     throws(v, L, R, mix=1.0, send=0.6, src=0.5)
     return v
 

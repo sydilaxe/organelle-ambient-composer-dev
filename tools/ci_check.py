@@ -312,7 +312,7 @@ for what, pat in (("form strip", "gFillArea 3 0 0 128 8 0"), ("ladder", "gFillAr
                   ("meters", "gFillArea 3 62 20 33 33 0"), ("rhythm", "gFillArea 3 96 20 32 33 0"),
                   ("tempo", "bpm"), ("knob page", "page SHAPE")):
     check(any(pat in l for l in osc), f"OLED draws the {what}")
-check("ac-sett0: list SETUP 2 of 2 - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
+check("ac-sett0: list SETUP 2 of 3 - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
 
 # 18. the wider sound world: drone designs, the sub, electric textures, character, the vocoder, variety
 from data import DRONES, TEXTURES, CHARACTERS, FLAVOURS
@@ -387,6 +387,25 @@ ev = [(100 + i * 300, f"ac-setseed {s * 101}") for i, s in enumerate(range(1, 11
 log, _ = run(ev, 4, extra=probe2)
 pals = {tuple(sorted(l.split()[1:])) for l in log.splitlines() if l.startswith("PAL")}
 check(len(pals) >= 8, f"10 consecutive seeds give {len(pals)} different pad palettes")
+
+# 19. stereo: wide above the bass, moving, mono-safe; SETUP Output mono gives mono
+from scipy.signal import butter, sosfilt
+hp = butter(4, 200, 'hp', fs=SR, output='sos')
+for seed, extra, name in ((2718, [], "wide"), (2718, [(40, "acmono 1")], "mono")):
+    log, a = run([(50, "aclen 0"), (60, f"ac-setseed {seed}")] + extra, 160)
+    seg = a[110 * SR:160 * SR]
+    M, S_ = (seg[:, 0] + seg[:, 1]) / 2, (seg[:, 0] - seg[:, 1]) / 2
+    sm = 10 * np.log10((S_ ** 2).mean() / (M ** 2).mean() + 1e-12)
+    loss = 10 * np.log10((M ** 2).mean() / (((seg[:, 0] ** 2).mean() + (seg[:, 1] ** 2).mean()) / 2) + 1e-12)
+    ah = sosfilt(hp, a, axis=0)
+    bal = [10 * np.log10((ah[i:i + SR, 0] ** 2).mean() / (ah[i:i + SR, 1] ** 2).mean() + 1e-12)
+           for i in range(20 * SR, len(a) - SR, SR)]
+    if name == "wide":
+        check(-11 < sm < -3, f"stereo: side/mid {sm:.1f} dB (wide, not phasey)")
+        check(np.std(bal) > 1.2, f"stereo: the image moves ({np.std(bal):.1f} dB balance swings)")
+        check(loss > -2.5, f"stereo: mono-compatible (mono sum {loss:.1f} dB)")
+    else:
+        check(np.abs(seg[:, 0] - seg[:, 1]).max() < 1e-4, "SETUP Output mono: both channels the same")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

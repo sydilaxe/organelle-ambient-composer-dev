@@ -12,7 +12,7 @@ GLOBALS = dict(acmout=1, acsync=0, acvintage=0, acoutch=1, accurve=1.2, acsk=0, 
 ARRAYS = dict(acout=4)
 NP = len(PAGES)
 SETTINGS = [n for p in PAGES for _, n, _ in p] + ["acmout", "acsync", "acforce", "acvintage", "acfollow", "acnbr",
-                                                  "acoutch", "accurve"]
+                                                  "acoutch", "accurve", "acmono", "acwidth", "acpanmot"]
 MOUT = ["off", "clock", "clock+notes", "notes"]
 BENDS = [12, 24, 48, 96]
 
@@ -30,7 +30,7 @@ def settings():
     ln = c.to(got, "t l l")
     c.c(c.ch((ln, 1), "list split 12"), 0, c.obj("array set acparams"), 0)
     sp = c.ch((ln, 0), "list split 12")
-    up = c.to((sp, 1), "unpack " + " ".join(["f"] * 8))
+    up = c.to((sp, 1), "unpack " + " ".join(["f"] * (len(SETTINGS) - 12)))
     for i, n in enumerate(SETTINGS[12:]):
         c.c(up, i, c.obj("v " + n), 0)
     c.col()
@@ -47,8 +47,8 @@ def settings():
     ex = c.obj("expr " + "; ".join(SETTINGS[12:]))
     c.c(d, 0, c.obj("s ac-save"), 0)
     tsv = c.to(c.recv("ac-save"), "t b b")
-    pk = c.obj("pack " + " ".join(["f"] * 8))
-    for i in range(7, -1, -1):
+    pk = c.obj("pack " + " ".join(["f"] * (len(SETTINGS) - 12)))
+    for i in range(len(SETTINGS) - 13, -1, -1):
         c.c(ex, i, pk, i)
     ag = c.obj("array get acparams")
     la = c.obj("list append")
@@ -90,6 +90,9 @@ def setup():
         If(f"{item} == 5", [V("acnbr", f"if(acsv < 0.25, 12, if(acsv < 0.5, 24, if(acsv < 0.75, 48, 96)))")]),
         If(f"{item} == 6", [V("acoutch", "1 + int(acsv*12.99)")]),
         If(f"{item} == 7", [V("accurve", "0.5 + 1.5*acsv"), SendL("ac-brcurve", ["accurve"])]),
+        If(f"{item} == 8", [V("acmono", "acsv > 0.5"), Call("ac-stereo")]),
+        If(f"{item} == 9", [V("acwidth", "0.5 + acsv"), Call("ac-stereo")]),
+        If(f"{item} == 10", [V("acpanmot", "acsv"), Call("ac-stereo")]),
         Call("ac-oledsetup"), Send("ac-dirty"),
     ])
     c.col()
@@ -98,23 +101,26 @@ def setup():
         Call("ac-setl0"), Call("ac-setl1"), Call("ac-setl2"), Call("ac-setl3"), Call("ac-setl4"),
         FLIP,
     ])
-    Line("ac-setl0", "list SETUP $1 of 2 - hold aux", [("f", "acsetpg + 1")], "ac-sett0")(c)
+    Line("ac-setl0", "list SETUP $1 of 3 - hold aux", [("f", "acsetpg + 1")], "ac-sett0")(c)
     # page-dependent rows: two Lines per row, chosen by the page
     defs = [
-        (1, ("list 1 MIDI out $1", [("s", "acmout", MOUT)]), ("list 1 Follow you $1", [("f", "int(acfollow*100)")])),
+        (1, ("list 1 MIDI out $1", [("s", "acmout", MOUT)]), ("list 1 Follow you $1", [("f", "int(acfollow*100)")]),
+         ("list 1 Output $1", [("s", "acmono", ["stereo wide", "mono"])])),
         (2, ("list 2 Sync $1", [("s", "acsync", ["internal", "follow clock"])]),
-            ("list 2 MPE bend $1", [("f", "acnbr")])),
+            ("list 2 MPE bend $1", [("f", "acnbr")]), ("list 2 Width $1", [("f", "int(acwidth*100)")])),
         (3, ("list 3 Keys $1", [("s", "acforce + 1", ["auto", "play notes", "functions"])]),
-            ("list 3 MIDI out ch $1", [("f", "acoutch")])),
+            ("list 3 MIDI out ch $1", [("f", "acoutch")]), ("list 3 Pan motion $1", [("f", "int(acpanmot*100)")])),
         (4, ("list 4 Bloom $1", [("s", "acvintage", ["clean", "vintage"])]),
-            ("list 4 Breath curve $1", [("f", "int(accurve*100)")])),
+            ("list 4 Breath curve $1", [("f", "int(accurve*100)")]), ("list 4 -", [])),
     ]
-    for k, a, b in defs:
-        s = c.ch(c.recv(f"ac-setl{k}"), "expr acsetpg", "sel 0 1")
-        c.c(c.to((s, 0), "t b"), 0, c.obj(f"s ac-setl{k}a"), 0)
-        c.c(c.to((s, 1), "t b"), 0, c.obj(f"s ac-setl{k}b"), 0)
-        Line(f"ac-setl{k}a", a[0], a[1], f"ac-sett{k}")(c)
-        Line(f"ac-setl{k}b", b[0], b[1], f"ac-sett{k}")(c)
+    for k, a, b, d in defs:
+        s = c.ch(c.recv(f"ac-setl{k}"), "expr acsetpg", "sel 0 1 2")
+        for j, (ln, parts) in enumerate((a, b, d)):
+            c.c(c.to((s, j), "t b"), 0, c.obj(f"s ac-setl{k}{'abc'[j]}"), 0)
+            if parts:
+                Line(f"ac-setl{k}{'abc'[j]}", ln, parts, f"ac-sett{k}")(c)
+            else:
+                c.c(c.m(c.recv(f"ac-setl{k}{'abc'[j]}"), ln), 0, c.obj(f"s ac-sett{k}"), 0)
     for k in range(5):
         gated_text(c, f"ac-sett{k}", "acsetup", 0, 2 + k * 12)
     # aux tap in SETUP: the other page

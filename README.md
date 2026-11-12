@@ -95,6 +95,27 @@ emulator, so the font only approximates the Organelle's.
 The four random streams are seeded through a hash, so nearby seeds don't share their sound choices. The
 tests check that 10 consecutive seeds give 10 different palettes.
 
+## Stereo
+
+Amble is wide by default and keeps moving:
+- **The bass:** the sub and the bass stay centred, for a solid low end and good mono.
+- **Drone:** the twin and the interval orbit in opposite directions, and two breath tubes drift on their own cycles.
+- **Pads:** each voice has its own home (8 / 36 / 64 / 92 %) and orbits around it on a slow cycle. The cycles differ, so the voices phase against each other.
+- **Cloud and bells:** each grain and each bell note lands in its own place.
+- **Motion:** the arpeggio sweeps across the field.
+- **Width by section:** mid/side width follows the section role, narrower as a piece emerges and widest at the climax.
+
+Measured on rendered pieces:
+- side vs middle about −5 to −10 dB
+- correlation near 0 above 200 Hz
+- about 2 dB of slow left–right movement
+- a mono sum costs only about 1 dB
+
+**SETUP page 3:**
+- **Output:** stereo wide, or mono for mono rigs and external effects.
+- **Width:** 50 to 150 %.
+- **Pan motion:** how far the voices travel.
+
 ## Reverb
 
 - **Bloom 1 / Bloom 2:** after the Alesis MidiVerb II *Bloom* programs (45 and 49).

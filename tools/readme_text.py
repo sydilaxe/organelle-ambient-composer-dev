@@ -121,6 +121,15 @@ SETUP (hold aux 1 s; aux tap = page 2; hold aux 1 s to leave and save)
   4 Bloom      clean / vintage (13-bit, as the unit)
   page 2: Follow you (how much chords follow what you play), MPE bend
   range (12/24/48/96), MIDI out base channel, breath curve.
+  page 3: Output (stereo wide / mono - for mono rigs and external effects),
+  Width (50-150 %), Pan motion (how far the voices travel).
+
+STEREO: the bass and sub stay centred; above them the drone's twin and
+interval orbit in opposite directions, its breath tubes drift, each pad
+voice has its own place and slowly orbits around it, grains and bells land
+anywhere, the motion arpeggio sweeps across, the reverbs are decorrelated.
+Width grows with the form (narrower as a piece emerges, widest at the
+climax). It stays mono-compatible: summed to mono it loses about 1 dB.
   Knob values and SETUP are saved in settings.txt.
 
 LED: blue composing, green drifting, white flash on chord changes.

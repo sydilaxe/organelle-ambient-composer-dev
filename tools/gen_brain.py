@@ -26,7 +26,7 @@ GLOBALS = dict(
     acmtr=2, acbld=1, acblp=0.5, acvauto=1, acvsec=1, acvtype=1, acrvsize=1,
     # rhythm
     acbpm0=56, acbpm=56, acmeter=4, actick=0, acstep=0, acms=0, acmk=5, acmn=8, acmei=0, acmrot=0, acmdiv=1,
-    acmarp=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acdtype=0, acdtype2=1, acdcur=0, acsubm=0, acchar=0, acchamt=0.5, acavoc=0, acgvoc=0, acdb=0, acgt4=0, acgt5=0, acgt6=0, acgsub=0, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
+    acmarp=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acdtype=0, acdtype2=1, acdcur=0, acsubm=0, acchar=0, acchamt=0.5, acavoc=0, acgvoc=0, acdb=0, acgt4=0, acgt5=0, acgt6=0, acgsub=0, acmono=0, acwidth=1, acpanmot=0.8, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
 )
 for page in PAGES:
     for _, name, d in page:
@@ -297,6 +297,7 @@ def section():
         V("acbpm", "acbpm0 * acrtempo[int(acrole)]"),
         SendL("ac-bpm", ["acbpm"]),
         SendL("ac-pulse", ["acrpulse[int(acrole)] * (0.3 + 1.4*acrhythm)"]),
+        Call("ac-stereo"),
         # reverb: Auto takes the piece's own, and sometimes Shimmer at the climax
         RNG,
         V("acvsec", "if(acrole==4 && acr1 < 0.4, 4, acvauto)"),
@@ -410,6 +411,21 @@ def layers():
     return c
 
 
+ROLE_WIDTH = [1.2, 1.3, 1.35, 1.45, 1.55, 1.5, 1.3, 1.4]
+
+
+def stereo():
+    c = Canvas("stereo")
+    c.comment("Width (mid/side at the master) by section role x SETUP Width, 0 in mono; pad orbit depth")
+    proc(c, "ac-stereo", [
+        SendL("ac-width", [f"(1 - acmono) * acwidth * if(acrole==0, {ROLE_WIDTH[0]}, " +
+                           "".join(f"if(acrole=={i}, {w}, " for i, w in enumerate(ROLE_WIDTH[1:], 1)) + "1"
+                           + ")" * 8, "3000"]),
+        SendL("ac-pandepth", ["acpanmot * 0.5 * (0.5 + acmotion)"]),
+    ])
+    return c
+
+
 def verb():
     c = Canvas("verb-ctl", w=2400)
     c.comment("Reverb choice and settings. Verb knob: Auto, Bloom 1, Bloom 2, Hall, Shimmer. Time 1.5-30 s.")
@@ -464,7 +480,8 @@ def rhythm():
             V("acmp", "acnew[int(acmai)] + acmoct"),
             SendL("ac-mnote", ["if(acmp>100, acmp-12, acmp)",
                                "if(int(acms) % int(acmn) == 0, 1, 0.5 + acr2*0.3)",
-                               "(int(acms) % 2 == 1)*acmswing*15000/acbpm*acmdiv + acr3*14*acrhythm"]),
+                               "(int(acms) % 2 == 1)*acmswing*15000/acbpm*acmdiv + acr3*14*acrhythm",
+                               "min(0.95, max(0.05, 0.12 + 0.76*acmai/3 + (acr4 - 0.5)*0.15))"]),
         ]),
     ])])
     return c
@@ -546,7 +563,7 @@ def players():
     c.comment("Event players: bell motif, rain drops, creature chirps, input onsets")
     bellp = f"{deg2p('acdeg + acmotif[int(acbi)]')} + 24"
     play = [V("acbp", bellp), V("acbp", "if(acbp<67, acbp+12, if(acbp>96, acbp-12, acbp))"),
-            SendL("ac-bell", ["acbp", "0.35+0.65*acr2"])]
+            SendL("ac-bell", ["acbp", "0.35+0.65*acr2", "0.1 + 0.8*acr3"])]
     proc(c, "ac-btick", [
         If("acgbell > 0.01 && acrun", [
             RNG,

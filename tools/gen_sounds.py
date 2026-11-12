@@ -87,27 +87,36 @@ def _drone_freq(s):
     return s.ch(s.m(s.ch(s.recv("ac-dronep"), "line 0 40", "mtof"), "$1 40"), "line~")
 
 
-def _drone_out(s, sig, ln):
-    o = mul(s, s.to(sig, "hip~ 25"), ln)
-    throws(s, o, o, mix=0.6, send=0.3, src=1)
+def _drone_out(s, sig, ln, sigR=None):
+    """stereo: a second signal for the right, or else a slowly modulated 9-14 ms copy of the left"""
+    if sigR is None:
+        s.to(sig, "delwrite~ $0-dw 40")
+        sigR = s.obj("vd~ $0-dw")
+        s.c(s.ch(s.obj("osc~ 0.07"), "*~ 2.5", "+~ 11.5"), 0, sigR, 0)
+        sigR = add(s, s.to(sig, "*~ 0.35"), s.to(sigR, "*~ 0.8"))
+    oL = mul(s, s.to(sig, "hip~ 25"), ln)
+    oR = mul(s, s.to(sigR, "hip~ 25"), ln)
+    throws(s, oL, oR, mix=0.6, send=0.3, src=1)
 
 
 def drone_analog():
     s, ln = switched("drone-analog", "ac-g-drone1")
     s.comment("Analog drone: two saws and a square an octave down through a slow resonant sweep")
     f = _drone_freq(s)
-    sm = s.obj("*~ 0.3")
-    for d in (1.0, 1.0042):
-        s.c(s.ch(s.to(f, f"*~ {d}"), "phasor~", "-~ 0.5"), 0, sm, 0)
     sq = s.ch(s.to(f, "*~ 0.5"), "phasor~", "-~ 0.5", "*~ 1000", "clip~ -0.25 0.25")
-    s.c(sq, 0, sm, 0)
-    sweep = s.ch(s.obj("osc~ 0.021"), "*~ 0.5", "+~ 0.5")
     br = s.ch(s.recv("ac-bright"), "line~")
-    cf = s.to(mul(s, f, add(s, s.to(mul(s, sweep, br), "*~ 10"), s.obj("sig~ 1.5"))), "clip~ 40 4000")
-    v = s.obj("vcf~ 3")
-    s.c(sm, 0, v, 0)
-    s.c(cf, 0, v, 1)
-    _drone_out(s, s.to((v, 1), "*~ 2.4"), ln)
+    outs = []
+    for d, rate in ((1.0, 0.021), (1.0042, 0.017)):          # a saw and its own sweep on each side
+        sm = s.obj("*~ 0.3")
+        s.c(s.ch(s.to(f, f"*~ {d}"), "phasor~", "-~ 0.5"), 0, sm, 0)
+        s.c(s.to(sq, "*~ 0.7"), 0, sm, 0)
+        sweep = s.ch(s.obj(f"osc~ {rate}"), "*~ 0.5", "+~ 0.5")
+        cf = s.to(mul(s, f, add(s, s.to(mul(s, sweep, br), "*~ 10"), s.obj("sig~ 1.5"))), "clip~ 40 4000")
+        v = s.obj("vcf~ 3")
+        s.c(sm, 0, v, 0)
+        s.c(cf, 0, v, 1)
+        outs.append(s.to((v, 1), "*~ 2.6"))
+    _drone_out(s, outs[0], ln, outs[1])
     return s
 
 
@@ -118,8 +127,12 @@ def drone_organ():
     sm = s.obj("*~ 1")
     for h, a in ((1, 0.22), (2, 0.16), (3, 0.1), (4, 0.07), (6, 0.04), (8, 0.03)):
         s.c(s.ch(s.to(f, f"*~ {h}"), "osc~", f"*~ {a}"), 0, sm, 0)
-    rot = s.ch(s.obj("osc~ 0.8"), "*~ 0.18", "+~ 0.82")
-    _drone_out(s, mul(s, sm, rot), ln)
+    rot = s.ch(s.obj("osc~ 0.8"), "*~ 0.22")
+    # rotary: opposite swells left and right, and the right is a slowly moving delayed copy
+    s.to(sm, "delwrite~ $0-ow 40")
+    dly = s.obj("vd~ $0-ow")
+    s.c(s.ch(s.obj("osc~ 0.11"), "*~ 3", "+~ 13"), 0, dly, 0)
+    _drone_out(s, mul(s, sm, s.to(rot, "+~ 0.78")), ln, mul(s, dly, s.ch(rot, "*~ -1", "+~ 0.78")))
     return s
 
 
