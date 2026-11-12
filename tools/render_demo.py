@@ -28,6 +28,8 @@ DEMOS = [
                                        (60, "acdens 0.7"), (61, "ac-layers bang")], 150, "tone"),
     # an electric piece: digi and saw pads, an analog drone, a sub bass line, chorus, buzz and radio, Hall
     ("amble_electric_composition_seed_3612", [(50, "aclen 0"), (60, "ac-setseed 3612")], 345, None),
+    # bell-like and electric: tine, bar partials and FM pads, the "space" atmosphere, an analog drone; stereo scenes
+    ("amble_bells_atmosphere_composition_seed_8464", [(50, "aclen 0"), (60, "ac-setseed 8464")], 345, None),
     # the vocoder: a (synthetic) singer speaking through a synth choir on the chords
     ("amble_vocoder_voice_input_seed_4139", [(40, "acmode 0"), (50, "ac-setseed 4139"), (60, "acinmode 6"),
                                              (60, "acinput 0.8"), (61, "ac-inputupd bang")], 75, "voice"),

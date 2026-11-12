@@ -4,7 +4,8 @@ Conventions: global state lives in [value]s named ac<word> (no dash, so [expr] c
 every [send]/[receive] name has a dash (ac-<word>), so values and sends never share a symbol."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Arm, Toast, RNG
 from data import *
-from data import DRONES, CHARACTERS
+from data import DRONES, CHARACTERS, ATMOS_NAMES, ATMOS_ROLE, SCENES, SCENE_DATA, SCENE_ROLE, \
+    FLAVOUR_WEIGHTS, FM_RATIO_WEIGHTS, PARTIAL_WEIGHTS, pick_table
 
 NF = len(FAMILIES)
 NS = len(SCALES)
@@ -26,7 +27,7 @@ GLOBALS = dict(
     acmtr=2, acbld=1, acblp=0.5, acvauto=1, acvsec=1, acvtype=1, acrvsize=1,
     # rhythm
     acbpm0=56, acbpm=56, acmeter=4, actick=0, acstep=0, acms=0, acmk=5, acmn=8, acmei=0, acmrot=0, acmdiv=1,
-    acmarp=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acdtype=0, acdtype2=1, acdcur=0, acsubm=0, acchar=0, acchamt=0.5, acavoc=0, acgvoc=0, acdb=0, acgt4=0, acgt5=0, acgt6=0, acgsub=0, acmono=0, acwidth=1, acpanmot=0.8, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
+    acmarp=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acdtype=0, acdtype2=1, acdcur=0, acsubm=0, acchar=0, acchamt=0.5, acavoc=0, acgvoc=0, acdb=0, acgt4=0, acgt5=0, acgt6=0, acgsub=0, acatm=0, acatmT=0, acatmT2=1, acfatm=0, acatmcur=0, acgatm=0, acscene=0, acmono=0, acwidth=1, acpanmot=0.8, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
 )
 for page in PAGES:
     for _, name, d in page:
@@ -34,7 +35,8 @@ for page in PAGES:
 
 ARRAYS = dict(acscale=16, acfamt=NF * 5, acch=4, acnew=4, acplan=16, acpdur=16, acmotif=8, acmotif0=8,
               acmrhy=8, acmoves=12, acmods=12, acgrt=12, acfmrt=8, acpartt=24, acbellt=12, acdintt=5, acrhyt=5,
-              acparams=12, acraw=4, acflav=4, acroles=16, ackeyp=16, acprog=8, acrmask=48, acrtide=8,
+              acparams=12, acraw=4, acflav=4, acroles=16, acflpick=40, acfmrpick=40, acpapick=40, acscn=50,
+              acscrole=24, acatmrole=8, ackeyp=16, acprog=8, acrmask=48, acrtide=8,
               acrtempo=8, acrpulse=8, acaway=8, aceuk=10, aceun=10, acmeters=6, acmratios=6, acbreath=4)
 
 import gen_live as _L
@@ -45,6 +47,8 @@ for _m in (_L, _O, _S):
     ARRAYS.update(_m.ARRAYS)
 
 DATA_TABLES = dict(
+    acflpick=pick_table(FLAVOUR_WEIGHTS), acfmrpick=pick_table(FM_RATIO_WEIGHTS), acpapick=pick_table(PARTIAL_WEIGHTS),
+    acscn=sum(SCENE_DATA, []), acscrole=sum(SCENE_ROLE, []), acatmrole=ATMOS_ROLE,
     acmoves=MOVES, acmods=MODS, acgrt=GRAIN_RATIOS, acfmrt=FM_RATIOS,
     acpartt=sum(PARTIAL_SETS, []), acbellt=sum(BELL_SETS, []), acdintt=DRONE_INTERVALS, acrhyt=RHYTHMS,
     acparams=[d for p in PAGES for _, _, d in p], acraw=[0.5] * 4, aclvn=[-1] * 4, acrmask=sum(ROLE_MASK, []),
@@ -161,11 +165,13 @@ def piece():
         V("acsci", "int(acr2*%d)" % NS), Call("ac-loadscale"),
         V("acfamA", f"int(acr3*{NF})"), V("acfamB", f"int(acr4*{NF})"),
         RNG,
-        X("int(acr1*%d); int(acr2*%d); int(acr3*%d)" % ((len(FLAVOURS),) * 3), "v acpal1", "v acpal2", "v acpal3"),
-        SendL("ac-fmr", ["acfmrt[int(acr4*8)]"]),
+        # the palette leans to the electronic and bell-like types (weights in data.py)
+        X("acflpick[int(acr1*40)]; acflpick[int(acr2*40)]; acflpick[int(acr3*40)]", "v acpal1", "v acpal2",
+          "v acpal3"),
+        SendL("ac-fmr", ["acfmrt[int(acfmrpick[int(acr4*40)])]"]),
         RNG,
-        X("int(acr1*%d); int(acr2*%d); int(acr3*%d); int(acr4*%d)" % (len(PARTIAL_SETS), len(TEXTURES), len(TEXTURES),
-                                                                        len(BELL_SETS)),
+        X("acpapick[int(acr1*40)]; int(acr2*%d); int(acr3*%d); int(acr4*%d)" % (len(TEXTURES), len(TEXTURES),
+                                                                                   len(BELL_SETS)),
           "v acpartI", "v actexA", "v actexB", "v acbellI"),
         SendL("ac-partials", ["acpartt[int(acpartI)*4+1]", "acpartt[int(acpartI)*4+2]", "acpartt[int(acpartI)*4+3]"]),
         SendL("ac-bellset", ["acbellt[int(acbellI)*3]", "acbellt[int(acbellI)*3+1]", "acbellt[int(acbellI)*3+2]"]),
@@ -178,6 +184,8 @@ def piece():
           "v acdtype", "v acdtype2", "v acsubm", "v acchar"),
         RNG,
         X("0.35 + acr1*0.45; acr2 < 0.5", "v acchamt", "v acavoc"),
+        RNG,
+        X(f"acr1 < 0.55; int(acr2*{len(ATMOS_NAMES)}); int(acr3*{len(ATMOS_NAMES)})", "v acatm", "v acatmT", "v acatmT2"),
         # tempo, meter, motion timbre
         X("40 + int(acr2*33); acmeters[int(acr3*6)]", "v acbpm0", "v acmeter"),
         SendL("ac-mtimbre", ["acmratios[int(acr4*6)]"]),
@@ -297,7 +305,16 @@ def section():
         V("acbpm", "acbpm0 * acrtempo[int(acrole)]"),
         SendL("ac-bpm", ["acbpm"]),
         SendL("ac-pulse", ["acrpulse[int(acrole)] * (0.3 + 1.4*acrhythm)"]),
+        # the stereo scene: where the pads live, where bells and motion play, how far the cloud spreads
+        RNG,
+        V("acscene", "acscrole[int(acrole)*3 + int(acr1*3)]"),
+    ] + [SendL(f"ac-v{k}-home", [f"acscn[int(acscene)*10 + {k}]", "6000"]) for k in range(4)] + [
+        SendL("ac-cloudspread", ["acscn[int(acscene)*10 + 8]*0.5"]),
         Call("ac-stereo"),
+        # an atmosphere in some sections of pieces that have one (the break may use the second kind)
+        RNG,
+        X("acatm && acr1 < acatmrole[int(acrole)]; if(acrole == 5 && acr2 < 0.5, acatmT2, acatmT)", "v acfatm",
+          "v acatmcur"),
         # reverb: Auto takes the piece's own, and sometimes Shimmer at the climax
         RNG,
         V("acvsec", "if(acrole==4 && acr1 < 0.4, 4, acvauto)"),
@@ -369,6 +386,8 @@ def layers():
             steps += [V("acgsub", "acgdrone*acmdrone*(1-acended)"), SendL("ac-g-sub", ["acgsub", "acfade"])]
         elif name != "tex":
             steps += [SendL("ac-g-" + name, ["acg" + name, "acfade"])]
+    steps += [V("acgatm", "acfatm*acmtex*(1-acended)*(0.55 + 0.45*min(1, acdeff*2))")]
+    steps += [SendL(f"ac-g-atm{i}", [f"acgatm*(acatmcur=={i})", "acfade*1.5"]) for i in range(len(ATMOS_NAMES))]
     steps += [SendL(f"ac-g-ch{i}", [f"(acchar=={i})*min(1, acchamt*if(acrole==4, 1.3, 1))*min(1, acgpad*4)", "acfade"])
               for i in range(1, len(CHARACTERS))]
     steps += [SendL("ac-chdry", ["1 - (acchar==2)*0.9*acchamt - (acchar==4)*0.6*acchamt", "acfade"])]
@@ -411,7 +430,7 @@ def layers():
     return c
 
 
-ROLE_WIDTH = [1.05, 1.15, 1.2, 1.3, 1.4, 1.35, 1.15, 1.25]
+ROLE_WIDTH = [0.95, 1.05, 1.1, 1.15, 1.25, 1.2, 1.05, 1.1]
 
 
 def stereo():
@@ -421,7 +440,7 @@ def stereo():
         SendL("ac-width", [f"(1 - acmono) * acwidth * if(acrole==0, {ROLE_WIDTH[0]}, " +
                            "".join(f"if(acrole=={i}, {w}, " for i, w in enumerate(ROLE_WIDTH[1:], 1)) + "1"
                            + ")" * 8, "3000"]),
-        SendL("ac-pandepth", ["acpanmot * 0.5 * (0.5 + acmotion)"]),
+        SendL("ac-pandepth", ["acpanmot * 0.5 * (0.5 + acmotion) * acscn[int(acscene)*10 + 9]"]),
     ])
     return c
 
@@ -481,7 +500,8 @@ def rhythm():
             SendL("ac-mnote", ["if(acmp>100, acmp-12, acmp)",
                                "if(int(acms) % int(acmn) == 0, 1, 0.5 + acr2*0.3)",
                                "(int(acms) % 2 == 1)*acmswing*15000/acbpm*acmdiv + acr3*14*acrhythm",
-                               "min(0.95, max(0.05, 0.12 + 0.76*acmai/3 + (acr4 - 0.5)*0.15))"]),
+                               "min(0.97, max(0.03, acscn[int(acscene)*10 + 6] + acscn[int(acscene)*10 + 7]*(acmai/3 - 0.5)"
+                               " + (acr4 - 0.5)*0.12))"]),
         ]),
     ])])
     return c
@@ -541,6 +561,10 @@ def change():
                           "acnew[0] - 12*ceil((acnew[0] - 42)/12)))", "if(acfirst, 0, if(acmodflag, 9000, 1800))"]),
         SendL("ac-ringf", ["mtof(acnew[1] + 12)", "3000"]),
         SendL("ac-radio", ["mtof(min(115, acnew[2] + 36))", "4000"]),
+    ] + [SendL(f"ac-atmf{k}", [f"mtof(min(112, acnew[{k % 4}] + {24 + 12 * (k // 4)}))", "6000"]) for k in range(6)] + [
+        SendL("ac-atmc0", ["1000/mtof(40 + fmod(acnew[0] - 40, 12))", "5000"]),
+        SendL("ac-atmc1", ["1000/mtof(40 + fmod(acnew[0] - 40 + 7, 12))", "5000"]),
+    ] + [SendL(f"ac-atmn{k}", [f"mtof(min(119, acnew[{k % 4}] + {48 + 12 * (k % 2)}))", "3000"]) for k in range(6)] + [
     ] + [SendL(f"ac-voccar{k}", [f"mtof(acnew[{k}])", "600"]) for k in range(4)] + [
         RNG,
         SendL("ac-dharm", ["2 + int(acr1*5)", "6000"]),
@@ -563,7 +587,8 @@ def players():
     c.comment("Event players: bell motif, rain drops, creature chirps, input onsets")
     bellp = f"{deg2p('acdeg + acmotif[int(acbi)]')} + 24"
     play = [V("acbp", bellp), V("acbp", "if(acbp<67, acbp+12, if(acbp>96, acbp-12, acbp))"),
-            SendL("ac-bell", ["acbp", "0.35+0.65*acr2", "0.1 + 0.8*acr3"])]
+            SendL("ac-bell", ["acbp", "0.35+0.65*acr2", "min(0.97, max(0.03, acscn[int(acscene)*10 + 4] + "
+                                                     "acscn[int(acscene)*10 + 5]*(acr3 - 0.5)))"])]
     proc(c, "ac-btick", [
         If("acgbell > 0.01 && acrun", [
             RNG,
@@ -597,6 +622,8 @@ def players():
     ])
     # ghost input mode: a played onset rings the next bell note
     # data texture: bursts of blips on chord tones
+    proc(c, "ac-ttick", [RNG, If("acgatm > 0.01 && acatmcur == 1 && acr1 < 0.4", [Send("ac-thunder")]),
+                         Arm("ac-ttick", "9000 + acr2*20000")])
     proc(c, "ac-dtick", [
         If("acgt5 > 0.01", [If("acdb > 0", [
             RNG, SendL("ac-data", ["min(110, acnew[int(acr1*4)] + 36 + 12*int(acr2*2))", "25 + acr3*50"]),

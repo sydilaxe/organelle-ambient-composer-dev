@@ -90,13 +90,16 @@ def _flav_inlets(s, n):
     return [s.obj("inlet~", 20 + i * 140, 5) for i in range(n)]
 
 
-def _out(s, sig, ln):
+def _out(s, sig, ln, sigR=None):
+    """a pad type's outputs: left (outlet 0) and right (outlet 1); mono types send the same to both"""
     s.c(mul(s, sig, ln), 0, s.obj("outlet~", 20, 980), 0)
+    s.c(mul(s, sig if sigR is None else sigR, ln), 0, s.obj("outlet~", 300, 980), 0)
 
 
 def flav_fm():
     s, ln = switched("fm", "$0-fw0")
-    s.comment("FM: a modulator at a per-piece ratio; index follows brightness and Weird")
+    s.comment("FM: a modulator at a per-piece ratio; index follows brightness and Weird. Right: a slightly "
+              "detuned carrier with a softer index")
     f, b = _flav_inlets(s, 2)
     rat = s.to(f, "*~ 1")
     s.c(s.recv("ac-fmr"), 0, rat, 1)
@@ -104,29 +107,36 @@ def flav_fm():
     ix = s.ch(b, "*~ 2.2", "+~ 0.15")
     w = s.to(ix, "*~ 1")
     ctl(s, w, "ac-weird", "0.5 + 1.5*$f1")
-    car = s.ch(add(s, f, mul(s, mul(s, mo, w), f)), "osc~", "*~ 0.42")
-    _out(s, car, ln)
+    dev = mul(s, mul(s, mo, w), f)
+    car = s.ch(add(s, f, dev), "osc~", "*~ 0.42")
+    carR = s.ch(add(s, s.to(f, "*~ 1.0021"), s.to(dev, "*~ 0.8")), "osc~", "*~ 0.42")
+    _out(s, car, ln, add(s, s.to(car, "*~ 0.5"), s.to(carR, "*~ 0.65")))   # mono-safe (no full cancellation)
     return s
 
 
 def flav_vox():
     s, ln = switched("vox", "$0-fw1")
-    s.comment("Vox: a saw through two drifting vowel formants")
+    s.comment("Vox: a saw through two drifting vowel formants; the right side sings the opposite vowel")
     f, b = _flav_inlets(s, 2)
     saw = s.ch(f, "phasor~", "-~ 0.5")
-    cf1 = s.ch(s.recv("$0-la"), "osc~", "*~ 0.5", "+~ 0.5", "*~ 450", "+~ 280")
-    cf2 = s.ch(s.recv("$0-lb"), "osc~", "*~ 0.5", "+~ 0.5", "*~ 1000", "+~ 900")
-    v1 = s.obj("vcf~ 7")
-    v2 = s.obj("vcf~ 10")
-    for v, cf in ((v1, cf1), (v2, cf2)):
-        s.c(saw, 0, v, 0)
-        s.c(cf, 0, v, 1)
-    sm = s.obj("+~")
-    s.c(v1, 0, sm, 0)
-    s.c(s.to(v2, "*~ 0.7"), 0, sm, 0)
-    s.c(s.ch(saw, "lop~ 600", "*~ 0.2"), 0, sm, 0)
+    l1 = s.ch(s.recv("$0-la"), "osc~", "*~ 0.5")
+    l2 = s.ch(s.recv("$0-lb"), "osc~", "*~ 0.5")
     bm = s.ch(b, "*~ 0.8", "+~ 0.35")
-    _out(s, s.to(mul(s, sm, bm), "*~ 2.2"), ln)
+    outs = []
+    for sign in (1, -1):
+        cf1 = s.ch(l1, f"*~ {sign}", "+~ 0.5", "*~ 450", "+~ 280")
+        cf2 = s.ch(l2, f"*~ {sign}", "+~ 0.5", "*~ 1000", "+~ 900")
+        v1 = s.obj("vcf~ 7")
+        v2 = s.obj("vcf~ 10")
+        for v, cf in ((v1, cf1), (v2, cf2)):
+            s.c(saw, 0, v, 0)
+            s.c(cf, 0, v, 1)
+        sm = s.obj("+~")
+        s.c(v1, 0, sm, 0)
+        s.c(s.to(v2, "*~ 0.7"), 0, sm, 0)
+        s.c(s.ch(saw, "lop~ 600", "*~ 0.2"), 0, sm, 0)
+        outs.append(s.to(mul(s, sm, bm), "*~ 2.2"))
+    _out(s, outs[0], ln, add(s, s.to(outs[0], "*~ 0.4"), s.to(outs[1], "*~ 0.75")))
     return s
 
 
@@ -149,14 +159,15 @@ def flav_bow():
 
 def flav_part():
     s, ln = switched("part", "$0-fw3")
-    s.comment("Partials: 4 sines at per-piece ratios, each swelling on its own, tilted by brightness")
+    s.comment("Partials: 4 sines at per-piece ratios, each swelling on its own, tilted by brightness; "
+              "the fundamental in the middle, the upper partials alternating left and right")
     f, b = _flav_inlets(s, 2)
     up = s.to(s.recv("ac-partials"), "unpack f f f")
     lt = s.to(s.recv("$0-lb"), "t f f f f")
     b2 = mul(s, b, b)
     b3 = mul(s, b2, b)
     tilt = [None, b, b2, b3]
-    sm = s.obj("*~ 0.45")
+    L, R = s.obj("*~ 0.45"), s.obj("*~ 0.45")
     for k in range(4):
         if k == 0:
             o = s.to(f, "osc~")
@@ -168,38 +179,50 @@ def flav_part():
         p = mul(s, o, amp)
         if tilt[k] is not None:
             p = mul(s, p, tilt[k])
-        s.c(p, 0, sm, 0)
-    _out(s, sm, ln)
+        gl, gr = [(1, 1), (1.45, 0.15), (0.15, 1.45), (1.3, 0.35)][k]
+        s.c(s.to(p, f"*~ {gl}"), 0, L, 0)
+        s.c(s.to(p, f"*~ {gr}"), 0, R, 0)
+    _out(s, L, ln, R)
     return s
 
 
 def flav_fold():
     s, ln = switched("fold", "$0-fw4")
-    s.comment("Fold: a sine wavefolded (sin of a driven sine), ring-modulated by its sub-octave")
+    s.comment("Fold: a sine wavefolded (sin of a driven sine), ring-modulated by its sub-octave; the right "
+              "side folds a little less")
     f, b = _flav_inlets(s, 2)
-    x = s.to(f, "osc~")
     dr = s.ch(b, "*~ 4", "+~ 0.5", "*~ 1")
     ctl(s, dr, "ac-weird", "0.3 + 1.2*$f1")
-    u = s.ch(mul(s, x, dr), "*~ 0.25", "-~ 0.25", "cos~", "hip~ 20")
     sub = s.ch(f, "*~ 0.5", "osc~", "*~ 0.22", "+~ 0.78")
-    _out(s, s.ch(mul(s, u, sub), "lop~ 5000", "*~ 0.32"), ln)
+    outs = []
+    for k, d in ((1, 1.0), (0.7, 1.0017)):
+        x = s.ch(s.to(f, f"*~ {d}"), "osc~")
+        u = s.ch(mul(s, x, s.to(dr, f"*~ {k}")), "*~ 0.25", "-~ 0.25", "cos~", "hip~ 20")
+        outs.append(s.ch(mul(s, u, sub), "lop~ 5000", "*~ 0.32"))
+    # mono-safe: the right side keeps part of the left, so a mono sum never cancels
+    _out(s, outs[0], ln, add(s, s.to(outs[0], "*~ 0.5"), s.to(outs[1], "*~ 0.65")))
     return s
 
 
 def flav_pulsar():
     s, ln = switched("pulsar", "$0-fw5")
     s.comment("Pulsar: each period starts a short windowed burst of a few sine cycles; the burst length "
-              "follows a drifting formant, so the voice speaks somewhere between insect and choir")
+              "follows a drifting formant, so the voice speaks somewhere between insect and choir. The right "
+              "side's formant sits higher")
     f, b = _flav_inlets(s, 2)
     form = s.ch(s.recv("$0-la"), "* 0.7", "osc~", "*~ 0.5", "+~ 0.5")
     fsig = s.to(add(s, s.to(form, "*~ 900"), s.to(b, "*~ 1400")), "+~ 450")
-    k = s.obj("/~")
-    s.c(fsig, 0, k, 0)
-    s.c(f, 0, k, 1)
-    u = s.ch(mul(s, s.to(f, "phasor~"), s.to(k, "max~ 1")), "clip~ 0 1")
-    win = s.ch(u, "cos~", "*~ -0.5", "+~ 0.5")
-    car = s.ch(u, "*~ 3", "cos~")
-    _out(s, s.ch(mul(s, win, car), "hip~ 30", "*~ 0.75"), ln)
+    ph = s.to(f, "phasor~")
+    outs = []
+    for m in (1, 1.18):
+        k = s.obj("/~")
+        s.c(s.to(fsig, f"*~ {m}"), 0, k, 0)
+        s.c(f, 0, k, 1)
+        u = s.ch(mul(s, ph, s.to(k, "max~ 1")), "clip~ 0 1")
+        win = s.ch(u, "cos~", "*~ -0.5", "+~ 0.5")
+        car = s.ch(u, "*~ 3", "cos~")
+        outs.append(s.ch(mul(s, win, car), "hip~ 30", "*~ 0.75"))
+    _out(s, outs[0], ln, outs[1])
     return s
 
 
@@ -239,8 +262,9 @@ def voice():
     for i in range(nf):
         v.c(v.m(v.to((ft, i), f"== {i}"), "$1 4000"), 0, v.obj(f"s $0-fw{i}"), 0)
     v.col()
-    body = v.obj("*~")
-    v.c(amp, 0, body, 1)
+    bodyL, bodyR = v.obj("*~"), v.obj("*~")
+    v.c(amp, 0, bodyL, 1)
+    v.c(amp, 0, bodyR, 1)
     for i, fl in enumerate((flav_fm(), flav_vox(), flav_bow(), flav_part(), flav_fold(), flav_pulsar())
                            + tuple(f() for f in NEW_FLAVS)):
         sp = v.sub(fl, 20 + i * 120, 700)
@@ -248,17 +272,21 @@ def voice():
         v.c(bsig, 0, sp, 1)
         if fl.name == "bow":
             v.c(dsig, 0, sp, 2)
-        v.c(sp, 0, body, 0)
-    out = v.to(body, "*~ 0.2")
-    # stereo: each voice has a home across the field (8 %, 36 %, 64 %, 92 %) and orbits around it on its own
-    # slow cycle (a fraction of its breathing), as far as ac-pandepth (SETUP Pan motion x Motion knob)
-    home = v.ch(v.obj("loadbang"), "f $1", "expr 0.08 + 0.28*$f1")
+        v.c((sp, 0), 0, bodyL, 0)
+        v.c((sp, 1), 0, bodyR, 0)
+    # stereo: the composition gives each voice a home (ac-v$1-home "pos ms", by section scene); it orbits
+    # around it on its own slow cycle, as far as ac-pandepth. The voice's own stereo is kept (balance pan).
+    home = v.ch(v.recv("ac-v$1-home"), "line~")
+    v.c(v.m(v.ch(v.obj("loadbang"), "f $1", "expr 0.08 + 0.28*$f1"), "$1 10"), 0, home, 0)
     orb = v.to(v.to((lu, 0), "* 0.37"), "osc~")
     dep = v.to(orb, "*~ 0.2")
     v.c(v.recv("ac-pandepth"), 0, dep, 1)
-    posn = v.to(dep, "+~ 0.5")
-    v.c(home, 0, posn, 1)
-    L, R = span(v, out, v.to(posn, "clip~ 0.02 0.98"))
+    posn = v.to(add(v, dep, home), "clip~ 0.02 0.98")
+    q = v.to(posn, "*~ 0.25")
+    gl = v.ch(q, "cos~", "*~ 1.414")
+    gr = v.ch(q, "-~ 0.25", "cos~", "*~ 1.414")
+    L = mul(v, v.to(bodyL, "*~ 0.2"), v.to(gl, "clip~ 0 1"))
+    R = mul(v, v.to(bodyR, "*~ 0.2"), v.to(gr, "clip~ 0 1"))
     for sig, bus in ((L, "ac-padL"), (R, "ac-padR")):
         v.c(sig, 0, v.obj("throw~ " + bus), 0)
     return v
@@ -421,7 +449,10 @@ def cloud():
         s.c(ph, 0, ksh, 1)
         idx = add(s, mul(s, ph, ksh), pos)
         g = mul(s, s.to(idx, "tabread4~ acbuf"), win)
-        gp = s.ch(s.obj("noise~"), "*~ 0.48", "+~ 0.5", "samphold~")
+        gsp = s.obj("*~ 0.48")
+        s.c(s.obj("noise~"), 0, gsp, 0)
+        s.c(s.recv("ac-cloudspread"), 0, gsp, 1)
+        gp = s.ch(gsp, "+~ 0.5", "samphold~")
         s.c(ph, 0, gp, 1)
         gl, gr = span(s, g, gp)
         s.c(gl, 0, L, 0)
@@ -464,17 +495,18 @@ def bells():
     for j in range(2):
         up = s.to((rt, j), "unpack f f f")
         mf = s.to((up, 0), "mtof")
-        sm = s.obj("*~ 1")
-        bpn = s.to((up, 2), "expr cos($f1*1.5708); sin($f1*1.5708)")
+        # the note's place; its upper partials fan out a little to either side
+        bpn = s.to((up, 2), "expr cos($f1*1.5708); sin($f1*1.5708); cos(max(0, $f1-0.22)*1.5708); "
+                            "sin(max(0, $f1-0.22)*1.5708); cos(min(1, $f1+0.22)*1.5708); sin(min(1, $f1+0.22)*1.5708)")
         for k, (amp, dec) in enumerate(((0.32, 5200), (0.15, 2600), (0.08, 1100))):
             fr = s.to(mf, "* 1")
             s.c(bs, k, fr, 1)
             env = s.ch(s.m(s.to((up, 1), f"* {amp}"), f"$1, 0 {dec}"), "vline~")
-            s.c(mul(s, s.to(fr, "osc~"), mul(s, env, env)), 0, sm, 0)
-        for k, dst in ((0, L), (1, R)):
-            m = s.to(sm, "*~ 0.7")
-            s.c(bpn, k, m, 1)
-            s.c(m, 0, dst, 0)
+            part = mul(s, s.to(fr, "osc~"), mul(s, env, env))
+            for side, dst in ((0, L), (1, R)):
+                m = s.to(part, "*~ 0.7")
+                s.c(bpn, 2 * k + side, m, 1)
+                s.c(m, 0, dst, 0)
         s.col(160)
     throws(s, L, R, mix=1.1, send=1.0)
     return s
@@ -752,8 +784,9 @@ def live_voice():
     v.c(v.to(lb, "expr 0.11 + 0.03*$f1"), 0, v.obj("s $0-la"), 0)
     v.c(v.to(lb, "expr 0.07 + 0.02*$f1"), 0, v.obj("s $0-lb"), 0)
     v.col()
-    body = v.obj("*~")
-    v.c(amp, 0, body, 1)
+    bodyL, bodyR = v.obj("*~"), v.obj("*~")
+    v.c(amp, 0, bodyL, 1)
+    v.c(amp, 0, bodyR, 1)
     for i, fl in enumerate((flav_fm(), flav_vox(), flav_bow(), flav_part(), flav_fold(), flav_pulsar())
                            + tuple(f() for f in NEW_FLAVS)):
         sp = v.sub(fl, 20 + i * 120, 760)
@@ -761,15 +794,19 @@ def live_voice():
         v.c(bright, 0, sp, 1)
         if fl.name == "bow":
             v.c(dsig, 0, sp, 2)
-        v.c(sp, 0, body, 0)
-    out = v.to(body, "*~ 0.42")
+        v.c((sp, 0), 0, bodyL, 0)
+        v.c((sp, 1), 0, bodyR, 0)
     home = v.ch(v.obj("loadbang"), "f $1", "expr 0.2 + 0.2*$f1")
     orb = v.to(v.ch(v.obj("loadbang"), "f $1", "expr 0.05 + 0.017*$f1"), "osc~")
     dep = v.to(orb, "*~ 0.06")
     v.c(v.to(v.recv("ac-pandepth"), "* 0.4"), 0, dep, 1)
     posn = v.to(dep, "+~ 0.5")
     v.c(home, 0, posn, 1)
-    L, R = span(v, out, v.to(posn, "clip~ 0.02 0.98"))
+    q = v.ch(posn, "clip~ 0.02 0.98", "*~ 0.25")
+    gl = v.ch(q, "cos~", "*~ 1.414", "clip~ 0 1")
+    gr = v.ch(q, "-~ 0.25", "cos~", "*~ 1.414", "clip~ 0 1")
+    L = mul(v, v.to(bodyL, "*~ 0.42"), gl)
+    R = mul(v, v.to(bodyR, "*~ 0.42"), gr)
     throws(v, L, R, mix=1.0, send=0.6, src=0.5)
     return v
 

@@ -23,9 +23,9 @@ def main_patch():
     m.c(t, 3, m.obj("s ac-init", 230, 95), 0)
     m.c(t, 2, m.obj("s ac-loadsettings", 160, 120), 0)
     m.c(t, 1, m.obj("s ac-seedinit", 90, 145), 0)
-    tk = m.obj("t b b b b", 20, 120)
+    tk = m.obj("t b b b b b", 20, 120)
     m.c(t, 0, tk, 0)
-    for i, n in enumerate(("ac-ctick", "ac-rtick", "ac-btick", "ac-dtick")):
+    for i, n in enumerate(("ac-ctick", "ac-rtick", "ac-btick", "ac-dtick", "ac-ttick")):
         m.c(tk, i, m.obj("s " + n, 20 + i * 90, 150), 0)
     m.c(m.m(m.obj("loadbang", 400, 40), "0"), 0, m.obj("s midiOutGate", 400, 90), 0)
     m.comment("control", 20, 200)
@@ -41,7 +41,7 @@ def main_patch():
     for i, sub in enumerate((D.drone(), D.tex_rain(), D.tex_wind(), D.tex_ember(), D.tex_chirp(), D.cloud(),
                              D.cloud_write(), D.bells(), D.motion(), D.inp(), D.reso(), D.tape(), D.bands(),
                              D.mem_rec(), D.mem_play(), D.master())
-                             + tuple(f() for f in SN.NEW_DRONES + SN.NEW_TEXTURES) + (SN.sub(), SN.vocoder())):
+                             + tuple(f() for f in SN.NEW_DRONES + SN.NEW_TEXTURES + SN.ATMOS) + (SN.sub(), SN.vocoder())):
         m.sub(sub, 20 + (i % 4) * 110, 400 + (i // 4) * 30)
     m.obj(f"array define acbuf {D.CLOUD_LEN}", 20, 510)
     return m

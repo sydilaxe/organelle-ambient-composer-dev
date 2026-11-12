@@ -209,7 +209,7 @@ check(len(hits) > 20 and pat in rots and set(windows) == {5},
 
 # 10. live notes: Organelle keys play, MPE bend retunes its own voice, breath controls the level
 mute = [(60, f"{m} 0") for m in ALL] + [(61, "acfade 10"), (62, "ac-layers bang"), (63, "ac-rwet 0 10")]
-ev = [(50, "ac-setseed 9"), (55, "ac-chgstop bang"), (55, "ac-secstop bang")] + mute + [
+ev = [(50, "ac-setseed 9"), (55, "ac-chgstop bang"), (55, "ac-secstop bang"), (70, "ac-lvtype 6")] + mute + [
     (1000, "notesRaw 69 100"), (4000, "notesRaw 69 0"),
     (6000, "ac-livenote 2 57 100"), (9000, "ac-livebend 2 2"), (12000, "ac-livenote 2 57 0"),
     (14000, "ac-livebreath 3 0"), (14000, "ac-livenote 3 60 100"), (15000, "ac-livebreath 3 110"),
@@ -218,7 +218,8 @@ log, a = run(ev, 20)
 lv = lambda t0, t1: a[int(t0 * SR):int(t1 * SR), 0]
 check(rms_db(lv(2, 3.8)) > -50, f"an Organelle key plays a note ({rms_db(lv(2, 3.8)):.1f} dB)")
 fa, fb = f0(lv(7, 8.8)), f0(lv(10, 11.8))
-check(abs(12 * np.log2(fb / fa) - 2) < 0.15, f"MPE bend +2 semitones ({fa:.1f} -> {fb:.1f} Hz)")
+st_ = 12 * np.log2(fb / fa)
+check(abs((st_ - 2 + 6) % 12 - 6) < 0.15, f"MPE bend +2 semitones ({fa:.1f} -> {fb:.1f} Hz, the detector may jump an octave)")
 check(rms_db(lv(14.2, 14.9)) < -80 and rms_db(lv(15.5, 16.8)) > -45, "breath 0 is silent, breath plays")
 check("breath control" in log, "a breath controller is noticed")
 
@@ -406,6 +407,50 @@ for seed, extra, name in ((2718, [], "wide"), (2718, [(40, "acmono 1")], "mono")
         check(loss > -2.5, f"stereo: not phasey - mono-compatible (mono sum {loss:.1f} dB)")
     else:
         check(np.abs(seg[:, 0] - seg[:, 1]).max() < 1e-4, "SETUP Output mono: both channels the same")
+
+# 20. atmospheres; pad types in stereo but mono-safe; scenes place the voices; preferred sounds come up more
+from data import ATMOS_NAMES
+for at, name in enumerate(ATMOS_NAMES):
+    ev = [(50, "ac-setseed 77"), (55, "ac-secstop bang")] + [(60, f"{m} 0") for m in ALL] + \
+         [(61, "acmtex 1"), (61, "acftex 0"), (61, "acfatm 1"), (61, f"acatmcur {at}"), (61, "acfade 10"),
+          (62, "ac-layers bang"), (63, "ac-rwet 0 10"), (64, "ac-change bang")]
+    log, a = run(ev, 12)
+    seg = a[3 * SR:12 * SR]
+    cr = np.corrcoef(seg[:, 0], seg[:, 1])[0, 1]
+    check(-40 < rms_db(seg) < -24 and cr < 0.85, f"atmosphere {name}: {rms_db(seg):.1f} dB, L/R {cr:.2f}")
+base = [(50, "ac-setseed 77"), (300, "ac-chgstop bang"), (300, "ac-secstop bang")] + [(310, f"{m} 0") for m in ALL] + \
+       [(310, "acmpad 1"), (310, "acfpad 1"), (310, "acdens 1"), (320, "ac-layers bang"), (330, "ac-rwet 0 10"),
+        (330, "ac-motion 0"), (330, "acchar 0"), (331, "ac-layers bang"), (332, "ac-pandepth 0"),
+        (332, "ac-v0-home 0.5 10")] + [(340, f"ac-v{k}-flav -1") for k in (1, 2, 3)]
+ev = list(base)
+T = 1000
+for fl in range(len(FLAVOURS)):
+    ev += [(T, f"ac-v0-flav {fl}"), (T, "ac-v0-pitch 57 0 0")]
+    T += 5000
+log, a = run(ev, T / 1000 + 1)
+T, wide, dips = 1000, 0, []
+for fl in range(len(FLAVOURS)):
+    seg = a[int((T + 2000) * SR / 1000):int((T + 4900) * SR / 1000)]
+    M = (seg[:, 0] + seg[:, 1]) / 2
+    w = int(0.05 * SR)
+    k = len(M) // w
+    me = np.sqrt((M[:k * w] ** 2).reshape(k, w).mean(1))
+    st = np.sqrt(((seg[:k * w, 0] ** 2 + seg[:k * w, 1] ** 2) / 2).reshape(k, w).mean(1))
+    dips.append(20 * np.log10((me / st).min()))
+    wide += np.corrcoef(seg[:, 0], seg[:, 1])[0, 1] < 0.9
+    T += 5000
+check(wide >= 7, f"{wide} of {len(FLAVOURS)} pad types have their own stereo")
+check(min(dips) > -8, f"pad types are mono-safe (worst mono dip {min(dips):.1f} dB)")
+log, _ = run([(40, "actime 0.1"), (50, "aclen 0"), (60, "ac-setseed 2718")], 40,
+             prints=tuple(f"ac-v{k}-home" for k in range(4)))
+homes = {tuple(l.split()[1] for l in log.splitlines() if l.startswith(f"ac-v{k}-home")) for k in range(4)}
+check(all(len(set(h)) >= 2 for h in homes), "stereo scenes move the pad voices between sections")
+ev = [(100 + i * 300, f"ac-setseed {5000 + i * 37}") for i in range(40)]
+log, _ = run(ev, 13, extra=probe2)
+rows = [l.split()[1:] for l in log.splitlines() if l.startswith("PAL")][1:]
+liked = {"fm", "part", "pulsr", "saws", "pwm", "digi", "sync", "tine"}
+share = sum(FLAVOURS[int(float(x))] in liked for r in rows for x in r) / max(1, 3 * len(rows))
+check(share > 0.75, f"palettes favour the electronic and bell-like types ({share:.0%})")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

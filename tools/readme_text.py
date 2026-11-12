@@ -22,9 +22,11 @@ LAYERS AND THEIR RHYTHMS (one clock, 40-72 BPM, meter 3-7 per piece)
   Sub      a sine under everything, softly saturated so small speakers hear
            it: the pedal an octave under the tonic, the chord root as a
            bass line, or both (alternating by section)
-  Pads     4 voices, 10 synthesis types: fm, vox, bow, part, fold, pulsr,
+  Pads     4 voices, 11 synthesis types: fm, vox, bow, part, fold, pulsr,
            saws (detuned analog ensemble), pwm (Juno-like), digi (ring mod,
-           bit-crush), sync (hard-sync sweep); voice-led; each breathes in
+           bit-crush), sync (hard-sync sweep), tine (an electric-piano bell
+           that strikes itself); most are stereo inside. The electronic and
+           bell-like types come up most often. Voice-led; each breathes in
            its own cycle (7, 9, 11, 13 half-bars) so they phase
   Character  per piece on the pads: clean, chorus, tape (wow, saturation,
            hiss), ring, crush
@@ -35,6 +37,10 @@ LAYERS AND THEIR RHYTHMS (one clock, 40-72 BPM, meter 3-7 per piece)
            bursts), buzz (electric hum on the tonic)
   Cloud    grains of the recent sound or your input; locked to the beat in
            intense sections, free otherwise
+  Atmosphere (about half the pieces, mostly in emerge, break, dissolve):
+           haze (air shimmering on the chord), deep (rumble, distant
+           thunder), space (air ringing in combs tuned to the chord), night
+           (distant insects), tides (waves washing across the field)
 
 REVERB (page SPACE)
   Bloom 1 / Bloom 2: after the Alesis MidiVerb II Bloom programs (45, 49), as
@@ -124,6 +130,9 @@ SETUP (hold aux 1 s; aux tap = page 2; hold aux 1 s to leave and save)
   page 3: Output (stereo wide / mono - for mono rigs and external effects),
   Width (50-150 %), Pan motion (how far the voices travel).
 
+STEREO SCENES: each section places the voices - spread (across the
+field), split (pads left, bells and motion right), center (a focused core,
+a wide halo), circle (everything orbits wide), mirror (pairs mirrored).
 STEREO: the bass and sub stay centred; above them the drone's twin and
 interval orbit in opposite directions, its breath tubes drift, each pad
 voice has its own place and slowly orbits around it, grains and bells land

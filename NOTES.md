@@ -146,6 +146,26 @@ Working memory for this project: read it first in a new session.
 - **Master:** M/S with `ac-width` = role width × SETUP Width, or 0 when SETUP Output is mono. Mono sums
   are unaffected by the side gain.
 
+## Atmospheres, stereo engines, scenes, preferences (feedback: "atmospheres, not every piece"; "I liked the
+## electronic and the bell-like ones"; "engines can have stereo elements"; "the composition can place voices")
+- **Atmospheres** (`ATMOS`): haze, deep, space, night and tides, each a switched subpatch (`ac-g-atm<i>`).
+  - A piece has one with chance 0.55 (`acatm`), and a section plays it with chance `ATMOS_ROLE[role]`.
+  - A break may use the piece's second kind.
+  - They are muted with the textures key.
+  - They are retuned on every chord change: haze bands, space combs and night tones.
+  - Thunder (`ac-ttick`) only plays in "deep".
+- **Pad types are stereo:** `_out(s, L, ln, R)` and two outlets per type. The voice keeps the type's
+  stereo and balance-pans it to its place (equal power × √2, clipped at 1).
+  - **Mono safety:** an independent detuned copy cancels when summed to mono. FM measured −29 dB dips,
+    so the right side keeps part of the left (R = 0.5·L + 0.65·R′). Worst mono dip across types is now
+    about −5 dB, checked in `ci_check` 20.
+- **Scenes** (`SCENE_DATA`, `SCENE_ROLE`): per section, 4 pad homes (`ac-v<k>-home`, 6 s glide), the
+  bells' and motion's centre and spread, the cloud's spread, and an orbit-depth factor.
+- **Preferences:** pick tables built by `pick_table(weights)` from `FLAVOUR_WEIGHTS`,
+  `FM_RATIO_WEIGHTS` and `PARTIAL_WEIGHTS`. Electronic and bell-like types make about 80 % of picks.
+  The bells layer's role chances were raised by 0.15.
+- **CPU:** about 3 % of an x86 core in the heaviest case.
+
 ## Pd gotchas met here
 - Screen lines: `[pack]` parts must be fed right to left: the hot inlet (part 0) goes last.
 - A message box `list word` with a single word arrives as `symbol word`. Toasts use two or more words.

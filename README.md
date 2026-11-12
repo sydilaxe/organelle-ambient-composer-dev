@@ -20,6 +20,7 @@ vanilla Pd objects only. How to play it: [`patches/Amble/README.txt`](patches/Am
 **Demos** (offline renders, unedited):
 - [`demos/amble_composition_seed_2718.mp3`](demos/amble_composition_seed_2718.mp3): a complete 5-minute composition. The form runs emerge, establish, develop, climax, dissolve. The key goes out and comes home, and the tempo and the motion layer follow the form.
 - [`demos/amble_electric_composition_seed_3612.mp3`](demos/amble_electric_composition_seed_3612.mp3): an electric 5-minute piece: digi and saw pads, an analog drone, a sub bass line, chorus, buzz and radio textures.
+- [`demos/amble_bells_atmosphere_composition_seed_8464.mp3`](demos/amble_bells_atmosphere_composition_seed_8464.mp3): bell-like and electric: tine, bar-partial and FM pads, the "space" atmosphere, an analog drone, with the stereo scenes changing by section.
 - [`demos/amble_vocoder_voice_input_seed_4139.mp3`](demos/amble_vocoder_voice_input_seed_4139.mp3): a synthetic singer on the input, vocoded through a synth choir on Amble's chords.
 - [`demos/amble_live_breath_mpe_and_input_seed_77.mp3`](demos/amble_live_breath_mpe_and_input_seed_77.mp3): a breath-controlled MPE part, sent as a DM48X would (notes on their own channels, breath swells, bends), with a plucked tone on the audio input in Auto mode.
 - [`demos/amble_drift_resonate_input_seed_808.mp3`](demos/amble_drift_resonate_input_seed_808.mp3): DRIFT mode, with a plucked test tone on the input ringing the chord-tuned strings.
@@ -85,10 +86,11 @@ emulator, so the font only approximates the Organelle's.
 
 | | Choices (each piece picks its own) |
 |---|---|
-| **Pads** | 10 types: fm, vox formants, bowed string, drifting partials, wavefolder, pulsar, **saws** (detuned analog ensemble through a tracking resonant low-pass), **pwm** (Juno-like), **digi** (ring mod, bit crush, sample-rate reduction), **sync** (hard-sync sweep). A piece uses a palette of 3, per voice and per section. |
+| **Pads** | 11 types (most stereo inside): fm, vox formants, bowed string, drifting partials, wavefolder, pulsar, **saws** (detuned analog ensemble through a tracking resonant low-pass), **pwm** (Juno-like), **digi** (ring mod, bit crush, sample-rate reduction), **sync** (hard-sync sweep), **tine** (an electric-piano bell that strikes itself). A piece uses a palette of 3, per voice and per section, weighted towards the electronic and bell-like types (about 80 % of picks). |
 | **Drone** | 4 designs: pure, analog (saws and a square through a slow resonant sweep), organ (drawbars with a rotary shimmer), fm (an electric growl). The break may switch to the piece's second design. |
 | **Sub** | A dedicated layer: the pedal an octave under the tonic, the chord root as a bass line, or both. Softly saturated, so small speakers still hear it. |
 | **Character** | On the pads: clean, chorus, tape (wow, saturation, hiss that follows the music), ring modulation, or crush. |
+| **Atmospheres** | In about half the pieces, mostly in the emerge, break and dissolve sections: haze (air shimmering on the chord), deep (rumble with distant thunder), space (air ringing in combs tuned to the chord), night (distant insects), tides (waves washing across the field). All stereo. |
 | **Textures** | 7: rain, wind, embers, chirps, radio (static and drifting whistles), data (blip bursts), buzz (electric hum on the tonic). |
 | **Input** | Besides chord strings, cloud, tape, ghost and tuned bands: **vocode** (a 10-band vocoder; your sound speaks through a synth choir singing the chord) and **morph** (it speaks through the pads themselves). Auto mode vocodes pitched input in some pieces. |
 
@@ -111,6 +113,20 @@ Measured on rendered pieces:
 - about 2 dB of slow left–right movement
 - a mono sum costs only about 1 dB
 
+**Stereo scenes (the composition places the voices):** each section picks a scene that sets where the
+pads live, where bells and motion play, and how far the cloud spreads:
+- **spread:** across the field
+- **split:** pads left, bells and motion right
+- **center:** a focused core with a wide halo
+- **circle:** everything orbits wide
+- **mirror:** voices in mirrored pairs
+
+The choice depends on the section's role. The pads glide to their new places over 6 s.
+
+**Stereo inside the pad types:** detuned saws on different sides, PWM with mirrored widths, opposite vowels, partials
+alternating left and right, offset formants, and bell partials fanned around each note. Every type is
+mono-safe: a mono sum dips by at most about 5 dB, never cancels.
+
 **SETUP page 3:**
 - **Output:** stereo wide, or mono for mono rigs and external effects.
 - **Width:** 50 to 150 %.
@@ -127,8 +143,8 @@ Measured on rendered pieces:
 - **Shimmer:** the Hall with an octave-up shifter in its loop.
 - **Auto:** the piece chooses. Each section change blooms the reverb up, the climax lengthens it, and the dissolve darkens it.
 
-CPU, measured offline: about 2.2 % of one x86 core with every layer, the vocoder, a character effect, 4 live voices,
-the OLED and the clock running. That should be roughly 18 to 22 % of the Organelle's CM3.
+CPU, measured offline: about 3 % of one x86 core with every layer, an atmosphere, the vocoder, a character effect,
+4 live voices, the OLED and the clock running. That should be roughly 25 to 30 % of the Organelle's CM3.
 
 ## Source (`tools/`)
 
@@ -147,7 +163,7 @@ files.
 - `gen_verb.py`: the reverbs.
 - `data.py`: the tables.
 - `harness.py` runs the patch offline (`pd -batch`).
-- `ci_check.py` is the test suite (101 checks).
+- `ci_check.py` is the test suite (115 checks).
 - `shots.py` renders OLED screenshots with `oledemu.py`.
 - `ref/` holds Conduit's Bloom in C, the reference for the reverb tests.
 

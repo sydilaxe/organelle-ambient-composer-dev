@@ -35,7 +35,7 @@ FAMILIES = [
     ("sus",      0, [0, 3, 4, 8]),        # root, 4th, 5th, 9th
 ]
 
-FLAVOURS = ["fm", "vox", "bow", "part", "fold", "pulsr", "saws", "pwm", "digi", "sync"]          # pad synthesis types
+FLAVOURS = ["fm", "vox", "bow", "part", "fold", "pulsr", "saws", "pwm", "digi", "sync", "tine"]          # pad synthesis types
 TEXTURES = ["rain", "wind", "ember", "chirp", "radio", "data", "buzz"]
 DRONES = ["pure", "analog", "organ", "fm"]
 CHARACTERS = ["clean", "chorus", "tape", "ring", "crush"]
@@ -79,14 +79,14 @@ LAYERS = ["drone", "pad", "tex", "cloud", "bell", "motion"]
 # chance that a layer plays in a section of each role
 ROLE_MASK = [
     # drone pad  tex  cloud bell motion
-    [1.0, 0.35, 0.8, 0.5, 0.15, 0.0],    # emerge
-    [1.0, 1.0, 0.6, 0.4, 0.4, 0.2],      # establish
-    [0.9, 1.0, 0.6, 0.6, 0.7, 0.6],      # develop
-    [0.9, 1.0, 0.7, 0.7, 0.7, 0.9],      # intensify
+    [1.0, 0.35, 0.8, 0.5, 0.3, 0.0],     # emerge
+    [1.0, 1.0, 0.6, 0.4, 0.55, 0.2],     # establish
+    [0.9, 1.0, 0.6, 0.6, 0.85, 0.6],     # develop
+    [0.9, 1.0, 0.7, 0.7, 0.85, 0.9],     # intensify
     [1.0, 1.0, 0.8, 0.9, 0.8, 1.0],      # climax
     [0.4, 0.2, 0.9, 0.8, 0.6, 0.4],      # break
     [1.0, 1.0, 0.5, 0.5, 0.9, 0.4],      # return
-    [1.0, 0.6, 0.7, 0.8, 0.3, 0.0],      # dissolve
+    [1.0, 0.6, 0.7, 0.8, 0.45, 0.0],     # dissolve
 ]
 ROLE_TIDE = [1.6, 1.2, 1.0, 0.75, 0.6, 1.5, 1.0, 2.0]      # x the time between chord changes
 ROLE_TEMPO = [0.92, 1.0, 1.0, 1.06, 1.1, 0.95, 1.0, 0.85]  # x the piece tempo
@@ -106,3 +106,31 @@ BLOOM_LEFT = [249, 48, 21]
 BLOOM_RIGHT = [147, 43, 55]
 BLOOM_PRE = 2000                       # Bloom 2's pre-delay (85 ms)
 HALL_MS = [43.7, 53.9, 61.3, 71.1, 83.9, 97.3, 109.7, 127.1]
+
+# ---- atmospheres, stereo scenes, preferences
+ATMOS_NAMES = ["haze", "deep", "space", "night", "tides"]
+ATMOS_ROLE = [0.85, 0.4, 0.3, 0.4, 0.5, 0.85, 0.45, 0.9]     # chance per section role, in pieces that have one
+SCENES = ["spread", "split", "center", "circle", "mirror"]
+# per scene: 4 pad homes, bells centre / spread, motion centre / spread, cloud spread, orbit depth x
+SCENE_DATA = [
+    [0.08, 0.36, 0.64, 0.92, 0.5, 0.8, 0.5, 0.76, 0.96, 1.0],
+    [0.08, 0.18, 0.28, 0.38, 0.8, 0.3, 0.8, 0.3, 0.6, 0.6],
+    [0.38, 0.46, 0.54, 0.62, 0.5, 0.95, 0.5, 0.9, 0.96, 0.35],
+    [0.2, 0.4, 0.6, 0.8, 0.5, 0.9, 0.5, 0.9, 0.96, 2.0],
+    [0.12, 0.32, 0.68, 0.88, 0.5, 0.85, 0.5, 0.85, 0.8, 0.5],
+]
+# the scenes each section role chooses from (3 picks)
+SCENE_ROLE = [[2, 0, 2], [0, 4, 0], [1, 4, 0], [3, 1, 3], [3, 0, 4], [1, 2, 1], [0, 4, 0], [2, 3, 2]]
+# preferences: the electronic and bell-like sounds come up more often
+FLAVOUR_WEIGHTS = [1.6, 0.5, 0.5, 1.3, 0.6, 1.0, 1.3, 1.3, 1.2, 1.1, 1.8]
+FM_RATIO_WEIGHTS = [1, 1, 2, 2, 0.7, 2, 1, 1.5]
+PARTIAL_WEIGHTS = [1, 0.8, 2, 1, 0.8, 2]
+
+
+def pick_table(weights, n=40):
+    """a table of n slots, each index repeated in proportion to its weight"""
+    tot = sum(weights)
+    out = []
+    for i, w in enumerate(weights):
+        out += [i] * max(1, round(n * w / tot))
+    return out
