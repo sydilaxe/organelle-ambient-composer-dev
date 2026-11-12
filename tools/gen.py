@@ -59,7 +59,7 @@ def build(out=OUT):
     if not os.path.exists(sf):
         import gen_setup
         from data import PAGES
-        vals = [d for p in PAGES for _, _, d in p] + [1, 0, -1, 0, 0.7, 48, 1, 1.2, 0, 1, 0.8]
+        vals = [d for p in PAGES for _, _, d in p] + [1, 0, -1, 0, 0.7, 48, 1, 1.2, 0, 1, 0.8, 0]
         open(sf, "w").write(" ".join(f"{v:g}" for v in vals) + ";\n")
     from readme_text import PATCH_README
     open(os.path.join(out, "README.txt"), "w").write(PATCH_README)

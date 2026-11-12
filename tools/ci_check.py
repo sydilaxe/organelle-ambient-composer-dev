@@ -452,5 +452,21 @@ liked = {"fm", "part", "pulsr", "saws", "pwm", "digi", "sync", "tine"}
 share = sum(FLAVOURS[int(float(x))] in liked for r in rows for x in r) / max(1, 3 * len(rows))
 check(share > 0.75, f"palettes favour the electronic and bell-like types ({share:.0%})")
 
+# 21. tempo ranges (SETUP page 3): each range keeps its pieces inside it; a change applies at once
+from data import TEMPOS, ROLE_TEMPO
+for r, (name, lo, hi) in enumerate(TEMPOS):
+    ev = [(40, f"actrange {r}")] + [(100 + i * 300, f"ac-setseed {900 + i * 53}") for i in range(10)]
+    log, _ = run(ev, 4, prints=("ac-bpm",))
+    b = [float(l.split()[1]) for l in log.splitlines() if l.startswith("ac-bpm")][1:]
+    ok = b and min(b) >= lo * min(ROLE_TEMPO) - 0.01 and max(b) <= hi * max(ROLE_TEMPO) + 0.01
+    check(ok and max(b) - min(b) > (hi - lo) * 0.25, f"tempo range {name}: {min(b):.0f}-{max(b):.0f} BPM")
+log, _ = run([(40, "ac-setseed 7"), (300, "acsetup 1"), (310, "acsetpg 2"), (400, "ac-setknob 3 0.99")], 2,
+             prints=("ac-bpm", "ac-sett4"))
+b = [float(l.split()[1]) for l in log.splitlines() if l.startswith("ac-bpm")]
+check(b and b[-1] >= 90 * min(ROLE_TEMPO) and "4 Tempo fast 90-140" in log,
+      f"SETUP Tempo fast applies at once ({b[-1] if b else 0:.0f} BPM)")
+log, a = run([(40, "actrange 4"), (45, "actime 1"), (50, "aclen 0.03"), (60, "ac-setseed 3612")], 180)
+check(np.abs(a).max() < 0.6, f"a fast piece stays clean: the motion pings never spike (peak {np.abs(a).max():.2f})")
+
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

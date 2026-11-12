@@ -147,7 +147,8 @@ def oled():
         Fill(96, 20, 32, 33, 0), V("acmcur", "-1"),
         Loop("acmn", "aci", [If(hit, [Fill(*cell("aci"), 3, 3)],
                                 [Fill(f"98 + (int(aci) % 8)*4", f"23 + int(int(aci)/8)*5", 1, 1)])]),
-        X("int(acbpm + 0.5)", lambda c, src: _print_fmt(c, src, "%dbpm", 97, 36)),
+        # 3-digit tempi drop the "m" so they stay inside the screen
+        X("int(acbpm + 0.5)", lambda c, src: _print_bpm(c, src)),
         Call("ac-oledverb"),
     ])])
     proc(c, "ac-step", [If(normal + " && acgmotion > 0.01 && int(acstep) % int(acmdiv) == 0", [
@@ -196,6 +197,13 @@ def _print_fmt(c, src, fmt, x, y):
     mf = c.obj(f"makefilename {fmt}")
     c.c(src[0], src[1], mf, 0)
     c.c(c.m(mf, f"/oled/gPrintln 3 {x} {y} 8 1 $1"), 0, c.obj("s " + OSC), 0)
+
+
+def _print_bpm(c, src):
+    mo = c.obj("moses 100")
+    c.c(src[0], src[1], mo, 0)
+    _print_fmt(c, (mo, 0), "%dbpm", 97, 36)
+    _print_fmt(c, (mo, 1), "%dbp", 97, 36)
 
 
 def _mmss(c, src):

@@ -714,7 +714,8 @@ def motion():
         o = s.obj("+~")
         s.c(src, 0, o, 0)
         s.c(s.to(rd, "*~ 0.6"), 0, o, 1)
-        outs.append(o)
+        # soft limit: pings stacking with their echoes (fast tempi, dense patterns) stay round, never spike
+        outs.append(s.to(o, "expr~ tanh($v1*2.5)/2.5"))
     throws(s, outs[0], outs[1], mix=1.0, send=0.9)
     return s
 

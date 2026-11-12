@@ -14,7 +14,7 @@ The return section replays the opening chord progression. At the end it
 fades out: B for a new piece.
 DRIFT: endless sections, for backing a performance.
 
-LAYERS AND THEIR RHYTHMS (one clock, 40-72 BPM, meter 3-7 per piece)
+LAYERS AND THEIR RHYTHMS (one clock, 40-72 BPM by default, meter 3-7)
   Drone    one of 4 designs per piece (the break may switch): pure (tonic,
            beating twin, interval, breath tube), analog (saws and a square
            through a slow resonant sweep), organ (drawbars, rotary shimmer),
@@ -33,7 +33,7 @@ LAYERS AND THEIR RHYTHMS (one clock, 40-72 BPM, meter 3-7 per piece)
   Motion   Euclidean patterns (e.g. 5 in 8, 7 in 16) arpeggiating the chord on
            FM pings, swing, tempo echoes
   Bells    the motif, phrased in beats with rubato
-  Textures rain, wind, embers, chirps, radio (static, whistles), data (blip
+  Textures rain, wind, embers, chirps, radio (soft drifting static, whistles), data (blip
            bursts), buzz (electric hum on the tonic)
   Cloud    grains of the recent sound or your input; locked to the beat in
            intense sections, free otherwise
@@ -128,7 +128,9 @@ SETUP (hold aux 1 s; aux tap = page 2; hold aux 1 s to leave and save)
   page 2: Follow you (how much chords follow what you play), MPE bend
   range (12/24/48/96), MIDI out base channel, breath curve.
   page 3: Output (stereo wide / mono - for mono rigs and external effects),
-  Width (50-150 %), Pan motion (how far the voices travel).
+  Width (50-150 %), Pan motion (how far the voices travel), Tempo range:
+  ambient 40-72, slow 24-48, wide 30-110, pulse 60-100, fast 90-140. Above
+  84 BPM bells, breathing and the drone swell move at half time.
 
 STEREO SCENES: each section places the voices - spread (across the
 field), split (pads left, bells and motion right), center (a focused core,

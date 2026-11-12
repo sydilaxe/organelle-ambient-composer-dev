@@ -5,21 +5,22 @@ functions), Bloom (clean / vintage). Page 2: Follow (how much the chords follow 
 MIDI out base channel, breath curve. Aux tap = the other page, hold aux 1 s = leave (and save)."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Line, Arm, Toast
 from gen_oled import Fill, OSC, FLIP, gated_text
-from data import PAGES
+from data import PAGES, TEMPOS
 
 GLOBALS = dict(acmout=1, acsync=0, acvintage=0, acoutch=1, accurve=1.2, acsk=0, acsv=0, acextbpm=60,
-               acrtb=0, acoutroot=-1, acclkon=0, acsaved=0)
+               acrtb=0, acoutroot=-1, acclkon=0, acsaved=0, actrange=0)
 ARRAYS = dict(acout=4)
 NP = len(PAGES)
 SETTINGS = [n for p in PAGES for _, n, _ in p] + ["acmout", "acsync", "acforce", "acvintage", "acfollow", "acnbr",
-                                                  "acoutch", "accurve", "acmono", "acwidth", "acpanmot"]
+                                                  "acoutch", "accurve", "acmono", "acwidth", "acpanmot",
+                                                  "actrange"]
 MOUT = ["off", "clock", "clock+notes", "notes"]
 BENDS = [12, 24, 48, 96]
 
 
 def settings():
     c = Canvas("settings", w=2400)
-    c.comment("settings.txt: the 12 knob values and the 8 SETUP values, one line. Loaded at start-up, "
+    c.comment("settings.txt: the 12 knob values and the 12 SETUP values, one line. Loaded at start-up, "
               "saved 3 s after a change and when SETUP closes.")
     td = c.obj("text define acsettings")
     r = c.recv("ac-loadsettings")
@@ -93,6 +94,7 @@ def setup():
         If(f"{item} == 8", [V("acmono", "acsv > 0.5"), Call("ac-stereo")]),
         If(f"{item} == 9", [V("acwidth", "0.5 + acsv"), Call("ac-stereo")]),
         If(f"{item} == 10", [V("acpanmot", "acsv"), Call("ac-stereo")]),
+        If(f"{item} == 11", [V("actrange", f"int(acsv*{len(TEMPOS) - 0.01})"), Call("ac-settempo")]),
         Call("ac-oledsetup"), Send("ac-dirty"),
     ])
     c.col()
@@ -111,7 +113,8 @@ def setup():
         (3, ("list 3 Keys $1", [("s", "acforce + 1", ["auto", "play notes", "functions"])]),
             ("list 3 MIDI out ch $1", [("f", "acoutch")]), ("list 3 Pan motion $1", [("f", "int(acpanmot*100)")])),
         (4, ("list 4 Bloom $1", [("s", "acvintage", ["clean", "vintage"])]),
-            ("list 4 Breath curve $1", [("f", "int(accurve*100)")]), ("list 4 -", [])),
+            ("list 4 Breath curve $1", [("f", "int(accurve*100)")]), ("list 4 Tempo $1 $2-$3", [("s", "actrange", [n for n, _, _ in TEMPOS]),
+                                          ("f", "actlo[int(actrange)]"), ("f", "acthi[int(actrange)]")])),
     ]
     for k, a, b, d in defs:
         s = c.ch(c.recv(f"ac-setl{k}"), "expr acsetpg", "sel 0 1 2")

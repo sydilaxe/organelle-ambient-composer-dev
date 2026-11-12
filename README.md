@@ -29,7 +29,7 @@ vanilla Pd objects only. How to play it: [`patches/Amble/README.txt`](patches/Am
 
 | | |
 |---|---|
-| **Piece** | A seed picks the key and scale (16, including just, harmonic-7th, slendro and pelog), voicing families, the pad synthesis palette, tempo (40 to 72 BPM), meter (3 to 7), motif, textures and reverb. A new seed is used at every start; a seed replays its piece. |
+| **Piece** | A seed picks the key and scale (16, including just, harmonic-7th, slendro and pelog), voicing families, the pad synthesis palette, tempo (40 to 72 BPM by default; SETUP can choose 24 to 140), meter (3 to 7), motif, textures and reverb. A new seed is used at every start; a seed replays its piece. |
 | **Form** | One of 5 archetypes (arch, slow build, waves, two peaks, journey) over 6 to 12 sections. Each section has a role: emerge, establish, develop, intensify, climax, break, return or dissolve. Roles set the layers, the key area (out from home and back), tempo, harmonic pace, drone pulse, motif transformation (inverted, raised, restored) and reverb. The return section replays the opening progression. |
 | **Harmony** | Voice-led chords from 8 voicing families. Each voice glides on its own delay, so chords dissolve into each other. |
 | **Rhythm** | One clock at 24 ticks a beat. Each layer has its own relation to it, so the texture has rhythm without a beat. |
@@ -91,7 +91,7 @@ emulator, so the font only approximates the Organelle's.
 | **Sub** | A dedicated layer: the pedal an octave under the tonic, the chord root as a bass line, or both. Softly saturated, so small speakers still hear it. |
 | **Character** | On the pads: clean, chorus, tape (wow, saturation, hiss that follows the music), ring modulation, or crush. |
 | **Atmospheres** | In about half the pieces, mostly in the emerge, break and dissolve sections: haze (air shimmering on the chord), deep (rumble with distant thunder), space (air ringing in combs tuned to the chord), night (distant insects), tides (waves washing across the field). All stereo. |
-| **Textures** | 7: rain, wind, embers, chirps, radio (static and drifting whistles), data (blip bursts), buzz (electric hum on the tonic). |
+| **Textures** | 7: rain, wind, embers, chirps, radio (soft drifting static and whistles), data (blip bursts), buzz (electric hum on the tonic). |
 | **Input** | Besides chord strings, cloud, tape, ghost and tuned bands: **vocode** (a 10-band vocoder; your sound speaks through a synth choir singing the chord) and **morph** (it speaks through the pads themselves). Auto mode vocodes pitched input in some pieces. |
 
 The four random streams are seeded through a hash, so nearby seeds don't share their sound choices. The
@@ -131,6 +131,10 @@ mono-safe: a mono sum dips by at most about 5 dB, never cancels.
 - **Output:** stereo wide, or mono for mono rigs and external effects.
 - **Width:** 50 to 150 %.
 - **Pan motion:** how far the voices travel.
+- **Tempo:** the range a piece picks its tempo from: ambient 40-72 (default), slow 24-48, wide 30-110,
+  pulse 60-100, fast 90-140. Above 84 BPM the slow layers (pad breathing, bells, the drone's bar swell) feel
+  the beat at half speed and the arpeggio counts in 8ths, so a fast piece still breathes. A change takes effect
+  at once, keeping the piece's place in the range. With Sync = follow clock any tempo comes from outside.
 
 ## Reverb
 
