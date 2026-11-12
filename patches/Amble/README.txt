@@ -113,6 +113,11 @@ THE SCREEN (a live score)
               reverb, and the input level
   right       the motion layer's Euclidean pattern with its cursor, the
               tempo, the reverb (B1 B2 HALL SHIM)
+  input       while external audio plays the right column shows it instead:
+              6 s of its level as a waveform (onsets ticked above), the
+              input mode and what Amble hears (pitch / pluck / textr), a dot
+              while it records a memory; a pitch it hears is a line across
+              the pitch ladder. The rhythm column returns 5 s after.
   bottom      section role and voicing; K = keys play, M = external MIDI,
               E = following an external clock; FIN at the end
   Turning a knob shows its page for 2 s.

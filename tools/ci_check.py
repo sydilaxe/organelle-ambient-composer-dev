@@ -468,5 +468,17 @@ check(b and b[-1] >= 90 * min(ROLE_TEMPO) and "4 Tempo fast 90-140" in log,
 log, a = run([(40, "actrange 4"), (45, "actime 1"), (50, "aclen 0.03"), (60, "ac-setseed 3612")], 180)
 check(np.abs(a).max() < 0.6, f"a fast piece stays clean: the motion pings never spike (peak {np.abs(a).max():.2f})")
 
+# 22. the OLED shows external audio: an input panel (waveform, mode, what Amble hears), the pitch on the ladder;
+#     the rhythm column comes back when the input stops
+ev = [(40, "actime 0.08"), (50, "ac-setseed 2718"), (61, "acinput 0.6"), (62, "ac-inputupd bang")]
+log, _ = run(ev, 8, inp="voice", prints=("oscOut",))
+osc = log.splitlines()
+check(any("gPrintln 3 97 35 8 1 auto" in l for l in osc) and any("gPrintln 3 97 43 8 1 pitch" in l for l in osc)
+      and any("gFillArea 3 8 " in l and l.split()[-2:] == ["1", "1"] and " 42 " in l for l in osc),
+      "OLED: an input panel (auto / pitch) and the sung pitch on the ladder")
+log, _ = run(ev + [(4000, "acinput 0"), (4001, "ac-inputupd bang")], 12, inp="voice", prints=("oscOut",))
+late = [l for l in log.splitlines()]
+check(any("bpm" in l for l in late[len(late) // 2:]), "OLED: the rhythm column returns after the input stops")
+
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

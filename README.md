@@ -74,9 +74,12 @@ emulator, so the font only approximates the Organelle's.
 
 ![screens](docs/shots/sheet.png)
 
+![input panel](docs/shots/input.png)
+
 | Screen | Contents |
 |---|---|
 | **Score** | The form strip (one bar per section, height = energy, current one inverted, a playhead). Key and scale, with the time left. The pad voices gliding on a pitch ladder, with your held notes as boxes and a breath bar. Meters for every layer, the reverb and the input. The motion layer's Euclidean pattern with a moving cursor, the tempo and the reverb type. The section role and voicing, and K/M/E tags for who is playing and the clock. |
+| **Input** | While external audio plays, the right-hand column becomes an input panel: the last 6 s of the input as a waveform with its onsets ticked above, the input mode, and what Amble hears (pitch, pluck, texture), with a dot while it records a memory. A sung or played pitch is drawn as a line across the pitch ladder, so you see it against the pad voices. The rhythm column comes back 5 s after the input stops. |
 | **Knob page** | Shown for 2 s when you turn a knob. |
 | **SETUP** | Hold aux for 1 s. Page 1: MIDI out (off, clock, clock + notes, notes), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Saved in `settings.txt` with the knob values. |
 

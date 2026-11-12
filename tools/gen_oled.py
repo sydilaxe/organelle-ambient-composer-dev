@@ -6,7 +6,10 @@
    y 20-52  left: the 4 pad voices as dots on a pitch ladder (they glide), your held notes as boxes,
             tonic ticks, breath bar; middle: 7 meters (drone, pads, textures, cloud, bells, motion,
             reverb) and the input level; right: the motion layer's Euclidean pattern with a moving
-            cursor, and the tempo
+            cursor, and the tempo; while external audio plays, an INPUT panel instead: the last 6 s of
+            the input's level as a waveform (onsets ticked above), the input mode and what Amble hears
+            (pitch / pluck / textr), a dot while it records a memory; a sung or played pitch is drawn
+            as a line across the pitch ladder
    y 53-63  section role, reverb, KEYS/MIDI, INT/EXT (FIN at the end)
 A knob or page change shows the knob page for 2 s; SETUP takes the whole screen."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Line
@@ -14,8 +17,8 @@ from data import ROLES, PAGE_NAMES, FAMILIES
 
 OSC = "oscOut"
 GLOBALS = dict(acpopt=0, actoastt=0, acfr=0, acel=0, acsecel=0, acox=0, acoxs=0, acmcur=-1, acrvlvl=0, acoled=1,
-               acsetup=0, acsetpg=0, acyy=0)
-ARRAYS = dict(acdisp=4, acdg=8)
+               acsetup=0, acsetpg=0, acyy=0, acinv=0, acinlast=-1e+06, acinon=0, acinhi=0)
+ARRAYS = dict(acdisp=4, acdg=8, acinh=32, acino=32)
 
 
 def Fill(x, y, w, h, c=1):
@@ -74,7 +77,7 @@ def oled():
         If("actoastt > 0 && acnow >= actoastt", [V("actoastt", "0"), Call("ac-scr2"), Call("ac-oledtime")]),
         If(normal, [
             Call("ac-oledmid"),
-            If("int(acfr) % 2 == 0", [Call("ac-oledmeters")]),
+            If("int(acfr) % 2 == 0", [Call("ac-oledmeters"), Call("ac-oledinput")]),
             If("int(acfr) % 10 == 0", [Call("ac-oledform"), Call("ac-oledbottom"), Call("ac-oledtime")]),
         ]),
         FLIP,
@@ -118,6 +121,9 @@ def oled():
     mid = [Fill(0, 20, 60, 33, 0)]
     mid += [If(f"actonic + {12 * i} >= 43 && actonic + {12 * i} <= 86",
                [Fill(4, ypitch(f"actonic + {12 * i}"), 3, 1)]) for i in range(1, 5)]
+    # the input's pitch, when Amble hears one, as a line across the ladder
+    mid += [If("acinv && acpconf > 0.45 && acinp > 0 && acinp >= 43 && acinp <= 86",
+               [Fill(8, ypitch("acinp"), 42, 1)])]
     mid += [Loop("4", "aci", [
         T("acdisp", "aci", "if(acdisp[int(aci)] < 1, acch[int(aci)], acdisp[int(aci)] + (acch[int(aci)] - "
                            "acdisp[int(aci)])*0.08)"),
@@ -143,7 +149,7 @@ def oled():
     # ---- the rhythm: the Euclidean pattern (redrawn when it changes), a cursor on each step
     cell = lambda j: (f"97 + (int({j}) % 8)*4", f"22 + int(int({j})/8)*5")
     hit = "((int(aci + acmrot) % int(acmn)) * int(acmk)) % int(acmn) < acmk"
-    proc(c, "ac-oledrhythm", [If(normal, [
+    proc(c, "ac-oledrhythm", [If(normal + " && acinv == 0", [
         Fill(96, 20, 32, 33, 0), V("acmcur", "-1"),
         Loop("acmn", "aci", [If(hit, [Fill(*cell("aci"), 3, 3)],
                                 [Fill(f"98 + (int(aci) % 8)*4", f"23 + int(int(aci)/8)*5", 1, 1)])]),
@@ -151,11 +157,39 @@ def oled():
         X("int(acbpm + 0.5)", lambda c, src: _print_bpm(c, src)),
         Call("ac-oledverb"),
     ])])
-    proc(c, "ac-step", [If(normal + " && acgmotion > 0.01 && int(acstep) % int(acmdiv) == 0", [
+    proc(c, "ac-step", [If(normal + " && acinv == 0 && acgmotion > 0.01 && int(acstep) % int(acmdiv) == 0", [
         If("acmcur >= 0", [Inv(*cell("acmcur"), 3, 3)]),
         V("acmcur", "int(acstep/acmdiv) % int(acmn)"),
         Inv(*cell("acmcur"), 3, 3),
     ])])
+    c.col()
+    # ---- the INPUT panel (replaces the rhythm column while external audio plays; back 5 s after it stops)
+    inx = "(int(acinhi + 1 + aci) % 32)"
+    proc(c, "ac-oledinput", [
+        # the history: one column per 200 ms
+        V("acinhi", "(acinhi + 1) % 32"),
+        T("acinh", "acinhi", "min(1, max(0, (acinlvl - 36)/58))*(acinput > 0.01)"),
+        T("acino", "acinhi", "acinon*(acinput > 0.01)"), V("acinon", "0"),
+        If("acinput > 0.01 && acact > 0.15", [V("acinlast", "acnow")]),
+        If("acinv == 0 && acnow - acinlast < 5000", [V("acinv", "1"), If(normal, [Call("ac-oledinlbl")])]),
+        If("acinv && acnow - acinlast >= 5000", [V("acinv", "0"), Call("ac-oledrhythm")]),
+        If(normal + " && acinv", [
+            Fill(96, 21, 32, 13, 0),
+            Loop("32", "aci", [
+                Fill("96 + aci", f"28 - int(acinh[{inx}]*5)", 1, f"1 + 2*int(acinh[{inx}]*5)"),
+                If(f"acino[{inx}]", [Fill("96 + aci", 21, 1, 1)]),
+            ]),
+            If("int(acfr) % 10 == 0", [Call("ac-oledinlbl")]),
+        ]),
+    ])
+    proc(c, "ac-oledinlbl", [If(normal + " && acinv", [Fill(96, 34, 32, 19, 0), Call("ac-oledinl1"),
+                                                        Call("ac-oledinl2"),
+                                                        If("acrec", [Fill(125, 46, 3, 3)])])])
+    Line("ac-oledinl1", "list $1", [("s", "acinmode", ["auto", "reso", "cloud", "tape", "ghost", "bands", "vocod",
+                                                       "morph"])], "ac-oledinl1b")(c)
+    text_at(c, "ac-oledinl1b", 97, 35)
+    Line("ac-oledinl2", "list $1", [("s", "acinclass", ["quiet", "pitch", "pluck", "textr"])], "ac-oledinl2b")(c)
+    text_at(c, "ac-oledinl2b", 97, 43)
     c.col()
     # ---- the bottom line
     proc(c, "ac-oledbottom", [If(normal, [Fill(0, 53, 128, 11, 0), If("acrun", [Call("ac-oledbot")],
