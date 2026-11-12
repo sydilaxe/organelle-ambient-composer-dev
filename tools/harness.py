@@ -26,7 +26,7 @@ def build_tmp():
     return d
 
 
-def run(events, seconds, inp=None, prints=(), d=None, keep=False):
+def run(events, seconds, inp=None, prints=(), d=None, keep=False, extra=None):
     """inp: None (silence), 'tone' (plucked tones), 'noise' (soft noise bursts)"""
     own = d is None
     if own:
@@ -81,6 +81,8 @@ def run(events, seconds, inp=None, prints=(), d=None, keep=False):
     c.c(m, 0, c.obj("s~ inL", 700, 90), 0)
     c.c(m, 0, c.obj("s~ inR", 800, 90), 0)
     c.obj("main", 20, 250)
+    if extra:
+        extra(c)
     for n in list(PRINTS) + list(prints):
         r = c.obj("r " + n)
         c.c(r, 0, c.obj("print " + n), 0)

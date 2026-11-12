@@ -5,11 +5,10 @@ from harness import run, SR
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "demos")
 DEMOS = [
-    # a whole composition: Len at 0 = a 3-minute piece, rendered to its end
-    ("composition_seed_2718", [(50, "aclen 0"), (60, "ac-setseed 2718"), (100, "notesRaw 72 100"),
-                               (150, "notesRaw 72 0")], 225, None),
+    # a whole 5-minute composition (Len at 0), rendered to its end
+    ("amble_composition_seed_2718", [(50, "aclen 0"), (60, "ac-setseed 2718")], 345, None),
     # drifting backing track, the input (a plucked test tone) ringing the chord resonators
-    ("drift_resonate_input_seed_808", [(50, "ac-setseed 808"), (60, "acinput 0.6"), (61, "ac-inputupd bang"),
+    ("amble_drift_resonate_input_seed_808", [(40, "acmode 0"), (50, "ac-setseed 808"), (60, "acinput 0.6"), (61, "ac-inputupd bang"),
                                        (60, "acdens 0.7"), (61, "ac-layers bang")], 150, "tone"),
 ]
 

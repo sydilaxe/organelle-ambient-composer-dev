@@ -1,4 +1,4 @@
-# Project notes
+# Project notes (Amble)
 
 Working memory for this project: read it first in a new session.
 
@@ -38,6 +38,28 @@ Working memory for this project: read it first in a new session.
   the loop low-pass's group delay (it measured within 0.5 % of pitch).
 - **Levels** (single layers, offline): pad ≈ -24, drone ≈ -22, rain/wind ≈ -28, bells ≈ -27,
   cloud ≈ -29 dB RMS. Default mix ≈ -21 dB RMS, peaks < 0.45. The compressor starts at about -18 dBFS RMS.
+
+## Stage 1 (form, rhythm, Bloom)
+- **Form:** `ac-plan`. The archetype curve (`ARCH_EXPR`) gives each section's energy. The peak becomes
+  the climax, and the recap is the first section after the climax and past 72 % of the piece. Roles come
+  from the energy slope. Each role has its own `ROLE_MASK` (layer chances), `ROLE_TIDE`, `ROLE_TEMPO`
+  and `ROLE_PULSE`. The key plan (`ackeyp`) is applied through `acpend` at the next chord change.
+- **Recap:** the chord degrees of the first two sections are stored in `acprog`, and the return section
+  replays them. `acmotif0` is the piece's motif, and `ac-motifgen` transforms it per role.
+- **Clock:** a `metro` runs at 24 ticks a beat (`ac-tick`), giving `ac-step` (16ths), `ac-beat` and
+  `ac-bar`. Motion hit = `((s + rot) % n * k) % n < k`. Swing and rubato are a `pipe` delay per note.
+- **Bloom in Pd:** a `switch~ 16 1 0.5` subpatch, i.e. 22.05 kHz in 16-sample blocks. The delays are
+  kept in ms (the unit's samples / 23.4375), so timing is independent of the rate. The input is
+  low-passed twice before decimation (`inlet~` doesn't filter), and the output goes through
+  `outlet~ lin` then a low-pass. The loop's feedback (`delread~ $0-blfb 0`) is one block, against one
+  sample in C, and the 13-sample diffuser is clamped to 0.73 ms. The tests show this doesn't matter.
+  Loop gain = exp(−4.2·size/T), as in Conduit's `verb_decay`. Freeze sets loop gain 1 and gates the
+  input.
+- **Hall:** 8 lines with a fast Hadamard (3 butterfly stages) and g/√8 per line. Lines 1 and 5 are
+  modulated with `delread4~`. Shimmer: two windowed `vd~` taps sweeping 125 ms at 8 Hz (an octave up),
+  then high-passed and fed back in.
+- **Tests:** set `actime` (time compression) *before* `ac-setseed`. The first section is armed when the
+  piece starts.
 
 ## Pd gotchas met here
 - Screen lines: `[pack]` parts must be fed right to left: the hot inlet (part 0) goes last.

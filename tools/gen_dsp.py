@@ -4,7 +4,7 @@ FDN reverb and the master stage.
 Buses (throw~/catch~): ac-mixL/R dry mix, ac-padL/R the pad voices, ac-send reverb input (mono),
 ac-src what the cloud resamples. Every layer that can be silent sits in a switch~ed subpatch."""
 from pdlib import Canvas
-from data import REVERB_MS, CLOUD_LEN
+from data import CLOUD_LEN
 
 
 def switched(name, gain, block=None, hook=None):
@@ -148,7 +148,7 @@ def flav_part():
     b2 = mul(s, b, b)
     b3 = mul(s, b2, b)
     tilt = [None, b, b2, b3]
-    sm = s.obj("*~ 0.3")
+    sm = s.obj("*~ 0.45")
     for k in range(4):
         if k == 0:
             o = s.to(f, "osc~")
@@ -156,7 +156,7 @@ def flav_part():
             r = s.to(f, f"*~ {k + 1}")
             s.c(up, k - 1, r, 1)
             o = s.to(r, "osc~")
-        amp = s.ch((lt, k), f"* {[1, 1.37, 1.71, 2.13][k]}", "osc~", "*~ 0.5", "+~ 0.5")
+        amp = s.ch((lt, k), f"* {[1, 1.37, 1.71, 2.13][k]}", "osc~", "*~ 0.35", "+~ 0.65")
         p = mul(s, o, amp)
         if tilt[k] is not None:
             p = mul(s, p, tilt[k])
@@ -268,7 +268,14 @@ def drone():
     s.c(s.obj("noise~"), 0, tube, 0)
     s.c(mul(s, f, harm), 0, tube, 1)
     s.c(mul(s, s.to(tube, "*~ 5"), s.ch(s.obj("osc~ 0.023"), "*~ 0.5", "+~ 0.5")), 0, sm, 0)
-    o = mul(s, s.to(sm, "hip~ 25"), ln)
+    # the pulse: a swell on every bar, its depth set by the section (0 = steady)
+    env = s.ch(s.m(s.to(s.recv("ac-dpulse"), "expr max(100, $f1-450)"), "1 450, 0 $1 450"), "vline~")
+    dep = s.to(env, "*~ 0")
+    pu = s.to(s.recv("ac-pulse"), "t f f")
+    s.c(pu, 1, dep, 1)
+    pa = s.to(dep, "+~ 1")
+    s.c(s.to((pu, 0), "expr 1-$f1"), 0, pa, 1)
+    o = mul(s, mul(s, s.to(sm, "hip~ 25"), pa), ln)
     throws(s, o, o, mix=0.6, send=0.3, src=1)
     return s
 
@@ -526,31 +533,16 @@ def master():
     s.c(s.obj("catch~ ac-src"), 0, rs, 0)
     s.c(s.to(pm, "*~ 0.5"), 0, rs, 0)
     s.col()
-    x = allpass(s, allpass(s, rin, "ac-ap1", 11.3, 0.6), "ac-ap2", 4.7, 0.6)
-    S = s.obj("*~ -0.5")
-    damps, ys = [], []
-    for i, ms in enumerate(REVERB_MS):
-        a = s.obj("+~")
-        s.c(s.to(x, f"*~ {[1, -1, 1, -1][i]}"), 0, a, 0)
-        s.to(a, f"delwrite~ ac-fdn{i} 300")
-        if i in (0, 2):
-            d = s.obj(f"delread4~ ac-fdn{i}")
-            s.c(s.ch(s.obj(f"osc~ {0.13 + 0.07 * i}"), "*~ 1.3", f"+~ {ms}"), 0, d, 0)
-        else:
-            d = s.obj(f"delread~ ac-fdn{i} {ms}")
-        dm = s.to(d, "lop~ 4200")
-        s.c(dm, 0, S, 0)
-        y = s.obj("+~")
-        s.c(dm, 0, y, 0)
-        s.c(S, 0, y, 1)
-        g = s.to(y, "*~ 0.9")
-        s.c(s.recv(f"ac-rg{i}"), 0, g, 1)
-        s.c(g, 0, a, 1)
-        ys.append(y)
-        s.col(150)
+    # reverb input: the section swell (ac-rvin) and the hold gate (ac-rvfz)
+    rv = mul(s, mul(s, rin, s.ch(s.recv("ac-rvin"), "line~")), s.ch(s.recv("ac-rvfz"), "line~"))
+    import gen_verb
+    bl = s.sub(gen_verb.bloom())
+    s.c(s.ch(rv, "lop~ 8000", "lop~ 9000"), 0, bl, 0)
+    hl = s.sub(gen_verb.hall())
+    s.c(rv, 0, hl, 0)
     wet = s.ch(s.recv("ac-rwet"), "line~")
-    wL = mul(s, add(s, ys[0], ys[2]), wet)
-    wR = mul(s, add(s, ys[1], ys[3]), wet)
+    wL = mul(s, add(s, s.ch((bl, 0), "lop~ 9000"), (hl, 0)), wet)
+    wR = mul(s, add(s, s.ch((bl, 1), "lop~ 9000"), (hl, 1)), wet)
     s.col()
     mg = s.ch(s.recv("ac-master"), "line~")
     outs = []
@@ -564,4 +556,66 @@ def master():
                     "$1 25"), "line~")
     for o, bus in zip(outs, ("outL", "outR")):
         s.c(s.ch(mul(s, o, comp), "clip~ -0.98 0.98"), 0, s.obj("throw~ " + bus), 0)
+    return s
+
+
+def motion():
+    s, ln = switched("motion", "ac-g-motion")
+    s.comment("Motion: Euclidean pulses on chord tones - FM pings with a click, a tempo echo")
+    tl = s.to(s.recv("ac-mnote"), "t l b")
+    cnt = s.obj("f")
+    s.c(tl, 1, cnt, 0)
+    s.c(s.ch(cnt, "+ 1", "% 3"), 0, cnt, 1)
+    lp = s.obj("list prepend")
+    s.c(cnt, 0, lp, 1)
+    s.c(tl, 0, lp, 0)
+    rt = s.to(lp, "route 0 1 2")
+    rat = s.recv("ac-mtimbre")
+    t2 = s.to(s.recv("ac-mtimbre2"), "unpack f f")
+    L, R = s.obj("*~"), s.obj("*~")
+    for j in range(3):
+        up = s.to((rt, j), "unpack f f f")
+        pk = s.obj("pack f f")
+        pp = s.obj("pipe f f 0")
+        s.c(up, 2, pp, 2)
+        s.c(up, 1, pk, 1)
+        s.c(up, 0, pk, 0)
+        s.c(pk, 0, pp, 0)
+        # velocity (the pipe's right outlet fires first): amplitude and FM-index envelopes
+        vel = s.to((pp, 1), "t f f")
+        ap = s.obj("pack f 500")
+        s.c(vel, 1, ap, 0)
+        s.c(t2, 1, ap, 1)
+        aenv = s.ch(s.m(ap, "$1 4, 0 $2 4"), "vline~")
+        iv = s.to((vel, 0), "* 2")
+        s.c(t2, 0, iv, 1)
+        ienv = s.ch(s.m(iv, "$1, 0 140"), "vline~")
+        # pitch: carrier, and a modulator at the piece's ratio
+        hz = s.ch((pp, 0), "mtof", "t f f")
+        fsig = s.to((hz, 1), "sig~")
+        modf = s.to((hz, 0), "* 1")
+        s.c(rat, 0, modf, 1)
+        dev = mul(s, mul(s, s.to(modf, "osc~"), ienv), fsig)
+        car = s.to(add(s, fsig, dev), "osc~")
+        sig = mul(s, car, mul(s, aenv, aenv))
+        for dst, g in ((L, [0.8, 0.5, 0.65][j]), (R, [0.5, 0.8, 0.65][j])):
+            s.c(s.to(sig, f"*~ {g * 0.35}"), 0, dst, 0)
+        s.col(170)
+    s.c(ln, 0, L, 1)
+    s.c(ln, 0, R, 1)
+    # echoes: 3/4 beat left, 1/2 beat right, darkening
+    beat = s.to(s.recv("ac-bpm"), "t f f")
+    outs = []
+    for src, frac, nm in ((L, 0.75, "ac-mdl"), (R, 0.5, "ac-mdr")):
+        a = s.obj("+~")
+        s.c(src, 0, a, 0)
+        s.to(a, f"delwrite~ {nm} 3000")
+        rd = s.obj(f"delread~ {nm} 500")
+        s.c(s.m(s.to(beat, f"expr 60000/$f1*{frac}"), "$1"), 0, rd, 0)
+        s.c(s.ch(rd, "lop~ 2500", "*~ 0.38"), 0, a, 1)
+        o = s.obj("+~")
+        s.c(src, 0, o, 0)
+        s.c(s.to(rd, "*~ 0.6"), 0, o, 1)
+        outs.append(o)
+    throws(s, outs[0], outs[1], mix=1.0, send=0.9)
     return s

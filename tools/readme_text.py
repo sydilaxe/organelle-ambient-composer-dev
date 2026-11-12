@@ -1,70 +1,66 @@
-PATCH_README = """AMBIENT COMPOSER  -  Organelle M patch
-=====================================
+PATCH_README = """AMBLE  -  generative ambient composer for the Organelle M
+=========================================================
 
-A generative ambient instrument. Every time it starts (and every time you
-press the top B key) it invents a new piece: a key and scale (including just,
-harmonic-7th, slendro and pelog tunings), two chord-voicing families, a palette
-of synthesis types, FM and partial ratios, drone interval, bell tuning,
-textures and a form. It runs forever as a backing track (DRIFT), or composes a
-whole piece with a beginning, a peak and an ending (COMPOSE).
+Every start (and the top B key) invents a new piece: key and scale (including
+just, harmonic-7th, slendro and pelog), chord voicings, a palette of pad
+synthesis types, tempo and meter, motif, textures, reverb and a FORM.
 
-SOUND SOURCES
-  Pads (4 voices, voice-led chords that change one voice at a time):
-    fm    - FM with a per-piece ratio (some inharmonic)
-    vox   - saw through two drifting vowel formants
-    bow   - a string kept ringing by filtered noise
-    part  - 4 sine partials (harmonic, odd, bar, stretched, organ, bell sets)
-            that swell independently
-    fold  - wavefolded sine, ring-modulated by its sub-octave
-    pulsr - pulsar synthesis: windowed bursts with a drifting formant
-  Drone  - tonic + beating twin + per-piece interval + sub + breathing tube
-  Textures - rain (rising water-drop bubbles on chord tones), wind (noise
-            whistling through bands tuned to the chord), embers (crackle and
-            wood knocks), chirps (creature calls in bursts)
-  Cloud  - 4 granular streams over an 8 s buffer of the patch's own recent
-           sound (or your input), transposed by chord-friendly ratios,
-           sometimes reversed
-  Bells  - a 5-note motif that mutates as it repeats, on struck bars
-  Space  - 4-line FDN reverb, 2.5 to 28 s
+COMPOSE (default): a 5-30 minute piece. The form follows one of 5 shapes
+(arch, slow build, waves, two peaks, journey) over 6-12 sections, each with a
+role: emerge, establish, develop, intensify, climax, break, return, dissolve.
+Sections change the key (out and home again), tempo, harmonic pace, the
+layers that play, the motif (inverted, raised, restored) and the reverb.
+The return section replays the opening chord progression. At the end it
+fades out: B for a new piece.
+DRIFT: endless sections, for backing a performance.
 
-KNOBS (aux button switches the page; knobs pick up smoothly, nothing jumps)
-  Page SHAPE:  1 Dens   how many layers play (with the section's energy)
-               2 Tide   time between chord changes (6 s .. 90 s)
-               3 Colr   brightness of everything
-               4 In     external audio amount (see input modes)
-  Page SPACE:  1 Space  reverb size and mix
-               2 Weird  FM index, folding, key changes, modal mixture,
-                        reversed grains
-               3 Len    length of a composition (3 .. 40 min)
-               4 Mot    breathing and drift of the pad voices
+LAYERS AND THEIR RHYTHMS (one clock, 40-72 BPM, meter 3-7 per piece)
+  Drone    tonic, beating twin, interval, sub, breath tube; swells on each
+           bar in intense sections
+  Pads     4 voices, 6 synthesis types (fm, vox, bow, part, fold, pulsr),
+           voice-led; each breathes in its own cycle (7, 9, 11, 13 half-bars)
+           so they phase against each other
+  Motion   Euclidean patterns (e.g. 5 in 8, 7 in 16) arpeggiating the chord on
+           FM pings, swing, tempo echoes
+  Bells    the motif, phrased in beats with rubato
+  Textures rain, wind, embers, chirps (random weather)
+  Cloud    grains of the recent sound or your input; locked to the beat in
+           intense sections, free otherwise
+
+REVERB (page SPACE)
+  Bloom 1 / Bloom 2: after the Alesis MidiVerb II Bloom programs (45, 49), as
+  in Conduit - the sound swells for half a second through 15 diffusers before
+  it rings out. Hall: 8-line FDN. Shimmer: Hall with an octave in the loop.
+  Auto lets the piece choose (and the climax may shimmer); each section
+  change makes the reverb bloom up.
+
+KNOBS (aux cycles the pages; knobs pick up smoothly)
+  SHAPE  1 Dens  how much plays     2 Tide  time between chord changes
+         3 Colr  brightness         4 In    external audio amount
+  SPACE  1 Mix   reverb mix         2 Verb  Auto/Bloom1/Bloom2/Hall/Shimmer
+         3 Time  1.5-30 s           4 Tone  damping
+  PIECE  1 Len   5-30 min           2 Weird FM, folding, key changes
+         3 Mot   breathing, drift   4 Rhy   motion layer, swing, pulse
 
 KEYS
-  Low octave C..B   next key centre (the next change modulates there)
-  C   DRIFT / COMPOSE (COMPOSE starts a new arc of 5-8 sections)
-  C#  chord change now          D   next section now
+  Low octave C..B   next key centre
+  C   COMPOSE / DRIFT          C#  chord change now    D  next section
   D#  drone on/off   E pads   F textures   F# cloud   G bells
-  G#  capture 8 s of the input into the cloud, then freeze it
+  G#  capture 8 s of input into the cloud
   A   input mode: reso / cloud / tape / ghost
-  A#  freeze / unfreeze the cloud buffer
-  B   new piece (new seed)
+  A#  HOLD: freeze the reverb tail and the cloud
+  B   new piece
   Footswitch: chord change now
 
 INPUT MODES (In knob = amount)
-  reso   your sound rings 4 comb "strings" tuned to the current chord;
-         they glide when the chord changes
-  cloud  your sound feeds the granular cloud, pitched into the harmony
-  tape   long wobbling echoes that darken and saturate
-  ghost  you are not heard: your playing drives the piece - its loudness
-         brightens the pads, each attack rings the next bell note and
-         sometimes changes the chord
+  reso   your sound rings 4 strings tuned to the chord
+  cloud  your sound feeds the granular cloud
+  tape   long wobbling echoes
+  ghost  unheard: your loudness brightens the pads, attacks ring bells
 
-SCREEN
-  1  DRIFT <mood> seed N   |  COMP <section> of <n> <stage>  |  FIN
-  2  key, scale, voicing family
-  3  the 4 pad synthesis types and the main texture (and messages)
-  4-5  the knob page
+LED: blue composing, green drifting, white flash on chord changes.
+seed.txt counts start-ups so no two sessions begin the same way.
 
-LED: green drifting, blue composing, white flash on each chord change.
-A composition fades out at its end; press B for a new piece or C to drift.
-seed.txt counts start-ups so that no two sessions begin the same way.
+Amble is GPL-3. The Bloom reverb follows Conduit's bloom.c, after thement's
+midiverb_emulator analysis of the MidiVerb II.
 """

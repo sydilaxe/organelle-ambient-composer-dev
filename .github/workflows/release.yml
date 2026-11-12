@@ -58,7 +58,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'workflow_dispatch' || github.ref_type == 'tag'
         with:
-          name: ambient-composer-${{ steps.v.outputs.version }}
+          name: amble-${{ steps.v.outputs.version }}
           path: dist/
 
       - name: Publish the release
@@ -67,5 +67,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           v="${{ steps.v.outputs.version }}"
-          printf '## Install\nUnzip and copy the "Ambient Composer" folder into the Organelle Patches folder.\n' > notes.md
-          gh release create "$v" dist/*.zip --target "$GITHUB_SHA" --title "Ambient Composer $v" --notes-file notes.md --generate-notes
+          printf '## Install\nUnzip and copy the "Amble" folder into the Organelle Patches folder.\n' > notes.md
+          gh release create "$v" dist/*.zip --target "$GITHUB_SHA" --title "Amble $v" --notes-file notes.md --generate-notes
