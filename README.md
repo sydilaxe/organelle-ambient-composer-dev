@@ -24,6 +24,10 @@ vanilla Pd objects only. How to play it: [`patches/Amble/README.txt`](patches/Am
 - [`demos/amble_vocoder_voice_input_seed_4139.mp3`](demos/amble_vocoder_voice_input_seed_4139.mp3): a synthetic singer on the input, vocoded through a synth choir on Amble's chords.
 - [`demos/amble_live_breath_mpe_and_input_seed_77.mp3`](demos/amble_live_breath_mpe_and_input_seed_77.mp3): a breath-controlled MPE part, sent as a DM48X would (notes on their own channels, breath swells, bends), with a plucked tone on the audio input in Auto mode.
 - [`demos/amble_drift_resonate_input_seed_808.mp3`](demos/amble_drift_resonate_input_seed_808.mp3): DRIFT mode, with a plucked test tone on the input ringing the chord-tuned strings.
+- [`demos/amble_A_slow_build_electronic_seed_12271.mp3`](demos/amble_A_slow_build_electronic_seed_12271.mp3): a 7-minute slow build: saws, sync and digi pads with ring modulation, Shimmer, a sub bass line, 7/4 rising from 66 to 79 BPM.
+- [`demos/amble_B_waves_bells_haze_seed_12189.mp3`](demos/amble_B_waves_bells_haze_seed_12189.mp3): a 7-minute "waves" form: tine, FM and digi bells over the haze atmosphere, Bloom 1, 6/4 at 40-48 BPM.
+- [`demos/amble_tempo_fast_90-140_seed_3612.mp3`](demos/amble_tempo_fast_90-140_seed_3612.mp3) and [`demos/amble_tempo_slow_24-48_seed_12189.mp3`](demos/amble_tempo_slow_24-48_seed_12189.mp3): 3-minute pieces in the fast and slow tempo ranges.
+- [`demos/amble_radio_texture_seed_312.mp3`](demos/amble_radio_texture_seed_312.mp3): the radio texture (soft static, drifting whistle) in the opening section.
 
 ## How it composes
 
