@@ -27,7 +27,7 @@ jobs:
       - name: Install Pure Data and Python packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends puredata-core python3-numpy zip
+          sudo apt-get install -y --no-install-recommends puredata-core python3-numpy python3-scipy zip
           pd -version
 
       - name: Version

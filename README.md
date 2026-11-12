@@ -173,7 +173,7 @@ cd tools
 python3 ci_check.py   # offline checks in Pure Data (needs gcc for the Bloom reference)
 ```
 
-Requirements: Python 3 with numpy, Pure Data 0.53+, gcc, and ffmpeg for the demos.
+Requirements: Python 3 with numpy and scipy, Pure Data 0.53+, gcc, and ffmpeg for the demos.
 
 ## Releases
 
