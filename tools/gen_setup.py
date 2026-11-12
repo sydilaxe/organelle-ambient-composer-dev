@@ -1,20 +1,24 @@
 """SETUP (hold aux 1 s), settings saved in the patch folder, MIDI clock and notes out, MIDI clock in.
 
-SETUP page 1: MIDI out (off / clock / clock+notes / notes), Sync (internal / follow), Keys (auto / play /
+SETUP page 1: MIDI out (off / tempo only / tempo+notes / notes only), Sync (internal / follow), Keys (auto / play /
 functions), Bloom (clean / vintage). Page 2: Follow (how much the chords follow you), MPE bend range,
-MIDI out base channel, breath curve. Aux tap = the other page, hold aux 1 s = leave (and save)."""
+MIDI out base channel, breath curve. Page 3: output, width, pan motion, tempo range. Page 4: which
+parts go out as MIDI notes, the arp chord octave. Aux tap = the other page, hold aux 1 s = leave (and save)."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Line, Arm, Toast
 from gen_oled import Fill, OSC, FLIP, gated_text
 from data import PAGES, TEMPOS
 
 GLOBALS = dict(acmout=1, acsync=0, acvintage=0, acoutch=1, accurve=1.2, acsk=0, acsv=0, acextbpm=60,
-               acrtb=0, acoutroot=-1, acclkon=0, acsaved=0, actrange=0)
-ARRAYS = dict(acout=4)
+               acrtb=0, acoutroot=-1, acclkon=0, acsaved=0, actrange=0,
+               acmparts=0, acarpoct=48, acoutbass=-1)
+ARRAYS = dict(acout=4, acarp=4)
 NP = len(PAGES)
 SETTINGS = [n for p in PAGES for _, n, _ in p] + ["acmout", "acsync", "acforce", "acvintage", "acfollow", "acnbr",
                                                   "acoutch", "accurve", "acmono", "acwidth", "acpanmot",
-                                                  "actrange"]
-MOUT = ["off", "clock", "clock+notes", "notes"]
+                                                  "actrange", "acmparts", "acarpoct"]
+MOUT = ["off", "tempo only", "tempo+notes", "notes only"]
+PARTS = ["all", "harmony", "arp only"]
+NSET = 4                                   # SETUP pages
 BENDS = [12, 24, 48, 96]
 
 
@@ -83,7 +87,8 @@ def setup():
     item = "acsetpg*4 + acsk"
     run_steps(c, (tb, 0), [
         If(f"{item} == 0", [V("acmout", "int(acsv*3.99)"), If("acmout == 0 || acmout == 3", [Call("ac-clockstop")],
-                                                               [Call("ac-clockstart")])]),
+                                                               [Call("ac-clockstart")]),
+                            If("acmout < 2", [Call("ac-notesoff")], [Call("ac-outchord")])]),
         If(f"{item} == 1", [V("acsync", "acsv > 0.5"), SendL("ac-bpm", ["acbpm"])]),
         If(f"{item} == 2", [V("acforce", "int(acsv*2.99) - 1")]),
         If(f"{item} == 3", [V("acvintage", "acsv > 0.5"), SendL("ac-vintage", ["acvintage"])]),
@@ -95,6 +100,8 @@ def setup():
         If(f"{item} == 9", [V("acwidth", "0.5 + acsv"), Call("ac-stereo")]),
         If(f"{item} == 10", [V("acpanmot", "acsv"), Call("ac-stereo")]),
         If(f"{item} == 11", [V("actrange", f"int(acsv*{len(TEMPOS) - 0.01})"), Call("ac-settempo")]),
+        If(f"{item} == 12", [V("acmparts", f"int(acsv*{len(PARTS) - 0.01})"), Call("ac-notesoff"), Call("ac-outchord")]),
+        If(f"{item} == 13", [V("acarpoct", "24 + 12*int(acsv*4.99)"), Call("ac-notesoff"), Call("ac-outchord")]),
         Call("ac-oledsetup"), Send("ac-dirty"),
     ])
     c.col()
@@ -103,27 +110,31 @@ def setup():
         Call("ac-setl0"), Call("ac-setl1"), Call("ac-setl2"), Call("ac-setl3"), Call("ac-setl4"),
         FLIP,
     ])
-    Line("ac-setl0", "list SETUP $1 of 3 - hold aux", [("f", "acsetpg + 1")], "ac-sett0")(c)
+    Line("ac-setl0", f"list SETUP $1 of {NSET} - hold aux", [("f", "acsetpg + 1")], "ac-sett0")(c)
     # page-dependent rows: two Lines per row, chosen by the page
     defs = [
         (1, ("list 1 MIDI out $1", [("s", "acmout", MOUT)]), ("list 1 Follow you $1", [("f", "int(acfollow*100)")]),
-         ("list 1 Output $1", [("s", "acmono", ["stereo wide", "mono"])])),
+         ("list 1 Output $1", [("s", "acmono", ["stereo wide", "mono"])]),
+         ("list 1 MIDI notes $1", [("s", "acmparts", PARTS)])),
         (2, ("list 2 Sync $1", [("s", "acsync", ["internal", "follow clock"])]),
-            ("list 2 MPE bend $1", [("f", "acnbr")]), ("list 2 Width $1", [("f", "int(acwidth*100)")])),
+            ("list 2 MPE bend $1", [("f", "acnbr")]), ("list 2 Width $1", [("f", "int(acwidth*100)")]),
+            ("list 2 Arp octave C$1", [("f", "acarpoct/12 - 1")])),
         (3, ("list 3 Keys $1", [("s", "acforce + 1", ["auto", "play notes", "functions"])]),
-            ("list 3 MIDI out ch $1", [("f", "acoutch")]), ("list 3 Pan motion $1", [("f", "int(acpanmot*100)")])),
+            ("list 3 MIDI out ch $1", [("f", "acoutch")]), ("list 3 Pan motion $1", [("f", "int(acpanmot*100)")]),
+            ("list 3 -", [])),
         (4, ("list 4 Bloom $1", [("s", "acvintage", ["clean", "vintage"])]),
             ("list 4 Breath curve $1", [("f", "int(accurve*100)")]), ("list 4 Tempo $1 $2-$3", [("s", "actrange", [n for n, _, _ in TEMPOS]),
-                                          ("f", "actlo[int(actrange)]"), ("f", "acthi[int(actrange)]")])),
+                                          ("f", "actlo[int(actrange)]"), ("f", "acthi[int(actrange)]")]),
+            ("list 4 -", [])),
     ]
-    for k, a, b, d in defs:
-        s = c.ch(c.recv(f"ac-setl{k}"), "expr acsetpg", "sel 0 1 2")
-        for j, (ln, parts) in enumerate((a, b, d)):
-            c.c(c.to((s, j), "t b"), 0, c.obj(f"s ac-setl{k}{'abc'[j]}"), 0)
+    for k, *rows in defs:
+        s = c.ch(c.recv(f"ac-setl{k}"), "expr acsetpg", "sel " + " ".join(str(j) for j in range(NSET)))
+        for j, (ln, parts) in enumerate(rows):
+            c.c(c.to((s, j), "t b"), 0, c.obj(f"s ac-setl{k}{'abcd'[j]}"), 0)
             if parts:
-                Line(f"ac-setl{k}{'abc'[j]}", ln, parts, f"ac-sett{k}")(c)
+                Line(f"ac-setl{k}{'abcd'[j]}", ln, parts, f"ac-sett{k}")(c)
             else:
-                c.c(c.m(c.recv(f"ac-setl{k}{'abc'[j]}"), ln), 0, c.obj(f"s ac-sett{k}"), 0)
+                c.c(c.m(c.recv(f"ac-setl{k}{'abcd'[j]}"), ln), 0, c.obj(f"s ac-sett{k}"), 0)
     for k in range(5):
         gated_text(c, f"ac-sett{k}", "acsetup", 0, 2 + k * 12)
     # aux tap in SETUP: the other page
@@ -133,8 +144,9 @@ def setup():
 def midi_out():
     c = Canvas("midi-out", w=2600)
     c.comment("MIDI out: raw bytes and notes go through ac-midibyte / ac-noteout (so tests can watch them). "
-              "Clock: 24 ticks a beat, Start when a piece starts, Stop at its end. Notes: chords (base ch), "
-              "drone (ch+1), bells (ch+2), motion (ch+3).")
+              "Clock: 24 ticks a beat, Start when a piece starts, Stop at its end. Notes: the chord as voiced (base "
+              "ch), tonic (+1), bells (+2), motion (+3), bass (+4), arp chord in close position (+5). Parts: all / "
+              "harmony (no bells, motion) / arp chord only.")
     mo = c.obj("midiout")
     c.c(c.recv("ac-midibyte"), 0, mo, 0)
     no = c.obj("noteout")
@@ -148,28 +160,55 @@ def midi_out():
     proc(c, "ac-clockstart", [If(clk, [SendL("ac-midibyte", ["250"]), V("acclkon", "1")])])
     proc(c, "ac-clockstop", [If("acclkon", [SendL("ac-midibyte", ["252"]), V("acclkon", "0")]), Call("ac-notesoff")])
     notes = "acmout >= 2"
-    # chords: the 4 pad pitches (rounded), the old ones off first
-    proc(c, "ac-outchord", [If(notes + " && acrun", [Loop("4", "aci", [
-        If("acout[int(aci)] > 0", [SendL("ac-noteout", ["acout[int(aci)]", "0", "acoutch"])]),
-        T("acout", "aci", "int(acnew[int(aci)] + 0.5)"),
-        SendL("ac-noteout", ["acout[int(aci)]", "64", "acoutch"]),
-    ]), If("acoutroot != int(actonic)", [
-        If("acoutroot > 0", [SendL("ac-noteout", ["acoutroot", "0", "acoutch + 1"])]),
-        V("acoutroot", "int(actonic)"), SendL("ac-noteout", ["acoutroot", "70", "acoutch + 1"])])])])
-    proc(c, "ac-notesoff", [Loop("4", "aci", [If("acout[int(aci)] > 0", [
-        SendL("ac-noteout", ["acout[int(aci)]", "0", "acoutch"]), T("acout", "aci", "0")])]),
-        If("acoutroot > 0", [SendL("ac-noteout", ["acoutroot", "0", "acoutch + 1"]), V("acoutroot", "-1")])])
+    ch = lambda k: f"((acoutch - 1 + {k}) % 16 + 1)"      # base channel + k, wrapping at 16
+    vel = "int(40 + 70*acenergy)"                         # chords and bass follow the piece's energy
+    harm = notes + " && acmparts <= 1"
+    # the sub's note: the pedal under the tonic or the chord root as a bass line (as the sub plays it)
+    bass = ("int(0.5 + if(acsubm==0 || (acsubm==2 && int(acsec) % 2 == 0), actonic - 12, "
+            "acnew[0] - 12*ceil((acnew[0] - 42)/12)))")
+    # the arp chord: the chord's pitch classes stacked close above its root, from the Arp octave (no doubles)
+    pc = lambda e: f"((int({e} + 0.5) % 12 + 12) % 12)"
+    arp_i = (f"if({' || '.join(f'(aci > {j} && {pc(f'acnew[{j}]')} == {pc('acnew[int(aci)]')})' for j in range(3))}, 0, "
+             f"acarpoct + {pc('acnew[0]')} + ({pc('acnew[int(aci)]')} - {pc('acnew[0]')} + 12) % 12)")
+    proc(c, "ac-outchord", [If(notes + " && acrun", [
+        # the chord as Amble voices it (base channel)
+        # (all the old notes off first, then the new ones on, so a shared pitch is not cut off)
+        If("acmparts <= 1", [
+            Loop("4", "aci", [If("acout[int(aci)] > 0", [SendL("ac-noteout", ["acout[int(aci)]", "0", ch(0)])])]),
+            Loop("4", "aci", [T("acout", "aci", "int(acnew[int(aci)] + 0.5)"),
+                              SendL("ac-noteout", ["acout[int(aci)]", vel, ch(0)])]),
+        ]),
+        # the arp chord (base + 5): close position for arpeggiators and chord-following synths
+        Loop("4", "aci", [If("acarp[int(aci)] > 0", [SendL("ac-noteout", ["acarp[int(aci)]", "0", ch(5)])])]),
+        Loop("4", "aci", [T("acarp", "aci", arp_i),
+                          If("acarp[int(aci)] > 0", [SendL("ac-noteout", ["acarp[int(aci)]", vel, ch(5)])])]),
+        # the tonic (base + 1) and the bass (base + 4), held while they stay
+        If("acmparts <= 1 && acoutroot != int(actonic)", [
+            If("acoutroot > 0", [SendL("ac-noteout", ["acoutroot", "0", ch(1)])]),
+            V("acoutroot", "int(actonic)"), SendL("ac-noteout", ["acoutroot", "70", ch(1)])]),
+        If(f"acmparts <= 1 && acoutbass != {bass}", [
+            If("acoutbass > 0", [SendL("ac-noteout", ["acoutbass", "0", ch(4)])]),
+            V("acoutbass", bass), SendL("ac-noteout", ["acoutbass", vel, ch(4)])]),
+    ])])
+    proc(c, "ac-notesoff", [
+        Loop("4", "aci", [If("acout[int(aci)] > 0", [SendL("ac-noteout", ["acout[int(aci)]", "0", ch(0)]),
+                                                     T("acout", "aci", "0")])]),
+        Loop("4", "aci", [If("acarp[int(aci)] > 0", [SendL("ac-noteout", ["acarp[int(aci)]", "0", ch(5)]),
+                                                     T("acarp", "aci", "0")])]),
+        If("acoutroot > 0", [SendL("ac-noteout", ["acoutroot", "0", ch(1)]), V("acoutroot", "-1")]),
+        If("acoutbass > 0", [SendL("ac-noteout", ["acoutbass", "0", ch(4)]), V("acoutbass", "-1")]),
+    ])
     # bells and motion: notes with a length
-    for rc, ch, dur, sel in (("ac-bell", 2, 500, "$1 $2"), ("ac-mnote", 3, 150, "$1 $2")):
+    for rc, chn, dur, sel in (("ac-bell", 2, 500, "$1 $2"), ("ac-mnote", 3, 150, "$1 $2")):
         sp = c.obj("spigot")
-        c.c(c.to(c.recv("ac-frame"), "expr " + notes), 0, sp, 1)
+        c.c(c.to(c.recv("ac-frame"), "expr " + notes + " && acmparts == 0"), 0, sp, 1)
         c.c(c.recv(rc), 0, sp, 0)
         u = c.to(sp, "unpack f f")
         mk = c.obj(f"makenote 64 {dur}")
         c.c(c.to((u, 1), "expr int($f1*110)"), 0, mk, 1)
         c.c(c.to(u, "expr int($f1 + 0.5)"), 0, mk, 0)
         pk = c.obj("pack f f f")
-        c.c(c.to(c.recv("ac-frame"), f"expr acoutch + {ch}"), 0, pk, 2)
+        c.c(c.to(c.recv("ac-frame"), f"expr (acoutch - 1 + {chn}) % 16 + 1"), 0, pk, 2)
         c.c(mk, 1, pk, 1)
         c.c(mk, 0, pk, 0)
         c.c(pk, 0, c.obj("s ac-noteout"), 0)

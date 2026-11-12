@@ -253,7 +253,7 @@ def lookup(c, src, names, dest, prefix="symbol "):
     s = c.obj("sel " + " ".join(str(i) for i in range(len(names))))
     c.c(*(src if isinstance(src, tuple) else (src, 0)), s, 0)
     for i, n in enumerate(names):
-        m = c.msg(prefix + n)
+        m = c.msg(prefix + n.replace(" ", "\\ "))       # an escaped space keeps 'stereo wide' one symbol
         c.c(s, i, m, 0)
         c.c(m, 0, dest[0], dest[1])
     return s

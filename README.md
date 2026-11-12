@@ -81,11 +81,27 @@ emulator, so the font only approximates the Organelle's.
 | **Score** | The form strip (one bar per section, height = energy, current one inverted, a playhead). Key and scale, with the time left. The pad voices gliding on a pitch ladder, with your held notes as boxes and a breath bar. Meters for every layer, the reverb and the input. The motion layer's Euclidean pattern with a moving cursor, the tempo and the reverb type. The section role and voicing, and K/M/E tags for who is playing and the clock. |
 | **Input** | While external audio plays, the right-hand column becomes an input panel: the last 6 s of the input as a waveform with its onsets ticked above, the input mode, and what Amble hears (pitch, pluck, texture), with a dot while it records a memory. A sung or played pitch is drawn as a line across the pitch ladder, so you see it against the pad voices. The rhythm column comes back 5 s after the input stops. |
 | **Knob page** | Shown for 2 s when you turn a knob. |
-| **SETUP** | Hold aux for 1 s. Page 1: MIDI out (off, clock, clock + notes, notes), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Saved in `settings.txt` with the knob values. |
+| **SETUP** | Hold aux for 1 s; aux taps turn the 4 pages. Page 1: MIDI out (off, tempo only, tempo + notes, notes only), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Page 3: output, width, pan motion, tempo range. Page 4: which MIDI notes go out, arp octave. Saved in `settings.txt` with the knob values. |
 
-**MIDI out:**
-- **Clock:** 24 ticks a beat at the piece's tempo, with Start and Stop at the start and end of a piece.
-- **Notes:** chords, drone root, bells and motion, each on its own channel.
+**MIDI out** (SETUP page 1): off, **tempo only** (clock), **tempo + notes**, or **notes only**.
+- **Clock:** 24 ticks a beat at the piece's tempo (following the form's tempo changes), with Start and Stop
+  at the start and end of a piece.
+- **Notes**, so external synths and arpeggiators follow the composition. Each part has its own channel,
+  counted from the MIDI out channel (wrapping after 16):
+
+  | Channel | Part |
+  |---|---|
+  | base | the chord as Amble voices it (4 notes, wide), held until the next change |
+  | base + 1 | the tonic, held while the key stays |
+  | base + 2 | the bells (the motif), short notes |
+  | base + 3 | the motion layer's Euclidean arpeggio, short notes |
+  | base + 4 | the bass: the sub's note (the pedal or the chord root), held |
+  | base + 5 | the **arp chord**: the same chord in close position within an octave from its root, starting at the Arp octave (C1 to C5, default C3), held until the next change. Point an arpeggiator here. |
+
+  Chord and bass velocities follow the piece's energy. Notes are rounded to the nearest semitone (just,
+  harmonic-7th, slendro and pelog scales come out as the nearest 12-tone notes).
+- **MIDI notes** (SETUP page 4): all; harmony (the chords, tonic and bass, no bells or motion); or arp only
+  (just the arp chord).
 
 **Sync:** Amble leads, or it follows an incoming clock. Incoming ticks drive its rhythm and Start resets the bar.
 

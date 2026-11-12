@@ -122,10 +122,14 @@ THE SCREEN (a live score)
               E = following an external clock; FIN at the end
   Turning a knob shows its page for 2 s.
 
-SETUP (hold aux 1 s; aux tap = page 2; hold aux 1 s to leave and save)
-  1 MIDI out   off / clock / clock+notes / notes
-     clock: 24 a beat at the piece's tempo, Start/Stop with the piece
-     notes: chords on the base channel, drone +1, bells +2, motion +3
+SETUP (hold aux 1 s; aux tap = next page (4); hold aux 1 s to leave, save)
+  1 MIDI out   off / tempo only / tempo+notes / notes only
+     tempo: MIDI clock, 24 a beat at the piece's tempo, Start/Stop with it
+     notes, by channel from the base channel (page 2):
+       base  the chord as voiced (held)     +1  the tonic (held)
+       +2    bells                          +3  the motion arpeggio
+       +4    the bass (the sub's note)      +5  the ARP CHORD: the chord in
+             close position from the Arp octave - for arpeggiators
   2 Sync       internal / follow clock (external clock drives the rhythm;
                Start restarts the bar, Stop pauses the pulse layers)
   3 Keys       auto / play notes / functions
@@ -136,6 +140,8 @@ SETUP (hold aux 1 s; aux tap = page 2; hold aux 1 s to leave and save)
   Width (50-150 %), Pan motion (how far the voices travel), Tempo range:
   ambient 40-72, slow 24-48, wide 30-110, pulse 60-100, fast 90-140. Above
   84 BPM bells, breathing and the drone swell move at half time.
+  page 4: MIDI notes (all / harmony: no bells or motion / arp only),
+  Arp octave (C1-C5, where the arp chord starts).
 
 STEREO SCENES: each section places the voices - spread (across the
 field), split (pads left, bells and motion right), center (a focused core,
