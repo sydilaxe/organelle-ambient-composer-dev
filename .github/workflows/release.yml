@@ -54,7 +54,9 @@ jobs:
       - name: Package
         run: tools/package.sh "${{ steps.v.outputs.version }}"
 
+      # artifacts only for release runs: PR and branch builds just build and test (keeps artifact storage free)
       - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch' || github.ref_type == 'tag'
         with:
           name: ambient-composer-${{ steps.v.outputs.version }}
           path: dist/
