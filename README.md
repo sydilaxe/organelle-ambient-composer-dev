@@ -7,8 +7,8 @@ acoustic instruments, voice, samples and field recordings.
 
 > **Status:** in development, delivered in three stages.
 > 1. **Done:** form, rhythm, Bloom reverb.
-> 2. **Next:** live MIDI (MPE, breath) and audio listening.
-> 3. **Then:** the graphical OLED score, the SETUP page, and MIDI clock in and out.
+> 2. **Done:** live MIDI (MPE, breath) and audio listening.
+> 3. **Next:** the graphical OLED score, the SETUP page, and MIDI clock in and out.
 >
 > It builds, and passes its offline tests in Pure Data. It has not been run on an Organelle yet.
 
@@ -19,6 +19,7 @@ vanilla Pd objects only. How to play it: [`patches/Amble/README.txt`](patches/Am
 
 **Demos** (offline renders, unedited):
 - [`demos/amble_composition_seed_2718.mp3`](demos/amble_composition_seed_2718.mp3): a complete 5-minute composition. The form runs emerge, establish, develop, climax, dissolve. The key goes out and comes home, and the tempo and the motion layer follow the form.
+- [`demos/amble_live_breath_mpe_and_input_seed_77.mp3`](demos/amble_live_breath_mpe_and_input_seed_77.mp3): a breath-controlled MPE part, sent as a DM48X would (notes on their own channels, breath swells, bends), with a plucked tone on the audio input in Auto mode.
 - [`demos/amble_drift_resonate_input_seed_808.mp3`](demos/amble_drift_resonate_input_seed_808.mp3): DRIFT mode, with a plucked test tone on the input ringing the chord-tuned strings.
 
 ## How it composes
@@ -40,6 +41,24 @@ The layers and their rhythms:
 | Bells | free phrasing, in beats |
 | Textures | random weather |
 | Cloud | grains, locked to the beat in intense sections |
+
+## Live input
+
+- **MIDI:** MPE notes, per-note bend (48 semitones; 2 on channel 1) and breath (CC 2, CC 11, channel or poly
+  pressure) play 4 live voices in the piece's synthesis type. With a breath controller, breath sets the
+  voices' level and brightness.
+- **The Organelle keys** play notes when Amble is standalone. When an external controller plays, they
+  become function keys; aux + key is a function at any time.
+- **Listening:**
+  - A held or sung pitch pulls the next chord to contain it.
+  - A note held for 6 s becomes the key centre.
+  - Breath raises the energy, and a section waits while you play (up to 3 × 30 s).
+- **Audio:**
+  - **Clean-up:** a gate and automatic gain.
+  - **Pitch:** a pitch tracker built from vanilla objects (FFT autocorrelation; reads a 220 Hz sine as MIDI 57.06).
+  - **Class:** pitched, plucked or texture, from pitch confidence, onset rate and level.
+  - **Auto mode:** chooses chord strings, harmonised grains, bells on attacks or tuned bands to suit.
+  - **Memories:** up to 4 × 8 s captured from your input, brought back transformed in break, return and dissolve sections.
 
 ## Reverb
 
@@ -63,6 +82,7 @@ files.
 - `gen.py` builds `patches/Amble`.
 - `pdlib.py` writes Pd files. It also has a small step language that compiles to `[expr]` chains.
 - `gen_brain.py`: piece, form, sections, chord changes, clock and motion, reverb control.
+- `gen_live.py`: MIDI in, live voices, listening, audio analysis and class, memories.
 - `gen_ui.py`: knobs, keys, screen.
 - `gen_dsp.py`: voices, layers, input, master.
 - `gen_verb.py`: the reverbs.

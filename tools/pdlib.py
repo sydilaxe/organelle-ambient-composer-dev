@@ -280,3 +280,23 @@ def Line(recv, fmt, parts, dest):
         c.c(m, 0, c.obj("s " + dest), 0)
         c.col()
     return build
+
+
+def Arm(tick, expr, stop=None):
+    """(re)start a [delay] of expr ms that then bangs [s tick]; [s stop] cancels it."""
+    def st(c, src):
+        e = c.obj("expr " + expr)
+        c.c(*src, e, 0)
+        d = c.obj("delay")
+        c.c(e, 0, d, 0)
+        c.c(d, 0, c.obj("s " + tick), 0)
+        if stop:
+            c.c(c.m(c.recv(stop), "stop"), 0, d, 0)
+    return st
+
+
+def Toast(text):
+    return Send("ac-toast", "list " + text)
+
+
+RNG = Call("ac-rng")

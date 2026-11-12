@@ -5,6 +5,7 @@ from pdlib import Canvas
 import gen_brain as B
 import gen_ui as U
 import gen_dsp as D
+import gen_live as L
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "patches", "Amble")
@@ -25,13 +26,16 @@ def main_patch():
     m.c(m.m(m.obj("loadbang", 400, 40), "0"), 0, m.obj("s midiOutGate", 400, 90), 0)
     m.comment("control", 20, 200)
     for i, sub in enumerate((B.globals_(), B.rng(), B.seed(), B.piece(), B.section(), B.change(), B.layers(),
-                             B.players(), B.capture(), B.verb(), B.rhythm(), U.knobs(), U.keys(), U.screen())):
+                             B.players(), B.capture(), B.verb(), B.rhythm(), L.midi_in(), L.live(), L.memories(), L.tables(),
+                             U.knobs(), U.keys(), U.screen())):
         m.sub(sub, 20 + (i % 4) * 110, 225 + (i // 4) * 30)
     m.comment("sound", 20, 340)
     for k in range(4):
         m.obj(f"acvoice {k}", 20 + k * 90, 365)
+        m.obj(f"amlive {k}", 400 + k * 90, 365)
     for i, sub in enumerate((D.drone(), D.tex_rain(), D.tex_wind(), D.tex_ember(), D.tex_chirp(), D.cloud(),
-                             D.cloud_write(), D.bells(), D.motion(), D.inp(), D.reso(), D.tape(), D.master())):
+                             D.cloud_write(), D.bells(), D.motion(), D.inp(), D.reso(), D.tape(), D.bands(),
+                             D.mem_rec(), D.mem_play(), D.master())):
         m.sub(sub, 20 + (i % 4) * 110, 400 + (i // 4) * 30)
     m.obj(f"array define acbuf {D.CLOUD_LEN}", 20, 510)
     return m
@@ -41,6 +45,7 @@ def build(out=OUT):
     os.makedirs(out, exist_ok=True)
     main_patch().save(os.path.join(out, "main.pd"))
     D.voice().save(os.path.join(out, "acvoice.pd"))
+    D.live_voice().save(os.path.join(out, "amlive.pd"))
     seedf = os.path.join(out, "seed.txt")
     if not os.path.exists(seedf):
         open(seedf, "w").write("0;\n")

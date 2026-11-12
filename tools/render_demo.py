@@ -4,12 +4,31 @@ import numpy as np
 from harness import run, SR
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "demos")
+def breath_phrases():
+    """a played part, as a DM48X would send it: notes on their own MPE channels, breath swells, a bend"""
+    ev, t = [], 6000
+    notes = [64, 67, 71, 69, 64, 62, 67, 64]
+    for i, n in enumerate(notes):
+        ch = 2 + i % 4
+        ev += [(t, f"ac-livebreath {ch} 0"), (t + 5, f"ac-livenote {ch} {n} 90")]
+        for k in range(40):                         # 4 s swell up and down
+            ev.append((t + 10 + k * 100, f"ac-livebreath {ch} {int(110 * np.sin(np.pi * k / 40) ** 1.5)}"))
+        if i % 3 == 2:
+            ev += [(t + 2500, f"ac-livebend {ch} 0.5"), (t + 3500, f"ac-livebend {ch} 0")]
+        ev += [(t + 4100, f"ac-livenote {ch} {n} 0")]
+        t += 5200 if i % 2 else 3800
+    return ev
+
+
 DEMOS = [
     # a whole 5-minute composition (Len at 0), rendered to its end
     ("amble_composition_seed_2718", [(50, "aclen 0"), (60, "ac-setseed 2718")], 345, None),
     # drifting backing track, the input (a plucked test tone) ringing the chord resonators
     ("amble_drift_resonate_input_seed_808", [(40, "acmode 0"), (50, "ac-setseed 808"), (60, "acinput 0.6"), (61, "ac-inputupd bang"),
                                        (60, "acdens 0.7"), (61, "ac-layers bang")], 150, "tone"),
+    # live: a breath-controlled MPE part (notes, swells, bends) and a plucked tone on the audio input (Auto mode)
+    ("amble_live_breath_mpe_and_input_seed_77", [(40, "acmode 0"), (50, "ac-setseed 77"), (60, "acinput 0.5"),
+                                                  (61, "ac-inputupd bang")] + breath_phrases(), 70, "tone"),
 ]
 
 

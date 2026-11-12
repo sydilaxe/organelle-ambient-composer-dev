@@ -79,24 +79,24 @@ check(rms_db(a[-10 * SR:]) < -90, "silent after the end")
 check(rms_db(a[2 * SR:12 * SR]) > -40, "the composition plays")
 
 # 5. controls: knob pickup, pages, keys
-ev = [(50, "ac-setseed 11"), (200, "knob4 0.5"), (210, "knob1 0.5"), (400, "knob4 0.8"), (500, "aux 1"), (550, "aux 0"),
+ev = [(50, "ac-setseed 11"), (100, "ac-extnote 1"), (200, "knob4 0.5"), (210, "knob1 0.5"), (400, "knob4 0.8"), (500, "aux 1"), (550, "aux 0"),
       (600, "knob1 0.1"), (800, "aux 1"), (850, "aux 0"), (900, "aux 1"), (950, "aux 0")]
 T = 1500
 for n in (64, 73, 74, 75, 81, 82, 83):
     ev += [(T, f"notesRaw {n} 100"), (T + 50, f"notesRaw {n} 0")]
     T += 2000
 log, _ = run(ev, T / 1000 + 2)
-check("screenLine5: list Colr 50 In 60 reso" in log, "knob pickup scales towards the end (In 60)")
+check("screenLine5: list Colr 50 In 60 auto" in log, "knob pickup scales towards the end (In 60)")
 check("ac-toast: list page SPACE" in log and "screenLine4: list Mix 9 Verb auto" in log, "page 2 knobs")
 check("ac-toast: list page PIECE" in log, "page 3")
-for t in ("next key E", "chord change", "next section", "drone off", "input cloud", "hold - reverb and cloud", "new piece"):
+for t in ("next key E", "chord change", "next section", "drone off", "input reso", "hold - reverb and cloud", "new piece"):
     check(f"ac-toast: list {t}" in log, f"key toast: {t}")
 
 # 6. input processing: every mode makes sound from the input, and ghost onsets ring bells
 ALL = ["acmdrone", "acmpad", "acmtex", "acmcloud", "acmbell"]
 ev = [(50, "ac-setseed 99")] + [(60, f"{m} 0") for m in ALL] + [(61, "ac-layers bang")]
 T = 1000
-for mode in range(4):
+for mode in range(1, 5):
     ev += [(T, f"acinmode {mode}"), (T, "acinput 0.9"), (T + 1, "ac-inputupd bang")]
     T += 12000
 ev += [(T - 12000, "acmbell 1"), (T - 11999, "ac-layers bang")]
@@ -206,6 +206,76 @@ rots = [{(x + r) % 8 for x in range(8) if x * 5 % 8 < 5} for r in range(8)]
 windows = [sum(1 for h in hits if w <= h < w + 8) for w in range(hits[0], hits[-1] - 8)] if hits else []
 check(len(hits) > 20 and pat in rots and set(windows) == {5},
       f"motion follows E(5,8): {len(hits)} hits, steps mod 8 = {sorted(pat)}, 5 in every 8 steps")
+
+# 10. live notes: Organelle keys play, MPE bend retunes its own voice, breath controls the level
+mute = [(60, f"{m} 0") for m in ALL] + [(61, "acfade 10"), (62, "ac-layers bang"), (63, "ac-rwet 0 10")]
+ev = [(50, "ac-setseed 9"), (55, "ac-chgstop bang"), (55, "ac-secstop bang")] + mute + [
+    (1000, "notesRaw 69 100"), (4000, "notesRaw 69 0"),
+    (6000, "ac-livenote 2 57 100"), (9000, "ac-livebend 2 2"), (12000, "ac-livenote 2 57 0"),
+    (14000, "ac-livebreath 3 0"), (14000, "ac-livenote 3 60 100"), (15000, "ac-livebreath 3 110"),
+    (17000, "ac-livebreath 3 0"), (18000, "ac-livenote 3 60 0")]
+log, a = run(ev, 20)
+lv = lambda t0, t1: a[int(t0 * SR):int(t1 * SR), 0]
+check(rms_db(lv(2, 3.8)) > -50, f"an Organelle key plays a note ({rms_db(lv(2, 3.8)):.1f} dB)")
+fa, fb = f0(lv(7, 8.8)), f0(lv(10, 11.8))
+check(abs(12 * np.log2(fb / fa) - 2) < 0.15, f"MPE bend +2 semitones ({fa:.1f} -> {fb:.1f} Hz)")
+check(rms_db(lv(14.2, 14.9)) < -80 and rms_db(lv(15.5, 16.8)) > -45, "breath 0 is silent, breath plays")
+check("breath control" in log, "a breath controller is noticed")
+
+# 11. key modes and listening
+ev = [(50, "ac-setseed 21"), (60, "acfollow 1"), (1000, "notesRaw 73 100"), (1100, "notesRaw 73 0"),
+      (2000, "aux 1"), (2100, "notesRaw 74 100"), (2200, "notesRaw 74 0"), (2300, "aux 0"),
+      (3000, "aux 1"), (3100, "aux 0"), (4000, "ac-extnote 1"), (4100, "notesRaw 73 100"), (4200, "notesRaw 73 0"),
+      (5000, "ac-livenote 1 64 100"), (13000, "ac-livenote 1 64 0")]
+log, _ = run(ev, 15, prints=("ac-lvon", "ac-fkey"))
+L_ = log.splitlines()
+check("ac-lvon: 0 73 0.787402" in L_, "standalone: keys play notes")
+check("ac-fkey: 74" in L_ and "ac-toast: list next section" in L_, "aux + key: a function")
+check("ac-toast: list page SPACE" in L_, "aux tap: next page")
+check("ac-fkey: 73" in L_ and "ac-toast: list chord change" in L_, "with external MIDI the keys are functions")
+check("ac-toast: list key from you E" in L_, "a note held 6 s becomes the key")
+
+# 12. audio: pitch tracking and the input class
+def probe(c):
+    m = c.obj("metro 500", 900, 500)
+    c.c(c.obj("loadbang", 900, 480), 0, m, 0)
+    e = c.obj("expr acinp; acinclass", 900, 520)
+    c.c(m, 0, e, 0)
+    p = c.obj("pack f f", 900, 560)
+    c.c(e, 1, p, 1)
+    c.c(e, 0, p, 0)
+    c.c(p, 0, c.obj("print AN", 900, 600), 0)
+
+
+for inp, want, cls in (("sine", 57, "pitched"), ("saw", 52, "pitched"), ("clicks", None, "plucked"),
+                       ("noise", None, "texture")):
+    log, _ = run([(50, "ac-setseed 4"), (60, "acinput 0.7"), (61, "ac-inputupd bang")], 12, inp=inp, extra=probe)
+    rows = [[float(x) for x in l.split()[1:]] for l in log.splitlines() if l.startswith("AN:")]
+    ps = [r[0] for r in rows[8:] if r[0] > 0]
+    got = ["quiet", "pitched", "plucked", "texture"][int(rows[-1][1])]
+    check(got == cls, f"input {inp}: class {got}")
+    if want:
+        check(ps and abs(np.median(ps) - want) < 0.15, f"input {inp}: pitch {np.median(ps) if ps else -1:.2f} (want {want})")
+
+# 13. tuned bands ring the chord; memories record and come back
+log, a = run([(50, "ac-setseed 4"), (55, "ac-chgstop bang")] + mute +
+             [(70, "acinmode 5"), (70, "acinput 1"), (71, "ac-inputupd bang")], 10, inp="noise",
+             prints=tuple(f"ac-band{k}" for k in range(4)))
+seg = a[5 * SR:9 * SR, 0]
+S = np.abs(np.fft.rfft(seg * np.hanning(len(seg))))
+fr = np.fft.rfftfreq(len(seg), 1 / SR)
+bands = [float(l.split()[1]) for l in log.splitlines() if l.startswith("ac-band")][-4:]
+peaks = [20 * np.log10(S[(fr > b * 0.98) & (fr < b * 1.02)].mean() / np.median(S)) for b in bands]
+check(rms_db(seg) > -40 and sum(p > 10 for p in peaks) >= 3, f"bands: noise rings the chord tones {np.round(peaks, 1)} dB")
+log, a = run([(50, "ac-setseed 4"), (55, "ac-chgstop bang"), (55, "ac-secstop bang")] + mute +
+             [(70, "acinput 0.01"), (71, "ac-inputupd bang"), (500, "ac-memrec bang"), (9000, "ac-memplay 0 1"),
+              (9000, "ac-g-mem 0.9 200")], 20, inp="sine")
+check(rms_db(a[12 * SR:18 * SR]) > -45 and rms_db(a[6 * SR:int(8.5 * SR)]) < -55, "a memory records and plays back")
+
+# 14. breath holds a section, then the form goes on
+ev = [(40, "actime 0.02"), (50, "ac-setseed 12"), (55, "aclen 0")] + [(t, "ac-livebreath 1 90") for t in range(300, 16000, 200)]
+log, _ = run(ev, 30)
+check("ac-toast: list holding - you are playing" in log and "FIN" in log, "breath holds sections; the piece still ends")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

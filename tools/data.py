@@ -37,7 +37,7 @@ FAMILIES = [
 
 FLAVOURS = ["fm", "vox", "bow", "part", "fold", "pulsr"]          # pad synthesis types
 TEXTURES = ["rain", "wind", "ember", "chirp"]
-INMODES = ["reso", "cloud", "tape", "ghost"]
+INMODES = ["auto", "reso", "cloud", "tape", "ghost", "bands"]
 NOTE_NAMES = "C Db D Eb E F Gb G Ab A Bb B".split()
 
 # chord-root moves in scale degrees (weighted by repetition): 4ths/5ths, steps, 3rds

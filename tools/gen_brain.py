@@ -2,7 +2,7 @@
 
 Conventions: global state lives in [value]s named ac<word> (no dash, so [expr] can read them);
 every [send]/[receive] name has a dash (ac-<word>), so values and sends never share a symbol."""
-from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps
+from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Arm, Toast, RNG
 from data import *
 
 NF = len(FAMILIES)
@@ -25,7 +25,7 @@ GLOBALS = dict(
     acmtr=2, acbld=1, acblp=0.5, acvauto=1, acvsec=1, acvtype=1, acrvsize=1,
     # rhythm
     acbpm0=56, acbpm=56, acmeter=4, actick=0, acstep=0, acms=0, acmk=5, acmn=8, acmei=0, acmrot=0, acmdiv=1,
-    acmarp=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60,
+    acmarp=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
 )
 for page in PAGES:
     for _, name, d in page:
@@ -35,6 +35,10 @@ ARRAYS = dict(acscale=16, acfamt=NF * 5, acch=4, acnew=4, acplan=16, acpdur=16, 
               acmrhy=8, acmoves=12, acmods=12, acgrt=12, acfmrt=8, acpartt=24, acbellt=12, acdintt=5, acrhyt=5,
               acparams=12, acraw=4, acflav=4, acroles=16, ackeyp=16, acprog=8, acrmask=48, acrtide=8,
               acrtempo=8, acrpulse=8, acaway=8, aceuk=10, aceun=10, acmeters=6, acmratios=6, acbreath=4)
+
+import gen_live as _L
+GLOBALS.update(_L.GLOBALS)
+ARRAYS.update(_L.ARRAYS)
 
 DATA_TABLES = dict(
     acmoves=MOVES, acmods=MODS, acgrt=GRAIN_RATIOS, acfmrt=FM_RATIOS,
@@ -55,26 +59,6 @@ def deg2p(d):
     """scale degree (may be negative) -> pitch above the tonic"""
     return (f"(actonic + 12*floor(({d})/acn) + "
             f"acscale[(int({d}) % int(acn) + int(acn)) % int(acn)])")
-
-
-def Arm(tick, expr, stop=None):
-    """(re)start a [delay] of expr ms that then bangs [s tick]; [s stop] cancels it."""
-    def st(c, src):
-        e = c.obj("expr " + expr)
-        c.c(*src, e, 0)
-        d = c.obj("delay")
-        c.c(e, 0, d, 0)
-        c.c(d, 0, c.obj("s " + tick), 0)
-        if stop:
-            c.c(c.m(c.recv(stop), "stop"), 0, d, 0)
-    return st
-
-
-def Toast(text):
-    return Send("ac-toast", "list " + text)
-
-
-RNG = Call("ac-rng")
 
 
 def globals_():
@@ -181,6 +165,7 @@ def piece():
         SendL("ac-bellset", ["acbellt[int(acbellI)*3]", "acbellt[int(acbellI)*3+1]", "acbellt[int(acbellI)*3+2]"]),
         RNG,
         SendL("ac-dint", ["acdintt[int(acr1*5)]"]),
+        SendL("ac-lvtype", ["acpal1"]),
         # tempo, meter, motion timbre
         X("40 + int(acr2*33); acmeters[int(acr3*6)]", "v acbpm0", "v acmeter"),
         SendL("ac-mtimbre", ["acmratios[int(acr4*6)]"]),
@@ -310,11 +295,15 @@ def section():
         Call("ac-layers"),
         Call("ac-brightupd"),
         Call("ac-motifgen"),
+        Call("ac-memsec"),
         Call("ac-scr"),
         Send("ac-led"),
     ]
     proc(c, "ac-section", [If("acmode==1 && acsec>=acnsec", [Call("ac-fin")], rest)])
-    proc(c, "ac-nextsec", [V("acsec", "acsec+1"), Call("ac-section")])
+    # while you play (breath, or notes held), a section waits for you, up to 3 times 30 s
+    proc(c, "ac-nextsec", [If("acmode==1 && acsechold < 3 && (acnow - acbreatht < 4000 || acheld > 0)", [
+        V("acsechold", "acsechold + 1"), Arm("ac-nextsec", "30000*actime"), Toast("holding - you are playing")],
+        [V("acsechold", "0"), V("acsec", "acsec+1"), Call("ac-section")])])
     proc(c, "ac-rvback", [Send("ac-rvin", "1 5000")])
     # the end of a composition: fade out, then switch the layers off
     fin_off = c.obj("delay")
@@ -349,11 +338,12 @@ def layers():
         ("drone", "acfdrone*acmdrone*(1-acended)*(0.55+0.45*min(1, acdeff*3))"),
         ("pad", f"acfpad*acmpad*(1-acended)*{th(0.06)}"),
         ("tex", f"acftex*acmtex*(1-acended)*{th(0.28)}"),
-        ("cloud", f"acmcloud*(1-acended)*max(acfcloud*{th(0.42)}, (acinmode==1)*min(1, acinput*2)*0.8)"),
-        ("bell", f"acmbell*(1-acended)*max(acfbell*{th(0.45)}, (acinmode==3)*min(1, acinput*2))"),
+        ("cloud", f"acmcloud*(1-acended)*max(acfcloud*{th(0.42)}, ((acinmode==2) || (acinmode==0)*(acinclass>=1))"
+                  f"*min(1, acinput*2)*0.8)"),
+        ("bell", f"acmbell*(1-acended)*max(acfbell*{th(0.45)}, (acinmode==4)*min(1, acinput*2))"),
         ("motion", f"acfmotion*acmmotion*(1-acended)*{th(0.3)}*min(1, acrhythm*2.5)"),
     ]
-    steps = [V("acdeff", "if(acmode==1, min(1, acenergy*(0.35+1.3*acdens)), min(1, acdens*(0.8+0.4*acenergy)))")]
+    steps = [V("acdeff", "min(1, if(acmode==1, acenergy*(0.35+1.3*acdens), acdens*(0.8+0.4*acenergy)) + 0.35*acbreath)")]
     for name, e in lay:
         steps += [V("acg" + name, e)]
         if name != "tex":
@@ -374,14 +364,21 @@ def layers():
         SendL("ac-resfb", ["0.93 + 0.066*accolor"]),
         SendL("ac-resdamp", ["1200 + 5000*accolor"]),
     ])
+    A = "(acinmode==0)"
     proc(c, "ac-inputupd", [
-        SendL("ac-g-res", ["(acinmode==0)*acinput", "1500"]),
-        SendL("ac-g-tape", ["(acinmode==2)*acinput", "1500"]),
-        SendL("ac-g-dry", ["acinput*if(acinmode==3, 0, if(acinmode==1, 0.35, 0.6))", "300"]),
-        SendL("ac-incl", ["if(accapt, 1, (acinmode==1)*min(1, acinput*3))", "500"]),
-        SendL("ac-inclr", ["1 - if(accapt, 1, (acinmode==1)*min(1, acinput*3))", "500"]),
-        SendL("ac-ghost", ["(acinmode==3)*acinput"]),
-        V("acfade", "1500"), Call("ac-layers"),
+        V("acgres", f"acinput * if(acinmode==1, 1, {A}*if(acinclass==1, 0.8, if(acinclass==2, 0.4, 0)))"),
+        V("acgbands", f"acinput * ((acinmode==5) || {A}*(acinclass==3))"),
+        V("acharm", f"((acinmode==2) || {A}) && acinclass==1 && acinput > 0.05"),
+        V("acgdry", "acinput * if(acinmode==4, 0, if(acinmode==2 || acinmode==5, 0.3, "
+                    f"if({A} && acinclass==3, 0.3, 0.6)))"),
+        SendL("ac-g-res", ["acgres", "1500"]),
+        SendL("ac-g-bands", ["acgbands", "1500"]),
+        SendL("ac-g-tape", ["(acinmode==3)*acinput", "1500"]),
+        SendL("ac-g-dry", ["acgdry", "300"]),
+        SendL("ac-incl", [f"if(accapt, 1, ((acinmode==2) || {A}*(acinclass>=1))*min(1, acinput*3))", "500"]),
+        SendL("ac-inclr", [f"1 - if(accapt, 1, ((acinmode==2) || {A}*(acinclass>=1))*min(1, acinput*3))", "500"]),
+        SendL("ac-ghost", ["(acinmode==4)*acinput"]),
+        V("acfade", "1500"), Call("ac-layers"), Call("ac-grains"),
     ])
     return c
 
@@ -461,6 +458,14 @@ def change():
                    "if(acr1 < 0.1 + 0.15*(1-acweird) && acdeg != 0, 0, "
                    "((int(acdeg) + int(acmoves[int(acr2*12)])) % int(acn) + int(acn)) % int(acn))))"),
         V("acprogi", "acprogi + (acrole==6)"),
+        # listening: what you hold (or sing) pulls the chord - pick a root whose triad contains it
+        If("acfocus >= 0 && acr3 < acfollow && acfirst == 0 && acmodflag == 0", [
+            V("acfd", "-1"),
+            Loop("acn", "aci", [If("abs(fmod(actonic + acscale[int(aci)] - acfocus + 1200, 12)) < 0.6 || "
+                                   "abs(fmod(actonic + acscale[int(aci)] - acfocus + 1200, 12)) > 11.4",
+                                   [V("acfd", "aci")])]),
+            If("acfd >= 0", [RNG, V("acdeg", "((int(acfd) - 2*int(acr1*3)) % int(acn) + int(acn)) % int(acn)")]),
+        ]),
         # remember the opening progression (for the return)
         If("acmode==1 && acsec <= 1 && acprogn < 8", [T("acprog", "acprogn", "acdeg"), V("acprogn", "acprogn+1")]),
     ]
@@ -483,8 +488,8 @@ def change():
                                            "if(acfirst, 0, acr2*0.35*acchsec*1000*actime)"]),
                   T("acch", k, f"acnew[{k}]")]
         steps += [SendL(f"ac-res{k}", [f"1000/mtof(43 + fmod(acnew[{k}]-43, 24))", "2500"])]
-    for i in range(4):
-        steps += [RNG, SendL(f"ac-gr{i}", ["acgrt[int(acr1*12)] * if(acr2 < acweird*0.3, -1, 1)"])]
+    steps += [Call("ac-grains")]
+    steps += [SendL(f"ac-band{k}", [f"mtof(min(120, acnew[{k % 4}] + {12 * (k // 4) + 12}))", "3000"]) for k in range(8)]
     steps += [
         SendL("ac-dronep", ["actonic", "if(acfirst, 0, if(acmodflag, 9000, 200))"]),
         RNG,
@@ -495,6 +500,11 @@ def change():
         Call("ac-scr2"), Call("ac-scr3"), Send("ac-flash"),
     ]
     proc(c, "ac-change", [If("acrun", steps)])
+    gs = []
+    for i in range(4):
+        gs += [RNG, SendL(f"ac-gr{i}", [f"if(acharm && acinp > 0, pow(2, (acnew[{i}] + 12*floor((acinp - acnew[{i}])/12 + 0.5)"
+                                        f" - acinp)/12), acgrt[int(acr1*12)] * if(acr2 < acweird*0.3, -1, 1))"])]
+    proc(c, "ac-grains", gs)
     return c
 
 
@@ -536,8 +546,10 @@ def players():
         Arm("ac-ctick", "if(acbc>0, 80 + acr2*240, 1500 + acr3*9000)"),
     ])
     # ghost input mode: a played onset rings the next bell note
-    proc(c, "ac-inonset", [If("acinmode==3 && acinput > 0.05", [Call("ac-bellnow"), RNG,
-                                                                If("acr1 < 0.08", [Call("ac-change")])])])
+    # input onsets: counted for the class; in ghost mode (and for plucked sounds in auto) they ring a bell
+    proc(c, "ac-inonset", [Call("ac-inonset2"),
+                           If("(acinmode==4 || (acinmode==0 && acinclass==2)) && acinput > 0.05",
+                              [Call("ac-bellnow"), RNG, If("acr1 < 0.08 && acinmode==4", [Call("ac-change")])])])
     return c
 
 
@@ -546,7 +558,7 @@ def capture():
     c.comment("Capture: 8 s of the input into the cloud buffer, then freeze it there")
     proc(c, "ac-capture", [
         X("1; 0; 1", "v accapt", "v acfreeze", "v acfcloud"),
-        Call("ac-freezeupd"), Call("ac-inputupd"), Send("ac-cwstart"),
+        Call("ac-freezeupd"), Call("ac-inputupd"), Send("ac-cwstart"), Call("ac-memrec"),
         Toast("capturing 8 s"),
         Arm("ac-capdone", "8100"),
     ])

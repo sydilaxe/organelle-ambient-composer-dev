@@ -61,6 +61,32 @@ Working memory for this project: read it first in a new session.
 - **Tests:** set `actime` (time compression) *before* `ac-setseed`. The first section is armed when the
   piece starts.
 
+## Stage 2 (live MIDI and audio)
+- **MIDI in** (`midi_in`): `notein`, `bendin`, `touchin`, `polytouchin` and `ctlin` (CC 2, 11; 120 and 123
+  = all notes off) are normalised to `ac-livenote`, `ac-livebend` (semitones) and `ac-livebreath`.
+  Channels are folded to 1..16. Bend uses `($f1-8192)/8192`, as DM48 Engine does.
+- **Voices:** 4 `amlive` abstractions. Allocation takes a free voice, else steals the oldest.
+  `aclvn`/`aclvc` hold each voice's note and channel, so MPE bend and breath reach only that channel's
+  voice. Breath on channel 1 goes to all. A note-on first sends the channel's current breath
+  (`acbrch`), so a note started at breath 0 is silent. A live voice switches its synthesis subpatch on
+  at note-on, and off 1.6 s after its release.
+- **Keys:** `notesRaw` goes to live notes unless `acext`, aux is held, or `acforce == 1`. Note-offs always
+  go to live, so no note hangs when the mode changes. Aux: release with no key used = next page.
+- **Listening:** `acfocus` (the pitch class you hold or sing). In a change, a root whose triad contains
+  it is picked, with probability `acfollow`. After 6 s held it becomes `acpend` (the key).
+  Breath adds `0.35·acbreath` to the effective density. `ac-nextsec` waits while breath or notes are active.
+- **Pitch tracker** (`pitch_tracker`): `block~ 4096 4`, the window table `achann` (Hann on the first
+  2048, zeros after, so the circular ACF doesn't wrap for lags < 2048), `rfft~` → power → `rifft~` →
+  `tabsend~ acacf`. On `bang~`: `array max acacf 40 560` gives the lag, clarity = peak / acacf[0],
+  then parabolic interpolation. `sigmund~` isn't used: it's in Pd's "extra" objects and may be missing.
+- **Class** (`ac-ana`, every 100 ms):
+  - activity = loud or recent onsets
+  - pitchedness = EMA of stable pitch frames (clarity > 0.55)
+  - onsets = EMA, +0.3 per onset
+  - class: quiet (activity < 0.3), pitched (pitchedness > 0.45), plucked (onsets > 0.9), else texture
+- **[value] gotcha (again):** `[v x]` doesn't output, so a bang can't be chained after it. Use
+  `[t b f]` and set the value from the right outlet.
+
 ## Pd gotchas met here
 - Screen lines: `[pack]` parts must be fed right to left: the hot inlet (part 0) goes last.
 - A message box `list word` with a single word arrives as `symbol word`. Toasts use two or more words.

@@ -619,3 +619,204 @@ def motion():
         outs.append(o)
     throws(s, outs[0], outs[1], mix=1.0, send=0.9)
     return s
+
+
+# ======================================================================================
+# Stage 2: live voices, input chain and analysis, tuned bands, memories
+# ======================================================================================
+
+def live_voice():
+    """Abstraction amlive.pd (argument = voice 0..3): a played note. With a breath controller, breath is the
+    level (and adds brightness); otherwise a velocity envelope. Timbre = one of the 6 pad types."""
+    v = Canvas(w=1800, h=1000)
+    v.comment("Live voice $1: note, MPE bend, breath; the pad synthesis types; on only while it sounds")
+    on = v.to(v.recv("ac-lvon"), "route $1")
+    up = v.to(on, "unpack f f")
+    c_vel = v.to((up, 1), "t f f")
+    # pitch = note + bend: a new note jumps there, a bend glides 20 ms
+    ln = v.obj("line 0 20")
+    e1, e2 = v.obj("expr $f1 + $f2"), v.obj("expr $f1 + $f2")
+    nt = v.to((up, 0), "t f f")
+    v.c(nt, 1, e2, 1)
+    v.c(nt, 0, e1, 0)
+    bt = v.ch(v.recv("ac-lvbend"), "route $1", "t f f")
+    v.c(bt, 1, e1, 1)
+    v.c(bt, 0, e2, 0)
+    v.c(v.m(e1, "$1"), 0, ln, 0)
+    v.c(v.m(e2, "$1 20"), 0, ln, 0)
+    tf = v.to(ln, "t f f")
+    dsig = v.ch(v.m(v.to((tf, 1), "expr 1000/mtof($f1) - 0.012"), "$1 20"), "line~")
+    fsig = v.ch(v.m(v.to((tf, 0), "mtof"), "$1 20"), "line~")
+    v.col()
+    # envelope: velocity level (or 1 with a breath controller), attack 60 ms, decay to 85 %, release 1.4 s
+    brm = v.recv("ac-brmode")
+    lev = v.obj("expr if($f2, 1, $f1); if($f2, 1, $f1)*0.85")
+    v.c(brm, 0, lev, 1)
+    v.c(c_vel, 1, lev, 0)
+    lp = v.obj("pack f f")
+    v.c(lev, 1, lp, 1)
+    v.c(lev, 0, lp, 0)
+    gate = v.ch(v.m(lp, "$1 60, $2 400 60"), "vline~")
+    off = v.to(v.recv("ac-lvoff"), "route $1")
+    v.c(v.m(off, "0 1400"), 0, gate, 0)
+    # breath (1 when there is no breath controller)
+    br = v.obj("line~")
+    v.c(v.m(v.to(v.recv("ac-lvbr"), "route $1"), "$1 15"), 0, br, 0)
+    v.c(v.m(v.to(brm, "sel 0"), "1 50"), 0, br, 0)
+    v.c(v.m(v.obj("loadbang"), "1"), 0, br, 0)
+    amp = mul(v, gate, br)
+    bright = v.ch(add(v, v.ch(v.recv("ac-bright"), "line~"), v.to(br, "*~ 0.3")), "clip~ 0 1")
+    v.col()
+    # the synthesis type: on (10 ms) at a note-on, all off 1.6 s after the release
+    ty = v.obj("f")
+    v.c(v.recv("ac-lvtype"), 0, ty, 1)
+    st = v.to(ty, "t f f f f f f")
+    for i in range(6):
+        v.c(v.m(v.to((st, i), f"== {i}"), "$1 10"), 0, v.obj(f"s $0-fw{i}"), 0)
+    d = v.obj("delay 1600")
+    v.c(off, 0, d, 0)
+    v.c(v.m(c_vel, "stop"), 0, d, 0)
+    tb = v.to((c_vel, 0), "t b")
+    v.c(tb, 0, ty, 0)
+    for i in range(6):
+        v.c(v.m(d, "0 50"), 0, v.obj(f"s $0-fw{i}"), 0)
+    lb = v.ch(v.obj("loadbang"), "f $1")
+    v.c(v.to(lb, "expr 0.11 + 0.03*$f1"), 0, v.obj("s $0-la"), 0)
+    v.c(v.to(lb, "expr 0.07 + 0.02*$f1"), 0, v.obj("s $0-lb"), 0)
+    v.col()
+    body = v.obj("*~")
+    v.c(amp, 0, body, 1)
+    for i, fl in enumerate((flav_fm(), flav_vox(), flav_bow(), flav_part(), flav_fold(), flav_pulsar())):
+        sp = v.sub(fl, 20 + i * 120, 760)
+        v.c(fsig, 0, sp, 0)
+        v.c(bright, 0, sp, 1)
+        if fl.name == "bow":
+            v.c(dsig, 0, sp, 2)
+        v.c(sp, 0, body, 0)
+    out = v.to(body, "*~ 0.42")
+    pn = v.ch(v.obj("loadbang"), "f $1", "expr cos((0.2+0.2*$f1)*1.5708); sin((0.2+0.2*$f1)*1.5708)")
+    L, R = v.to(out, "*~ 0.7"), v.to(out, "*~ 0.7")
+    v.c(pn, 0, L, 1)
+    v.c(pn, 1, R, 1)
+    throws(v, L, R, mix=1.0, send=0.6, src=0.5)
+    return v
+
+
+def pitch_tracker(src_canvas, src):
+    """FFT autocorrelation pitch tracker (vanilla): 4096-point blocks, 2048 windowed samples (zero padded),
+    hop 1024. Lag 40..600 (73 Hz - 1.1 kHz), parabolic interpolation. -> acinp (MIDI, -1 = none), acinclr."""
+    p = Canvas("pitch", w=1400)
+    p.comment("autocorrelation by FFT: |X|^2 -> inverse FFT; the strongest lag in 40..600 is the period")
+    p.obj("block~ 4096 4")
+    x = p.obj("inlet~", 20, 5)
+    w = mul(p, x, p.obj("tabreceive~ achann"))
+    ff = p.to(w, "rfft~")
+    pw = add(p, mul(p, (ff, 0), (ff, 0)), mul(p, (ff, 1), (ff, 1)))
+    p.c(p.to(pw, "rifft~"), 0, p.obj("tabsend~ acacf"), 0)
+    p.col()
+    bg = p.obj("bang~")
+    from pdlib import run_steps, X
+    mx = p.obj("array max acacf 40 560")
+    p.c(bg, 0, mx, 0)
+    pk = p.obj("pack f f")
+    p.c(mx, 1, pk, 1)
+    p.c(mx, 0, pk, 0)
+    e = p.to(pk, "expr $f2; $f1/max(1e-09, acacf[0])")
+    p.c(e, 1, p.obj("v acinclr"), 0)
+    tb = p.to(e, "t b f")
+    p.c(tb, 1, p.obj("v aci2"), 0)
+    y0, y1, y2 = "acacf[int(aci2)-1]", "acacf[int(aci2)]", "acacf[int(aci2)+1]"
+    den = f"({y0} - 2*{y1} + {y2})"
+    run_steps(p, (tb, 0), [X(f"if(acinclr > 0.35 && acinlvl > 48, ftom(44100/(aci2 + max(-1, min(1, if({den} < -1e-09, "
+                             f"0.5*({y0} - {y2})/{den}, 0))))), -1)", "v acinp")])
+    sp = src_canvas.sub(p)
+    src_canvas.c(src, 0, sp, 0)
+    return sp
+
+
+def inp():
+    s = Canvas("input", w=2000)
+    s.comment("External audio: dry blend; gate + automatic gain -> ac-in (resonators, bands, tape, cloud, memories); "
+              "level, brightness, pitch and onsets for the listener")
+    iL, iR = s.obj("r~ inL"), s.obj("r~ inR")
+    mono = s.ch(add(s, iL, iR), "*~ 0.5", "hip~ 50")
+    dry = s.ch(s.recv("ac-g-dry"), "line~")
+    for sig, bus in ((iL, "ac-mixL"), (iR, "ac-mixR")):
+        s.c(mul(s, sig, dry), 0, s.obj("throw~ " + bus), 0)
+    s.col()
+    lvl = s.ch(mono, "env~ 2048 1024", "t f f f")
+    s.c(lvl, 2, s.obj("v acinlvl"), 0)
+    # automatic gain towards -22 dBFS (+24 / -12 dB), gate below -55 dBFS
+    agc = s.ch((lvl, 1), "expr if($f1 > 45, pow(10, min(24, max(-12, 78 - $f1))/20), 0)")
+    agcs = s.obj("expr $f1*0.25 + $f2*0.75")
+    s.c(agc, 0, agcs, 0)
+    sm = s.obj("f")
+    s.c(agcs, 0, sm, 0)
+    s.c(sm, 0, agcs, 1)
+    g = s.ch(s.m(agcs, "$1 300"), "line~")
+    ain = mul(s, mono, g)
+    s.c(ain, 0, s.obj("s~ ac-in"), 0)
+    hf = s.ch(mono, "hip~ 3000", "env~ 2048 1024")
+    hd = s.obj("expr $f1 - acinlvl")
+    s.c(hf, 0, hd, 0)
+    s.c(hd, 0, s.obj("v acinhf"), 0)
+    pitch_tracker(s, ain)
+    s.col()
+    s.c(s.recv("ac-ghost"), 0, s.obj("v acghost"), 0)
+    env = s.to((lvl, 0), "expr max(0, min(1, ($f1-45)/40))")
+    te = s.to(env, "t f f f")
+    s.c(s.ch(s.m(s.to((te, 2), "expr $f1*acghost"), "$1 50"), "line~"), 0, s.obj("s~ ac-envb"), 0)
+    ons = s.ch((te, 1), "expr $f1 - acinprev > 0.12 && $f1 > 0.25", "sel 1")
+    s.c(te, 0, s.obj("v acinprev"), 0)
+    sp = s.obj("spigot 1")
+    s.c(ons, 0, sp, 0)
+    tb = s.to(sp, "t b b")
+    s.c(tb, 0, s.obj("s ac-inonset"), 0)
+    s.c(s.m((tb, 1), "0"), 0, sp, 1)
+    s.c(s.m(s.to((tb, 1), "delay 150"), "1"), 0, sp, 1)
+    return s
+
+
+def bands():
+    s, ln = switched("bands", "ac-g-bands")
+    s.comment("Tuned bands: the input through 8 narrow resonant bands on the chord (field recordings play it)")
+    src = s.obj("r~ ac-in")
+    L, R = s.obj("*~ 8"), s.obj("*~ 8")
+    for k in range(8):
+        v = s.obj("vcf~ 28")
+        s.c(src, 0, v, 0)
+        s.c(s.ch(s.recv(f"ac-band{k}"), "line~"), 0, v, 1)
+        s.c(v, 0, L if k % 2 == 0 else R, 0)
+    throws(s, mul(s, L, ln), mul(s, R, ln), mix=1.0, send=0.7, src=0.3)
+    return s
+
+
+def mem_rec():
+    s = Canvas("memory-rec", w=1000)
+    s.comment("Records 8 s of ac-in into memory slot N")
+    tw = s.obj("tabwrite~ acmem0")
+    s.c(s.obj("r~ ac-in"), 0, tw, 0)
+    sel = s.to(s.recv("ac-memrecslot"), "sel 0 1 2 3")
+    for i in range(4):
+        s.c(s.m((sel, i), f"set acmem{i}, bang"), 0, tw, 0)
+    return s
+
+
+def mem_play():
+    s, ln = switched("memory-play", "ac-g-mem")
+    s.comment("Plays a memory back, transformed: two heads at a rate and half of it (an octave below), each "
+              "8 s cycle faded in and out")
+    up = s.to(s.recv("ac-memplay"), "unpack f f")
+    sel = s.to(up, "sel 0 1 2 3")
+    L, R = s.obj("*~ 0.8"), s.obj("*~ 0.8")
+    for h, (mult, dst) in enumerate(((1, L), (0.5, R))):
+        ph = s.obj("phasor~")
+        s.c(s.to((up, 1), f"expr $f1*{mult}/8"), 0, ph, 0)
+        rd = s.obj("tabread4~ acmem0")
+        for i in range(4):
+            s.c(s.m((sel, i), f"set acmem{i}"), 0, rd, 0)
+        s.c(s.to(ph, f"*~ {CLOUD_LEN - 4}"), 0, rd, 0)
+        win = s.ch(ph, "cos~", "*~ -0.5", "+~ 0.5")
+        s.c(mul(s, rd, win), 0, dst, 0)
+    throws(s, mul(s, L, ln), mul(s, R, ln), mix=0.7, send=1.0)
+    return s

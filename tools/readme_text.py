@@ -42,21 +42,47 @@ KNOBS (aux cycles the pages; knobs pick up smoothly)
   PIECE  1 Len   5-30 min           2 Weird FM, folding, key changes
          3 Mot   breathing, drift   4 Rhy   motion layer, swing, pulse
 
-KEYS
+PLAYING IT
+  Standalone, the Organelle keys PLAY NOTES (4 voices in the piece's own
+  synthesis type). Functions are aux + key.
+  When an external controller plays (DM48X, any keyboard), it takes over:
+  the keys become function keys without aux. After 2 minutes with no
+  external notes the keys play again.
+  MPE: each note on its own channel, per-note bend (48 semitones; channel 1:
+  2), breath = CC 2 / CC 11 / channel or poly pressure. With breath the notes
+  follow your breath (level and brightness).
+
+THE COMPOSER LISTENS
+  - what you hold (or sing) pulls the next chord to contain it
+  - a note held 6 s becomes the new key centre
+  - breath raises the energy (more layers), and while you play a section
+    waits for you (up to 3 x 30 s)
+  - silence: the piece leads
+
+FUNCTION KEYS (aux + key standalone, plain keys with external MIDI)
   Low octave C..B   next key centre
   C   COMPOSE / DRIFT          C#  chord change now    D  next section
   D#  drone on/off   E pads   F textures   F# cloud   G bells
-  G#  capture 8 s of input into the cloud
-  A   input mode: reso / cloud / tape / ghost
+  G#  capture 8 s of input (cloud + a memory)
+  A   input mode: auto / reso / cloud / tape / ghost / bands
   A#  HOLD: freeze the reverb tail and the cloud
   B   new piece
-  Footswitch: chord change now
+  Aux alone: next knob page.  Footswitch: chord change now
 
-INPUT MODES (In knob = amount)
-  reso   your sound rings 4 strings tuned to the chord
+AUDIO INPUT (In knob = amount; samples, guitar, harmonica, voice, field
+recordings). Gate and automatic gain, then Amble listens for pitch, attacks
+and noisiness and calls it pitched, plucked or texture (screen line 5).
+  auto   pitched: chord strings ring with you, grains retuned to the chord,
+         your pitch steers the harmony; plucked: attacks ring bells, the
+         strings ring lightly; texture: tuned bands play the chord
+  reso   4 comb strings tuned to the chord
   cloud  your sound feeds the granular cloud
   tape   long wobbling echoes
-  ghost  unheard: your loudness brightens the pads, attacks ring bells
+  ghost  unheard: loudness brightens, attacks ring bells
+  bands  8 narrow bands on the chord tones (field recordings sing)
+MEMORIES: while the piece develops Amble keeps 8 s of what you played (up to
+4). Break, return and dissolve sections bring them back: reversed, slowed,
+or retuned to the chord.
 
 LED: blue composing, green drifting, white flash on chord changes.
 seed.txt counts start-ups so no two sessions begin the same way.

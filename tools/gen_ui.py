@@ -1,7 +1,7 @@
 """Organelle controls: knobs (two pages, pickup), keys, aux, footswitch, screen lines, LED, toasts."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, run_steps, Line, lookup
 from data import *
-from gen_brain import Toast
+from pdlib import Toast
 
 SECNAMES = ["emerge", "haze", "drift", "bloom", "swell", "dissolve"]
 DRIFTNAMES = ["haze", "drift", "bloom", "swell", "surge"]
@@ -61,12 +61,17 @@ def knobs():
 
 def keys():
     c = Canvas("keys", w=3000)
-    c.comment("Low octave: next key centre. Top octave: functions. Aux: knob page. Footswitch: change now.")
+    c.comment("Keys play notes, unless an external controller is playing (or aux is held): then low octave = next "
+              "key centre, top octave = functions. Aux tap: knob page. Footswitch: change now.")
     up = c.to(c.recv("notesRaw"), "unpack f f")
-    sp = c.obj("spigot")
-    c.c(c.to((up, 1), "!= 0"), 0, sp, 1)
-    c.c(up, 0, sp, 0)
-    mo = c.ch(sp, "- 60", "moses 12")
+    c.c(up, 1, c.obj("v ackv"), 0)
+    kb = c.to(up, "t b f")
+    c.c(kb, 1, c.obj("v ackn"), 0)
+    run_steps(c, (kb, 0), [If("acext || acauxheld || acforce == 1", [
+        If("ackv > 0", [V("acauxused", "acauxheld"), SendL("ac-fkey", ["ackn"])],
+           [SendL("ac-livenote", ["0", "ackn", "0"])])],
+        [SendL("ac-livenote", ["0", "ackn", "ackv"])])])
+    mo = c.ch(c.recv("ac-fkey"), "- 60", "moses 12")
     kt = c.to((mo, 0), "t b f")
     c.c(kt, 1, c.obj("v acpend"), 0)
     c.c(kt, 0, c.obj("s ac-keytoast"), 0)
@@ -88,7 +93,7 @@ def keys():
         mute("acmdrone", "drone"), mute("acmpad", "pads"), mute("acmtex", "texture"),
         mute("acmcloud", "cloud"), mute("acmbell", "bells"),
         [Call("ac-capture")],
-        [V("acinmode", "(acinmode+1) % 4"), Call("ac-inputupd"), Call("ac-inmodetoast"), Call("ac-scr5")],
+        [V("acinmode", "(acinmode+1) % 6"), Call("ac-inputupd"), Call("ac-inmodetoast"), Call("ac-scr5")],
         [V("acvfreeze", "1-acvfreeze"), V("acfreeze", "acvfreeze"), Call("ac-freezeupd"), Call("ac-revupd"),
          If("acvfreeze", [Toast("hold - reverb and cloud")], [Toast("hold released")])],
         [Call("ac-reseed"), Toast("new piece")],
@@ -103,7 +108,9 @@ def keys():
     # aux: knob page
     a = c.ch(c.recv("aux"), "sel 0")
     b = c.to((a, 1), "t b")
-    run_steps(c, (b, 0), [V("acpage", f"(acpage+1) % {NP}"), Call("ac-pagetoast"), Call("ac-scr4"), Call("ac-scr5")])
+    run_steps(c, (b, 0), [X("1; 0; acnow", "v acauxheld", "v acauxused", "v acauxt")])
+    run_steps(c, (a, 0), [V("acauxheld", "0"), If("acauxused == 0", [
+        V("acpage", f"(acpage+1) % {NP}"), Call("ac-pagetoast"), Call("ac-scr4"), Call("ac-scr5")])])
     Line("ac-pagetoast", "list page $1", [("s", "acpage", PAGE_NAMES)], "ac-toast")(c)
     f = c.ch(c.recv("fs"), "sel 0")
     c.c(c.to((f, 1), "t b"), 0, c.obj("s ac-change"), 0)
@@ -137,7 +144,9 @@ def screen():
     c.col()
     Line("ac-scr4p0", "list Dens $1 Tide $2", [("f", "int(acdens*100)"), ("f", "int(actide*100)")], "screenLine4")(c)
     Line("ac-scr5p0", "list Colr $1 In $2 $3",
-         [("f", "int(accolor*100)"), ("f", "int(acinput*100)"), ("s", "acinmode", INMODES)], "screenLine5")(c)
+         [("f", "int(accolor*100)"), ("f", "int(acinput*100)"),
+          ("s", "if(acinmode==0, 6 + acinclass, acinmode)", INMODES + ["auto", "pitched", "plucked", "texture"])],
+         "screenLine5")(c)
     Line("ac-scr4p1", "list Mix $1 Verb $2", [("f", "int(acrvmix*100)"),
                                               ("s", "if(acrvtype < 0.2, 0, 1 + min(3, int((acrvtype-0.2)/0.2)))", VERBS)],
          "screenLine4")(c)
