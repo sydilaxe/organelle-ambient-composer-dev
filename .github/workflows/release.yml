@@ -1,0 +1,71 @@
+# Build, test in Pure Data, and package the patch.
+#  - push a tag like v1.0 -> a GitHub Release with the zip attached
+#  - Actions > "Release build" > Run workflow -> the same build, zip kept as a workflow artifact
+name: Release build
+
+on:
+  push:
+    tags: ["v*"]
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version, e.g. v1.0"
+        default: "dev"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Pure Data and Python packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends puredata-core python3-numpy python3-scipy zip
+          pd -version
+
+      - name: Version
+        id: v
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then v="${GITHUB_REF_NAME}"; else v="${{ inputs.version || 'dev' }}"; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: tools/build.sh
+
+      - name: Committed patch matches its source
+        run: |
+          if ! git diff --quiet -- patches/; then
+            git status --short -- patches/
+            echo "::error::patches/ is out of date - run tools/build.sh and commit the result"
+            exit 1
+          fi
+
+      - name: Test in Pure Data
+        working-directory: tools
+        run: python3 ci_check.py
+
+      - name: Package
+        run: tools/package.sh "${{ steps.v.outputs.version }}"
+
+      # artifacts only for release runs: PR and branch builds just build and test (keeps artifact storage free)
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch' || github.ref_type == 'tag'
+        with:
+          name: amble-${{ steps.v.outputs.version }}
+          path: dist/
+
+      - name: Publish the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="${{ steps.v.outputs.version }}"
+          printf '## Install\nUnzip and copy the "Amble" folder into the Organelle Patches folder.\n' > notes.md
+          gh release create "$v" dist/*.zip --target "$GITHUB_SHA" --title "Amble $v" --notes-file notes.md --generate-notes
