@@ -79,7 +79,8 @@ def live():
     c.c(c.to(c.recv("ac-init"), "delay 60"), 0, met, 0)
     c.c(met, 0, c.obj("s ac-now"), 0)
     c.col()
-    proc(c, "ac-now", [V("acnow", "acnow + 100"), If("int(acnow) % 500 == 0", [Call("ac-listen")]), Call("ac-ana")])
+    proc(c, "ac-now", [V("acnow", "acnow + 100"), If("acrun", [V("acel", "acel + 100/actime"),
+                                                               V("acsecel", "acsecel + 100")]), If("int(acnow) % 500 == 0", [Call("ac-listen")]), Call("ac-ana")])
     # ---- notes
     up = c.to(c.recv("ac-livenote"), "unpack f f f")
     for i, n in ((2, "aclvel"), (1, "aclnote")):
@@ -122,7 +123,7 @@ def live():
     # ---- breath: per channel (MPE) or all voices (channel 1); a breath controller switches voices to breath
     # control for as long as it keeps sending
     ubr = c.to(c.recv("ac-livebreath"), "unpack f f")
-    c.c(c.to((ubr, 1), "expr pow($f1/127, 1.2)"), 0, c.obj("v aclbv"), 0)
+    c.c(c.to((ubr, 1), "expr pow($f1/127, accurve)"), 0, c.obj("v aclbv"), 0)
     tch = c.to(ubr, "t b f")
     c.c(c.to((tch, 1), "expr ($f1-1) % 16 + 1"), 0, c.obj("v aclch"), 0)
     tbr = c.to(tch, "t b")

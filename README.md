@@ -8,7 +8,7 @@ acoustic instruments, voice, samples and field recordings.
 > **Status:** in development, delivered in three stages.
 > 1. **Done:** form, rhythm, Bloom reverb.
 > 2. **Done:** live MIDI (MPE, breath) and audio listening.
-> 3. **Next:** the graphical OLED score, the SETUP page, and MIDI clock in and out.
+> 3. **Done:** the graphical OLED score, the SETUP page, and MIDI clock in and out.
 >
 > It builds, and passes its offline tests in Pure Data. It has not been run on an Organelle yet.
 
@@ -60,6 +60,25 @@ The layers and their rhythms:
   - **Auto mode:** chooses chord strings, harmonised grains, bells on attacks or tuned bands to suit.
   - **Memories:** up to 4 × 8 s captured from your input, brought back transformed in break, return and dissolve sections.
 
+## The screen and SETUP
+
+The OLED is a live score. The images below are rendered offline by `tools/shots.py` with an OLED
+emulator, so the font only approximates the Organelle's.
+
+![screens](docs/shots/sheet.png)
+
+| Screen | Contents |
+|---|---|
+| **Score** | The form strip (one bar per section, height = energy, current one inverted, a playhead). Key and scale, with the time left. The pad voices gliding on a pitch ladder, with your held notes as boxes and a breath bar. Meters for every layer, the reverb and the input. The motion layer's Euclidean pattern with a moving cursor, the tempo and the reverb type. The section role and voicing, and K/M/E tags for who is playing and the clock. |
+| **Knob page** | Shown for 2 s when you turn a knob. |
+| **SETUP** | Hold aux for 1 s. Page 1: MIDI out (off, clock, clock + notes, notes), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Saved in `settings.txt` with the knob values. |
+
+**MIDI out:**
+- **Clock:** 24 ticks a beat at the piece's tempo, with Start and Stop at the start and end of a piece.
+- **Notes:** chords, drone root, bells and motion, each on its own channel.
+
+**Sync:** Amble leads, or it follows an incoming clock. Incoming ticks drive its rhythm and Start resets the bar.
+
 ## Reverb
 
 - **Bloom 1 / Bloom 2:** after the Alesis MidiVerb II *Bloom* programs (45 and 49).
@@ -71,8 +90,8 @@ The layers and their rhythms:
 - **Shimmer:** the Hall with an octave-up shifter in its loop.
 - **Auto:** the piece chooses. Each section change blooms the reverb up, the climax lengthens it, and the dissolve darkens it.
 
-CPU, measured offline: about 1.3 % of one x86 core with every layer and input processing on. That should be
-roughly 10 to 13 % of the Organelle's CM3.
+CPU, measured offline: about 1.9 % of one x86 core with every layer, input processing, 4 live voices, the OLED
+and the clock running. That should be roughly 15 to 20 % of the Organelle's CM3.
 
 ## Source (`tools/`)
 
@@ -85,10 +104,13 @@ files.
 - `gen_live.py`: MIDI in, live voices, listening, audio analysis and class, memories.
 - `gen_ui.py`: knobs, keys, screen.
 - `gen_dsp.py`: voices, layers, input, master.
+- `gen_oled.py`: the OLED score.
+- `gen_setup.py`: SETUP, settings, MIDI clock and notes out, clock in.
 - `gen_verb.py`: the reverbs.
 - `data.py`: the tables.
 - `harness.py` runs the patch offline (`pd -batch`).
-- `ci_check.py` is the test suite.
+- `ci_check.py` is the test suite (84 checks).
+- `shots.py` renders OLED screenshots with `oledemu.py`.
 - `ref/` holds Conduit's Bloom in C, the reference for the reverb tests.
 
 ```

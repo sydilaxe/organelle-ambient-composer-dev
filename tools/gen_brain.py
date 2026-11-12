@@ -37,13 +37,16 @@ ARRAYS = dict(acscale=16, acfamt=NF * 5, acch=4, acnew=4, acplan=16, acpdur=16, 
               acrtempo=8, acrpulse=8, acaway=8, aceuk=10, aceun=10, acmeters=6, acmratios=6, acbreath=4)
 
 import gen_live as _L
-GLOBALS.update(_L.GLOBALS)
-ARRAYS.update(_L.ARRAYS)
+import gen_oled as _O
+import gen_setup as _S
+for _m in (_L, _O, _S):
+    GLOBALS.update(_m.GLOBALS)
+    ARRAYS.update(_m.ARRAYS)
 
 DATA_TABLES = dict(
     acmoves=MOVES, acmods=MODS, acgrt=GRAIN_RATIOS, acfmrt=FM_RATIOS,
     acpartt=sum(PARTIAL_SETS, []), acbellt=sum(BELL_SETS, []), acdintt=DRONE_INTERVALS, acrhyt=RHYTHMS,
-    acparams=[d for p in PAGES for _, _, d in p], acraw=[0.5] * 4, acrmask=sum(ROLE_MASK, []),
+    acparams=[d for p in PAGES for _, _, d in p], acraw=[0.5] * 4, aclvn=[-1] * 4, acrmask=sum(ROLE_MASK, []),
     acrtide=ROLE_TIDE, acrtempo=ROLE_TEMPO, acrpulse=ROLE_PULSE, acaway=AWAY, aceuk=[k for k, n in EUCLID],
     aceun=[n for k, n in EUCLID], acmeters=METERS, acmratios=MOTION_RATIOS, acbreath=BREATH_PERIODS,
 )
@@ -186,13 +189,15 @@ def piece():
         X("0; -1; 0; 1; 0; 0; 1; 0; 0", "v acdeg", "v acpend", "v acchg", "v acfirst", "v acended", "v accapt",
           "v acrun", "v acsec", "v acprogn"),
         Send("ac-master", "1 3000"),
+        V("acel", "0"), Call("ac-clockstop"),
         Call("ac-motif0"),
         Call("ac-plan"),
         Call("ac-section"),
         Call("ac-change"),
         Call("ac-brightupd"), Call("ac-inputupd"),
         SendL("ac-weird", ["acweird"]), SendL("ac-motion", ["acmotion"]),
-        Call("ac-scr"),
+        V("actick", "-1"), Call("ac-clockstart"),
+        Call("ac-scr"), Send("ac-oledall"),
     ]
     proc(c, "ac-newpiece", steps)
     # the form: an archetype's energy curve over 6-12 sections, then a role for each section
@@ -287,6 +292,7 @@ def section():
         V("acvsec", "if(acrole==4 && acr1 < 0.4, 4, acvauto)"),
         Call("ac-verbsel"),
         Send("ac-rvin", "1.8 1500"), Arm("ac-rvback", "3500"),
+        V("acsecel", "0"),
         V("acsecdur", "if(acmode==1, (5 + 25*aclen)*60000*acpdur[int(acsec)]/acpsum, "
                       "(1.5 + 6*aclen)*60000*(0.7 + acr4*0.6))"),
         Arm("ac-nextsec", "acsecdur*actime", stop="ac-secstop"),
@@ -310,7 +316,7 @@ def section():
     proc(c, "ac-fin", [
         V("acrun", "0"),
         Send("ac-master", "0 30000"),
-        Send("ac-chgstop"), Send("ac-secstop"),
+        Send("ac-chgstop"), Send("ac-secstop"), Call("ac-clockstop"),
         X("30500*actime + 500", (fin_off, 0)),
         Call("ac-scr"),
     ])
@@ -417,7 +423,8 @@ def rhythm():
     met = c.obj("metro 40")
     c.c(c.to(c.recv("ac-init"), "delay 50"), 0, met, 0)
     c.c(c.to(c.recv("ac-bpm"), "expr 60000/max(20, $f1)/24"), 0, met, 1)
-    c.c(met, 0, c.obj("s ac-tick"), 0)
+    c.c(met, 0, c.obj("s ac-mtick"), 0)
+    proc(c, "ac-mtick", [If("acsync == 0", [Send("ac-tick")])])
     c.col()
     proc(c, "ac-tick", [
         V("actick", "(actick + 1) % (24*acmeter*64)"),
@@ -497,7 +504,7 @@ def change():
         SendL("ac-wind", ["mtof(acnew[1]+24)", "mtof(acnew[3]+12)", "5000"]),
         X("acchg + 1; 0", "v acchg", "v acfirst"),
         Arm("ac-change", "acchsec*1000*actime", stop="ac-chgstop"),
-        Call("ac-scr2"), Call("ac-scr3"), Send("ac-flash"),
+        Call("ac-scr2"), Call("ac-scr3"), Send("ac-flash"), Call("ac-outchord"),
     ]
     proc(c, "ac-change", [If("acrun", steps)])
     gs = []

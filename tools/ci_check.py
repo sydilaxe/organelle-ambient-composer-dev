@@ -32,8 +32,8 @@ log, a = run([(50, "ac-setseed 1234")], 60)
 check(not errors(log), "loads without Pd errors " + "; ".join(errors(log)[:3]))
 check(-30 < rms_db(a) < -12, f"default level {rms_db(a):.1f} dB RMS")
 check(np.abs(a).max() < 0.95 and not np.isnan(a).any(), f"no clipping or NaN (peak {np.abs(a).max():.2f})")
-lines = [l for l in log.splitlines() if l.startswith("screenLine")]
-check(any(l.startswith("screenLine1: list COMP 1 of") for l in lines), "screen line 1 shows the form")
+lines = [l for l in log.splitlines() if l.startswith("ac-txt")]
+check(any(l.startswith("ac-txt1: list COMP 1 of") for l in lines), "screen line 1 shows the form")
 check(not any(" symbol" in l for l in lines), "no empty screen fields")
 
 # 2. every start is a different piece; one seed replays the same piece
@@ -43,7 +43,7 @@ for i in range(3):
     lg, _ = run([], 2, d=d)
     firsts.append([l for l in lg.splitlines() if l.startswith("ac-setseed")][0])
 check(len(set(firsts)) == 3, "three starts give three seeds " + str(firsts))
-g = lambda L: [x for x in L.splitlines() if x.startswith(("screenLine2", "screenLine3"))][-2:]
+g = lambda L: [x for x in L.splitlines() if x.startswith(("ac-txt2", "ac-txt3"))][-2:]
 l1, _ = run([(50, "ac-setseed 777")], 3)
 l2, _ = run([(50, "ac-setseed 777")], 3)
 check(g(l1) == g(l2), "a seed replays its piece")
@@ -73,7 +73,7 @@ for fl, name in enumerate(FLAVOURS):
 
 # 4. a composition runs through its sections and ends in silence
 log, a = run([(50, "actime 0.04"), (60, "ac-setseed 2026")], 90)
-l1 = [l for l in log.splitlines() if l.startswith("screenLine1")]
+l1 = [l for l in log.splitlines() if l.startswith("ac-txt1")]
 check(any("COMP 1 of" in l for l in l1) and any("FIN" in l for l in l1), "composition reaches FIN")
 check(rms_db(a[-10 * SR:]) < -90, "silent after the end")
 check(rms_db(a[2 * SR:12 * SR]) > -40, "the composition plays")
@@ -86,9 +86,9 @@ for n in (64, 73, 74, 75, 81, 82, 83):
     ev += [(T, f"notesRaw {n} 100"), (T + 50, f"notesRaw {n} 0")]
     T += 2000
 log, _ = run(ev, T / 1000 + 2)
-check("screenLine5: list Colr 50 In 60 auto" in log, "knob pickup scales towards the end (In 60)")
-check("ac-toast: list page SPACE" in log and "screenLine4: list Mix 9 Verb auto" in log, "page 2 knobs")
-check("ac-toast: list page PIECE" in log, "page 3")
+check("ac-txt5: list Colr 50 In 60 auto" in log, "knob pickup scales towards the end (In 60)")
+check("ac-txt4: list Mix 9 Verb auto" in log, "page 2 knobs (SPACE)")
+check("ac-txt4: list Len 12 min Weird 30" in log, "page 3 (PIECE)")
 for t in ("next key E", "chord change", "next section", "drone off", "input reso", "hold - reverb and cloud", "new piece"):
     check(f"ac-toast: list {t}" in log, f"key toast: {t}")
 
@@ -168,10 +168,10 @@ log, a = run([(50, "aclen 0"), (60, "ac-setseed 2718"), (40, "actime 0.15")], 11
 log = log[log.rindex("ac-setseed:"):]
 roles = []
 for l in log.splitlines():
-    m = re.match(r"screenLine1: list COMP \d+ of \d+ (\w+)", l)
+    m = re.match(r"ac-txt1: list COMP \d+ of \d+ (\w+)", l)
     if m and (not roles or roles[-1] != m.group(1)):
         roles.append(m.group(1))
-keys = [l.split()[2] for l in log.splitlines() if l.startswith("screenLine2")]
+keys = [l.split()[2] for l in log.splitlines() if l.startswith("ac-txt2")]
 bpms = {l for l in log.splitlines() if l.startswith("ac-bpm")}
 check(roles[:1] == ["emerge"] and roles[-1:] == ["dissolve"] and "climax" in roles, "form: " + " ".join(roles))
 check(len(set(keys)) > 1 and keys[-1] == keys[0], f"key plan leaves home and returns ({keys[0]} ... {keys[-1]})")
@@ -231,7 +231,7 @@ log, _ = run(ev, 15, prints=("ac-lvon", "ac-fkey"))
 L_ = log.splitlines()
 check("ac-lvon: 0 73 0.787402" in L_, "standalone: keys play notes")
 check("ac-fkey: 74" in L_ and "ac-toast: list next section" in L_, "aux + key: a function")
-check("ac-toast: list page SPACE" in L_, "aux tap: next page")
+check("ac-txt4: list Mix 45 Verb auto" in L_, "aux tap: next page")
 check("ac-fkey: 73" in L_ and "ac-toast: list chord change" in L_, "with external MIDI the keys are functions")
 check("ac-toast: list key from you E" in L_, "a note held 6 s becomes the key")
 
@@ -276,6 +276,43 @@ check(rms_db(a[12 * SR:18 * SR]) > -45 and rms_db(a[6 * SR:int(8.5 * SR)]) < -55
 ev = [(40, "actime 0.02"), (50, "ac-setseed 12"), (55, "aclen 0")] + [(t, "ac-livebreath 1 90") for t in range(300, 16000, 200)]
 log, _ = run(ev, 30)
 check("ac-toast: list holding - you are playing" in log and "FIN" in log, "breath holds sections; the piece still ends")
+
+# 15. MIDI clock out (24 a beat, Start), notes out, following an external clock
+log, _ = run([(50, "ac-setseed 7"), (60, "ac-secstop bang")], 10, prints=("ac-midibyte", "ac-bpm"))
+by = [l for l in log.splitlines() if l.startswith("ac-midibyte")]
+bpm = [float(l.split()[1]) for l in log.splitlines() if l.startswith("ac-bpm")][-1]
+want = 24 * bpm / 60 * 9.9
+check("ac-midibyte: 250" in by and abs(by.count("ac-midibyte: 248") - want) < 4,
+      f"clock out: Start and {by.count('ac-midibyte: 248')} ticks (about {want:.0f} at {bpm:.1f} BPM)")
+log, _ = run([(40, "acmout 2"), (50, "ac-setseed 7")], 8, prints=("ac-noteout",))
+check(log.count("ac-noteout:") >= 5, "clock + notes: the chord and the drone go out as notes")
+ev = [(40, "acsync 1"), (50, "ac-setseed 7"), (100, "ac-rtin 250")] + \
+     [(int(200 + i * 20.833), "ac-rtin 248") for i in range(24 * 16)]
+log, _ = run(ev, 9, prints=("ac-step",))
+check(log.count("ac-step: bang") == 64, f"follows an external clock (16 beats -> {log.count('ac-step: bang')} steps)")
+
+# 16. SETUP and settings survive a restart
+d = build_tmp()
+run([(100, "knob2 0.5"), (200, "knob2 0.9"), (400, "aux 1"), (1600, "aux 0"), (1700, "knob1 0.0"), (1800, "aux 1"),
+     (3000, "aux 0")], 8, d=d)
+log, _ = run([(500, "aux 1"), (1700, "aux 0")], 3, d=d, prints=("ac-sett1",))
+check("ac-sett1: 1 MIDI out off" in log and "ac-txt4: list Dens 50 Tide 89" in log,
+      "settings (a knob, MIDI out) are saved and loaded")
+
+# 17. the OLED score draws every region, and SETUP shows its pages
+def snap(c):
+    c.c(c.obj("r h-snap", 900, 700), 0, c.obj("print SNAP", 900, 730), 0)
+
+
+log, _ = run([(50, "ac-setseed 2718"), (3000, "knob3 0.4"), (3100, "knob3 0.6"), (8000, "aux 1"), (9300, "aux 0"),
+              (9500, "aux 1"), (9600, "aux 0")], 10, prints=("oscOut", "ac-sett0"))
+osc = [l for l in log.splitlines() if l.startswith("oscOut")]
+check(sum("gFlip" in l for l in osc) >= 50, "the OLED flips about 10 times a second")
+for what, pat in (("form strip", "gFillArea 3 0 0 128 8 0"), ("ladder", "gFillArea 3 0 20 60 33 0"),
+                  ("meters", "gFillArea 3 62 20 33 33 0"), ("rhythm", "gFillArea 3 96 20 32 33 0"),
+                  ("tempo", "bpm"), ("knob page", "page SHAPE")):
+    check(any(pat in l for l in osc), f"OLED draws the {what}")
+check("ac-sett0: list SETUP 2 of 2 - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

@@ -87,6 +87,27 @@ Working memory for this project: read it first in a new session.
 - **[value] gotcha (again):** `[v x]` doesn't output, so a bang can't be chained after it. Use
   `[t b f]` and set the value from the right outlet.
 
+## Stage 3 (OLED, SETUP, MIDI clock)
+- **OLED:** the patch draws every region itself with `/oled/g*` messages to `oscOut` and never sends
+  `screenLine`, so the OS's text lines can't overwrite the graphics. The text Lines go to `ac-txt1..5`
+  (the tests read these) and the renderer prints what it needs.
+  - **Redraw rates:** the voice ladder every 100 ms, meters every 200 ms, form/bottom/time every 1 s,
+    the rhythm pattern at each section.
+  - **Rhythm cursor:** two `gInvertArea`s a step (the old cell back, the new one).
+  - **Flip:** every 100 ms.
+  - **Text gating:** text is gated at the moment it arrives (`gated_text`: `[t a b]` → condition → `spigot`).
+    A spigot opened by another receiver of the same message can't be relied on: Pd doesn't order receivers.
+- **Only these OLED commands are used:** gFillArea, gInvertArea, gBox, gPrintln, gFlip and gShowInfoBar,
+  the ones DM48 Engine already uses on the device. Checked only in `oledemu.py` so far.
+- **SETUP:** aux held 1 s (a `[delay 1000]` started by `[t b]`; a float into `[delay]` would *set its time*).
+  Knobs in SETUP are absolute (selectors). `settings.txt` holds 20 numbers (12 knobs + 8 SETUP values).
+  It is written 3 s after a change and when SETUP closes, and read at start-up before the first piece.
+- **MIDI out:** through `ac-midibyte` → `[midiout]` and `ac-noteout` → `[noteout]`, so the tests can print
+  them. Clock 248 on every `ac-tick` while `acclkon`. Start (250) at a new piece, Stop (252) at FIN.
+- **Clock in:** `[midirealtimein]` → `ac-rtin`. In follow mode the internal metro is gated (`ac-mtick`) and
+  incoming 248s bang `ac-tick`. Tempo = EMA of 60000/(24·tick ms); `[timer]` is read (right inlet), then
+  restarted (left inlet).
+
 ## Pd gotchas met here
 - Screen lines: `[pack]` parts must be fed right to left: the hot inlet (part 0) goes last.
 - A message box `list word` with a single word arrives as `symbol word`. Toasts use two or more words.

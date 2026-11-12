@@ -543,6 +543,7 @@ def master():
     wet = s.ch(s.recv("ac-rwet"), "line~")
     wL = mul(s, add(s, s.ch((bl, 0), "lop~ 9000"), (hl, 0)), wet)
     wR = mul(s, add(s, s.ch((bl, 1), "lop~ 9000"), (hl, 1)), wet)
+    s.c(s.ch(wL, "env~ 4096 2048"), 0, s.obj("v acrvlvl"), 0)
     s.col()
     mg = s.ch(s.recv("ac-master"), "line~")
     outs = []

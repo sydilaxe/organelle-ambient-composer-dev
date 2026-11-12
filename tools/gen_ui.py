@@ -25,8 +25,9 @@ def knobs():
     c.comment("Knob pickup: when a page changes, a knob moves its value proportionally towards the end it "
               "turns to, so nothing jumps")
     for k in range(4):
-        r = c.recv(f"knob{k + 1}")
-        t = c.to(r, "t f f")
+        mo = c.ch(c.recv(f"knob{k + 1}"), "expr if(acsetup, -1 - $f1, $f1)", "moses 0")
+        c.c(c.m(c.to((mo, 0), "expr -1 - $f1"), f"{k} $1"), 0, c.obj("s ac-setknob"), 0)
+        t = c.to((mo, 1), "t f f")
         P = f"acparams[int(acpage*4+{k})]"
         R = f"acraw[{k}]"
         e = c.to((t, 1), f"expr if(acknown{k}, min(1, max(0, if($f1 > {R}, {P} + ($f1-{R})*(1-{P})/max(0.001, 1-{R}), "
@@ -53,7 +54,7 @@ def knobs():
     for i, n in enumerate(names):
         tb = c.to((rt, i), "t b f")
         c.c(tb, 1, c.obj("v " + n), 0)
-        run_steps(c, (tb, 0), SIDE.get(i, []) + [Call("ac-scr4"), Call("ac-scr5")])
+        run_steps(c, (tb, 0), SIDE.get(i, []) + [Call("ac-oledpop"), Send("ac-dirty")])
         c.col(150)
     # the scaled length shown on the screen
     return c
@@ -109,9 +110,9 @@ def keys():
     a = c.ch(c.recv("aux"), "sel 0")
     b = c.to((a, 1), "t b")
     run_steps(c, (b, 0), [X("1; 0; acnow", "v acauxheld", "v acauxused", "v acauxt")])
-    run_steps(c, (a, 0), [V("acauxheld", "0"), If("acauxused == 0", [
-        V("acpage", f"(acpage+1) % {NP}"), Call("ac-pagetoast"), Call("ac-scr4"), Call("ac-scr5")])])
-    Line("ac-pagetoast", "list page $1", [("s", "acpage", PAGE_NAMES)], "ac-toast")(c)
+    run_steps(c, (a, 0), [V("acauxheld", "0"), If("acauxused == 0", [If("acsetup", [
+        V("acsetpg", "1 - acsetpg"), Call("ac-oledsetup")], [
+        V("acpage", f"(acpage+1) % {NP}"), Call("ac-oledpop")])])])
     f = c.ch(c.recv("fs"), "sel 0")
     c.c(c.to((f, 1), "t b"), 0, c.obj("s ac-change"), 0)
     return c
@@ -125,42 +126,39 @@ def screen():
     s1 = c.ch(c.recv("ac-scr1"), "expr if(acended || acrun==0, 2, acmode)", "sel 0 1 2")
     c.c(c.to((s1, 0), "t b"), 0, c.obj("s ac-scr1d"), 0)
     c.c(c.to((s1, 1), "t b"), 0, c.obj("s ac-scr1c"), 0)
-    c.c(c.m((s1, 2), "list FIN - B new piece"), 0, c.obj("s screenLine1"), 0)
+    c.c(c.m((s1, 2), "list FIN - B new piece"), 0, c.obj("s ac-txt1"), 0)
     c.col()
     Line("ac-scr1d", "list DRIFT $1 $2",
-         [("s", "acrole", ROLES), ("f", "acseed % 10000")], "screenLine1")(c)
+         [("s", "acrole", ROLES), ("f", "acseed % 10000")], "ac-txt1")(c)
     Line("ac-scr1c", "list COMP $1 of $2 $3",
          [("f", "acsec+1"), ("f", "acnsec"),
-          ("s", "acrole", ROLES)], "screenLine1")(c)
+          ("s", "acrole", ROLES)], "ac-txt1")(c)
     Line("ac-scr2", "list $1 $2 $3",
          [("s", "int(actonic) % 12", NOTE_NAMES), ("s", "acsci", [n for n, _ in SCALES]),
-          ("s", "acfam", [n for n, _, _ in FAMILIES])], "screenLine2")(c)
+          ("s", "acfam", [n for n, _, _ in FAMILIES])], "ac-txt2")(c)
+    # the OLED's top line: key and scale only (the voicing is on the bottom line)
+    Line("ac-scr2", "list $1 $2", [("s", "int(actonic) % 12", NOTE_NAMES), ("s", "acsci", [n for n, _ in SCALES])],
+         "ac-oledtop")(c)
     Line("ac-scr3", "list $1 $2 $3 $4 $5",
-         [("s", f"acflav[{k}]", FLAVOURS) for k in range(4)] + [("s", "actex1", TEXTURES)], "screenLine3")(c)
+         [("s", f"acflav[{k}]", FLAVOURS) for k in range(4)] + [("s", "actex1", TEXTURES)], "ac-txt3")(c)
     for ln in (4, 5):
         s = c.ch(c.recv(f"ac-scr{ln}"), "expr acpage", "sel " + " ".join(str(i) for i in range(NP)))
         for i in range(NP):
             c.c(c.to((s, i), "t b"), 0, c.obj(f"s ac-scr{ln}p{i}"), 0)
     c.col()
-    Line("ac-scr4p0", "list Dens $1 Tide $2", [("f", "int(acdens*100)"), ("f", "int(actide*100)")], "screenLine4")(c)
+    Line("ac-scr4p0", "list Dens $1 Tide $2", [("f", "int(acdens*100)"), ("f", "int(actide*100)")], "ac-txt4")(c)
     Line("ac-scr5p0", "list Colr $1 In $2 $3",
          [("f", "int(accolor*100)"), ("f", "int(acinput*100)"),
           ("s", "if(acinmode==0, 6 + acinclass, acinmode)", INMODES + ["auto", "pitched", "plucked", "texture"])],
-         "screenLine5")(c)
+         "ac-txt5")(c)
     Line("ac-scr4p1", "list Mix $1 Verb $2", [("f", "int(acrvmix*100)"),
                                               ("s", "if(acrvtype < 0.2, 0, 1 + min(3, int((acrvtype-0.2)/0.2)))", VERBS)],
-         "screenLine4")(c)
+         "ac-txt4")(c)
     Line("ac-scr5p1", "list Time $1 s Tone $2",
-         [("f", "int(1.5 + 28.5*pow(acrvtime, 1.5))"), ("f", "int(acrvtone*100)")], "screenLine5")(c)
+         [("f", "int(1.5 + 28.5*pow(acrvtime, 1.5))"), ("f", "int(acrvtone*100)")], "ac-txt5")(c)
     Line("ac-scr4p2", "list Len $1 min Weird $2", [("f", "int(5 + 25*aclen)"), ("f", "int(acweird*100)")],
-         "screenLine4")(c)
-    Line("ac-scr5p2", "list Mot $1 Rhy $2", [("f", "int(acmotion*100)"), ("f", "int(acrhythm*100)")], "screenLine5")(c)
-    # toasts on line 3, then line 3 comes back
-    t = c.to(c.recv("ac-toast"), "t a b")
-    d = c.obj("delay 2500")
-    c.c(t, 1, d, 0)
-    c.c(t, 0, c.obj("s screenLine3"), 0)
-    c.c(d, 0, c.obj("s ac-scr3"), 0)
+         "ac-txt4")(c)
+    Line("ac-scr5p2", "list Mot $1 Rhy $2", [("f", "int(acmotion*100)"), ("f", "int(acrhythm*100)")], "ac-txt5")(c)
     # LED: green drifting, blue composing, off when finished; white flash on a chord change
     led = c.obj("s led")
     lc = c.ch(c.recv("ac-led"), "expr if(acended, 0, if(acmode, 5, 3))")

@@ -14,7 +14,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from pdlib import Canvas
 
-PRINTS = ["screenLine1", "screenLine2", "screenLine3", "screenLine4", "screenLine5", "led", "ac-toast",
+PRINTS = ["ac-txt1", "ac-txt2", "ac-txt3", "ac-txt4", "ac-txt5", "led", "ac-toast",
           "ac-setseed", "ac-section", "ac-change", "ac-fin"]
 SR = 44100
 

@@ -84,6 +84,32 @@ MEMORIES: while the piece develops Amble keeps 8 s of what you played (up to
 4). Break, return and dissolve sections bring them back: reversed, slowed,
 or retuned to the chord.
 
+THE SCREEN (a live score)
+  top strip   the form: a bar per section (height = energy), the current
+              one inverted, a playhead (DRIFT: energy and progress)
+  line 2      key and scale; time left (elapsed in DRIFT); messages
+  left        the 4 pad voices as dots on a pitch ladder (they glide),
+              your held notes as boxes, tonic ticks, breath bar
+  middle      meters: drone, pads, textures, cloud, bells, motion,
+              reverb, and the input level
+  right       the motion layer's Euclidean pattern with its cursor, the
+              tempo, the reverb (B1 B2 HALL SHIM)
+  bottom      section role and voicing; K = keys play, M = external MIDI,
+              E = following an external clock; FIN at the end
+  Turning a knob shows its page for 2 s.
+
+SETUP (hold aux 1 s; aux tap = page 2; hold aux 1 s to leave and save)
+  1 MIDI out   off / clock / clock+notes / notes
+     clock: 24 a beat at the piece's tempo, Start/Stop with the piece
+     notes: chords on the base channel, drone +1, bells +2, motion +3
+  2 Sync       internal / follow clock (external clock drives the rhythm;
+               Start restarts the bar, Stop pauses the pulse layers)
+  3 Keys       auto / play notes / functions
+  4 Bloom      clean / vintage (13-bit, as the unit)
+  page 2: Follow you (how much chords follow what you play), MPE bend
+  range (12/24/48/96), MIDI out base channel, breath curve.
+  Knob values and SETUP are saved in settings.txt.
+
 LED: blue composing, green drifting, white flash on chord changes.
 seed.txt counts start-ups so no two sessions begin the same way.
 
