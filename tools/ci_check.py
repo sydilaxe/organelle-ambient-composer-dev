@@ -413,12 +413,14 @@ for seed, extra, name in ((2718, [], "wide"), (2718, [(40, "acmono 1")], "mono")
         check(loss > -2.5, f"stereo: not phasey - mono-compatible (mono sum {loss:.1f} dB)")
     else:
         check(np.abs(seg[:, 0] - seg[:, 1]).max() < 1e-4, "SETUP Output mono: both channels the same")
-# the voices move: measured with the reverb Mix at 0 (a full reverb is a constant wide wash that hides it)
-log, a = run([(50, "aclen 0"), (60, "ac-setseed 2718"), (500, "ac-param 4 0")], 160)
+# the voices move: measured dry - every reverb send at 0 (a reverb is a constant wide wash that hides it)
+log, a = run([(50, "aclen 0"), (60, "ac-setseed 2718")] + [(500, f"ac-param {i} 0") for i in range(12, 20)], 160)
 ah = sosfilt(hp, a, axis=0)
 bal = [10 * np.log10((ah[i:i + SR, 0] ** 2).mean() / (ah[i:i + SR, 1] ** 2).mean() + 1e-12)
        for i in range(20 * SR, len(a) - SR, SR)]
-check(np.std(bal) > 1.2, f"stereo: the image moves ({np.std(bal):.1f} dB balance swings, reverb mix 0)")
+# (dry, renders vary: 1.2-1.8 dB seen; the old 1.2 limit was set on the wet mix, which read about 2.1. The scenes
+# moving the pads between sections are checked on their own in section 20.)
+check(np.std(bal) > 1.0, f"stereo: the image moves ({np.std(bal):.1f} dB balance swings, dry)")
 
 # 20. atmospheres; pad types in stereo but mono-safe; scenes place the voices; preferred sounds come up more
 from data import ATMOS_NAMES
