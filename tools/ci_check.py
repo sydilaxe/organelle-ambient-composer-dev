@@ -2,6 +2,7 @@
 import re
 import sys
 import numpy as np
+import gen_setup as GS
 from harness import run, errors, rms_db, SR, build_tmp
 from data import FLAVOURS
 
@@ -348,7 +349,7 @@ cents = []
 for ch in range(len(CHARACTERS)):
     ev = [(50, "ac-setseed 77"), (300, "ac-chgstop bang"), (300, "ac-secstop bang")] + [(310, f"{m} 0") for m in ALL] + \
          [(310, "acmpad 1"), (310, "acfpad 1"), (310, "acdens 1"), (320, "ac-layers bang"), (330, "ac-rwet 0 10"),
-          (330, "ac-motion 0")] + [(340, f"ac-v{k}-flav -1") for k in (1, 2, 3)] + \
+          (330, "ac-motion 0"), (330, "ac-fmr 2")] + [(340, f"ac-v{k}-flav -1") for k in (1, 2, 3)] + \
          [(400, f"acchar {ch}"), (400, "acchamt 0.8"), (401, "ac-layers bang"), (1000, "ac-v0-flav 0"),
           (1000, "ac-v0-pitch 57 0 0")]
     log, a = run(ev, 6)
@@ -464,7 +465,7 @@ check(all(len(set(h)) >= 2 for h in homes), "stereo scenes move the pad voices b
 ev = [(100 + i * 300, f"ac-setseed {5000 + i * 37}") for i in range(40)]
 log, _ = run(ev, 13, extra=probe2)
 rows = [l.split()[1:] for l in log.splitlines() if l.startswith("PAL")][1:]
-liked = {"fm", "part", "pulsr", "saws", "pwm", "digi", "sync", "tine"}
+liked = {"fm", "part", "pulsr", "saws", "pwm", "digi", "sync", "tine", "sine"}
 share = sum(FLAVOURS[int(float(x))] in liked for r in rows for x in r) / max(1, 3 * len(rows))
 check(share > 0.75, f"palettes favour the electronic and bell-like types ({share:.0%})")
 
@@ -481,9 +482,14 @@ log, _ = run([(40, "ac-setseed 7"), (300, "acsetup 1"), (310, "acsetpg 2"), (400
 b = [float(l.split()[1]) for l in log.splitlines() if l.startswith("ac-bpm")]
 check(b and b[-1] >= 90 * min(ROLE_TEMPO) and "4 Tempo fast 90-140" in log,
       f"SETUP Tempo fast applies at once ({b[-1] if b else 0:.0f} BPM)")
-log, a = run([(40, "actrange 4"), (45, "actime 1"), (50, "aclen 0.03"), (60, "ac-setseed 3612")], 180)
-# renders vary (noise sources, timing): normal pieces peak about 0.4-0.65; the unlimited pings reached 0.96
+fast = [(40, "actrange 4"), (45, "actime 1"), (50, "aclen 0.03"), (60, "ac-setseed 3612")]
+# the pings, measured without the textures: renders vary (noise sources, timing); normal pieces peak about
+# 0.4-0.75 without textures; the unlimited pings reached 0.96. (The dense textures - leaves, whispers, echoes - add
+# up to about 0.1 to the whole mix's peak, which is checked for headroom below.)
+log, a = run(fast + [(70, "acmtex 0")], 180)
 check(np.abs(a).max() < 0.8, f"a fast piece stays clean: the motion pings never spike (peak {np.abs(a).max():.2f})")
+log, a = run(fast, 180)
+check(np.abs(a).max() < 0.95, f"a fast piece with its textures keeps headroom (peak {np.abs(a).max():.2f})")
 
 # 22. the OLED shows external audio: an input panel (waveform, mode, what Amble hears), the pitch on the ladder;
 #     the rhythm column comes back when the input stops
@@ -536,12 +542,15 @@ lv, log = lite_at([(40, "acguard 0"), (50, "ac-setseed 7"), (5000, "acloadtest 0
 check(lv and lv[-1] == 0 and "CPU high" not in log, "CPU guard off: never sheds")
 
 # 25. Start / Stop (A#), Freeze (aux + F#; standalone aux + F# twice), MIDI Start / Stop when following
+# (Stop fades out over 8 s: silent from 16 s)
 log, a = run([(40, "acforce 1"), (50, "ac-setseed 7"), (8000, "notesRaw 82 100"), (8050, "notesRaw 82 0"),
-              (16000, "notesRaw 82 100"), (16050, "notesRaw 82 0")], 24)
+              (22000, "notesRaw 82 100"), (22050, "notesRaw 82 0")], 30)
 t1 = sorted({l for l in log.splitlines() if l.startswith("ac-txt1")})
-check(rms_db(a[12 * SR:15 * SR, 0]) < -100 and rms_db(a[19 * SR:23 * SR, 0]) > -40
+fade = [rms_db(a[t * SR:(t + 1) * SR, 0]) for t in (8, 11, 14)]
+check(fade[0] > fade[1] > fade[2] > -100 and rms_db(a[17 * SR:21 * SR, 0]) < -100
+      and rms_db(a[25 * SR:29 * SR, 0]) > -40
       and "ac-txt1: list STOPPED - A# start" in t1 and "ac-txt1: list COMP 1 of 6 emerge" in t1,
-      f"A# stops (silent, STOPPED) and starts again in the same section ({rms_db(a[12 * SR:15 * SR, 0]):.0f} dB "
+      f"A# stops (an 8 s fade, then silent, STOPPED) and starts again in the same section ({rms_db(a[17 * SR:21 * SR, 0]):.0f} dB "
       f"stopped, {rms_db(a[19 * SR:23 * SR, 0]):.0f} dB playing)")
 def toasts(ev, secs=6):
     log, _ = run([(50, "ac-setseed 7")] + ev, secs)
@@ -610,7 +619,8 @@ def vprobe(c):
     c.c(c.ch(m, "expr acdcur*1000 + actex1*100 + actex2*10 + accheff"), 0, c.obj("print SV", 1400, 80), 0)
 sp = lambda v: [(300, "acsetup 1"), (310, "acsetpg 4"), (390, "h-mark bang"), (400, f"ac-setknob 0 {v}"),
                (500, "acsetup 0")]
-log, _ = run([(50, "ac-setseed 7")] + sp(0.99) + [(3000, "ac-section bang"), (3100, "h-mark2 bang")], 17,
+log, _ = run([(50, "ac-setseed 7")] + sp((GS.SPADS.index("tine") + 0.5) / len(GS.SPADS)) +
+             [(3000, "ac-section bang"), (3100, "h-mark2 bang")], 17,
              prints=tuple(FL) + ("ac-sett1", "h-mark", "h-mark2"))
 after = log.split("h-mark: bang")[-1]
 at_once, later = after.split("h-mark2")
@@ -628,7 +638,8 @@ chs = [float(l.split()[1]) for l in after.splitlines() if l.startswith("ac-g-ch"
 check(len(vs) >= 20 and set(vs) <= {1, 3, 4, 5} and len(set(vs)) >= 3 and chs and max(chs) == 0,
       f"SOUNDS Pads raw: only vox / partials / fold / pulsar ({sorted(set(vs))}), no character")
 log, _ = run([(50, "ac-setseed 7"), (300, "acsetup 1"), (310, "acsetpg 4"), (400, "ac-setknob 1 0.99"),
-              (450, "ac-setknob 2 0.3"), (500, "ac-setknob 3 0.6"), (550, "acsetup 0"), (2000, "ac-section bang")], 4,
+              (450, f"ac-setknob 2 {(GS.STEXS.index('wind') + 0.5) / len(GS.STEXS)}"),
+              (500, f"ac-setknob 3 {(GS.SCHARS.index('tape') + 0.5) / len(GS.SCHARS)}"), (550, "acsetup 0"), (2000, "ac-section bang")], 4,
              prints=("ac-sett2", "ac-sett3", "ac-sett4"), extra=vprobe)
 sv = [l.split()[1:] for l in log.splitlines() if l.startswith("SV:")]
 check("2 Drone fm" in log and "3 Texture wind" in log and "4 Character tape" in log
@@ -703,7 +714,7 @@ ev = [(50, "ac-setseed 7"), (300, "acsetup 1"), (310, "acsetpg 7"), (400, f"ac-s
       (600, f"ac-setknob 0 {sel(11)}"), (650, f"ac-setknob 1 {tgt('voice type')}"), (700, "acsetup 0"),
       (800, "ac-ccin 11 127 1")]
 log, _ = run(ev, 2, prints=pr)
-check("ac-param: 0 0.5039" in log and "3 Last CC 71 = 64" in log and "ac-lvtype: 10" in log,
+check("ac-param: 0 0.5039" in log and "3 Last CC 71 = 64" in log and f"ac-lvtype: {len(FLAVOURS) - 1}" in log,
       "CC MAP: CC 71 remapped to density moves the Dens knob; CC 11 remapped to voice type picks the type")
 
 # 33. a seed replays its piece whatever played before it (the clock and event players restart with the piece):
@@ -737,6 +748,62 @@ hall_part, shim_part = log.split("h-mark: bang")
 sh0 = [l.split()[1] for l in hall_part.splitlines() if l.startswith("ac-shim")][-1:]
 sh1 = [l.split()[1] for l in shim_part.splitlines() if l.startswith("ac-shim")][-1:]
 check(sh0 == ["0"] and sh1 and sh1 != ["0"], f"the shimmer runs only for Shimmer (Hall {sh0}, Shimmer {sh1})")
+
+# 35. textures: rain is rain (noise-like drops, not pitched bubbles - it sounded like chirps); the voices, echoes
+#     and nature textures play at the level of the others; radio has static on both sides
+from scipy.signal import welch
+def tex_only(name, secs=14):
+    tx = TEXTURES.index(name)
+    ev = [(50, "ac-setseed 77"), (305, "ac-secstop bang")] + [(310, f"{m} 0") for m in ALL] + \
+         [(311, "acmtex 1"), (311, "acftex 1"), (311, "acdens 1"), (311, "acenergy 1"), (311, f"actex1 {tx}"),
+          (311, f"actex2 {tx}"), (311, "acfatm 0"), (311, "acfade 10"), (312, "ac-layers bang"), (313, "ac-rwet 0 10")]
+    _, a = run(ev, secs)
+    return a[3 * SR:]
+x = tex_only("rain")
+f, P = welch(x[:, 0], SR, nperseg=4096)
+band = (f > 1000) & (f < 8000)
+fl = np.exp(np.mean(np.log(P[band] + 1e-20))) / np.mean(P[band])
+check(fl > 0.5 and -48 < rms_db(x) < -34, f"rain: a noise-like patter, not pitched (spectral flatness {fl:.2f}; "
+      f"the bubbles were 0.01), {rms_db(x):.1f} dB")
+for name in ("murmur", "echoes", "whisper", "leaves", "brook"):
+    x = tex_only(name)
+    check(-48 < rms_db(x) < -34 and np.abs(x).max() < 0.5,
+          f"texture {name}: {rms_db(x):.1f} dB (peak {np.abs(x).max():.2f})")
+x = tex_only("radio")
+check(np.corrcoef(x[:, 0], x[:, 1])[0, 1] < 0.9, f"radio: static on both sides (L/R {np.corrcoef(x[:, 0], x[:, 1])[0, 1]:.2f})")
+
+# 36. Resolve: the harmony moves to the tonic as open fifths and stays (chord changes keep it), standalone aux + C#
+#     twice, or a CC mapped to resolve; released, the composition moves on
+def chord_pcs(log, after, before=None):
+    part = log.split(after)[1] if after else log
+    if before:
+        part = part.split(before)[0]
+    out = []
+    for l in part.splitlines():
+        if l.startswith("ac-v") and "-pitch:" in l:
+            out.append(int(float(l.split()[1]) + 0.5))
+    return out
+ev = [(40, "acforce -1"), (45, "actime 0.15"), (50, "ac-setseed 7"), (2990, "h-mark bang"), (3000, "aux 1"), (3010, "notesRaw 73 100"),
+      (3020, "notesRaw 73 0"), (3100, "notesRaw 73 100"), (3110, "notesRaw 73 0"), (3200, "aux 0"),
+      (8000, "ac-change bang"), (15000, "h-mark2 bang")]
+log, _ = run(ev, 16, prints=tuple(f"ac-v{k}-pitch" for k in range(4)) + ("ac-dronep", "h-mark", "h-mark2", "ac-toast"))
+ton = [int(float(l.split()[1])) for l in log.split("h-mark: bang")[1].splitlines() if l.startswith("ac-dronep")]
+held = chord_pcs(log, "h-mark: bang", "h-mark2")
+iv = sorted({(p - ton[-1]) % 12 for p in held}) if ton else []
+check("resolve - open fifths" in log and len(held) >= 8 and iv == [0, 7],
+      f"Resolve (aux + C# twice): the chord is the tonic in open fifths and stays ({len(held)} notes, intervals {iv})")
+ev2 = [(45, "actime 0.15"), (50, "ac-setseed 7"), (300, "acsetup 1"), (310, "acsetpg 7"),
+       (400, f"ac-setknob 0 {(GS.CCS.index(64) + 0.5) / len(GS.CCS)}"),
+       (450, f"ac-setknob 1 {(GS.TARGETS.index('resolve') + 0.5) / len(GS.TARGETS)}"), (500, "acsetup 0"),
+       (2990, "h-mark bang"), (3000, "ac-ccin 64 127 1"), (6000, "ac-change bang"), (8900, "h-mark2 bang"),
+       (9000, "ac-ccin 64 0 1")]
+log, _ = run(ev2, 16, prints=tuple(f"ac-v{k}-pitch" for k in range(4)) + ("ac-dronep", "h-mark", "h-mark2", "ac-toast"))
+held = chord_pcs(log, "h-mark: bang", "h-mark2")
+ton = [int(float(l.split()[1])) for l in log.split("h-mark: bang")[1].splitlines() if l.startswith("ac-dronep")]
+after = chord_pcs(log, "h-mark2")
+iv = sorted({(p - ton[-1]) % 12 for p in held}) if ton else []
+check(iv == [0, 7] and "resolve released" in log and len(set(p % 12 for p in after)) >= 3,
+      f"Resolve from a CC (a pedal on 64): fifths while held {iv}, the chords move on after ({sorted(set(p % 12 for p in after))})")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

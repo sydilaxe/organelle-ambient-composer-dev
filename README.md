@@ -37,7 +37,7 @@ The layers and their rhythms:
 | Pads | breathing cycles of 7, 9, 11 and 13 half-bars, which phase against each other |
 | Motion | Euclidean patterns, with swing and tempo echoes |
 | Bells | free phrasing, in beats |
-| Textures | random weather |
+| Textures | rain, wind, embers, chirps, radio, data, buzz, murmurs, alien echoes, whispers, leaves, a brook |
 | Cloud | grains, locked to the beat in intense sections |
 
 ## Live input
@@ -47,7 +47,8 @@ The layers and their rhythms:
   voices' level and brightness.
 - **The Organelle keys** play notes when Amble is standalone. When an external controller plays, they
   become function keys; aux + key is a function at any time.
-- **Start / Stop** (A#, top octave): Stop fades out and freezes the piece where it is; Start goes on from there.
+- **Start / Stop** (A#, top octave): Stop fades out over 8 s and freezes the piece where it is; Start goes on from there.
+- **Resolve** (aux + C#; standalone aux + C# twice quickly, like Freeze): the harmony moves to the tonic as open fifths (root, 5th, octave, 12th) and stays there - no modulation, no dissonant chords - until you release it the same way. A CC mapped to **resolve** in SETUP CC MAP does it from a pedal (held at 64 and up).
   An incoming MIDI Start / Stop does the same when Sync is set to follow clock. **Freeze** (the reverb tail and
   the cloud) is aux + F# with an external controller, or aux + F# twice quickly standalone.
 - **Listening:**
@@ -80,7 +81,7 @@ emulator, so the font only approximates the Organelle's.
 **SOUNDS** (SETUP page 5) lets you choose the sounds yourself, mid-piece, to audition them. Each item is **auto** (the piece chooses, as before) or your choice, applied at once (crossfaded) and kept for every later section:
 - **Pads:** auto; **raw** (the dry, buzzy types of the first demos: vox, partials, fold and pulsar, with no character effect); or one type for all four pad voices (fm, vox, bow, part, fold, pulsr, saws, pwm, digi, sync, tine).
 - **Drone:** auto, pure, analog, organ, fm.
-- **Texture:** auto, rain, wind, ember, chirp, radio, data, buzz.
+- **Texture:** auto, rain, wind, ember, chirp, radio, data, buzz, murmur, echoes, whisper, leaves, brook.
 - **Character:** auto, clean, chorus, tape, ring, crush.
 
 **MUSIC** (SETUP page 6): **Key** (auto or C to B), **Scale** (auto or one of the 16) and **Chords** (auto or one voicing) apply at once with a chord change; a fixed choice stays (no modulation or scale change). **Pulse** (off, gentle, normal, strong) sets how much the drone and sub swell on every bar.
@@ -94,7 +95,7 @@ emulator, so the font only approximates the Organelle's.
 **CC MAP** (SETUP page 8): knob 1 picks a CC (1, 2, 7, 11, 64, 71, 74), knob 2 sets what it does:
 - **breath** (into the breath path, then Breath to), **vibrato** (the live voices' vibrato depth; knob 4 sets the rate, 3 to 8 Hz),
 - **voice tone**, **voice level** (per note, on the CC's channel, so MPE controllers shape each note; channel 1 = every note), **voice type** (the live voice's synthesis type), **hold** (sustain),
-- **density**, **colour**, **reverb**, **motion** (move that knob), **swell** (the whole level), or **off**.
+- **density**, **colour**, **reverb**, **motion** (move that knob), **swell** (the whole level), **resolve** (the tonic as open fifths while held), or **off**.
 
 Defaults (as the DM48 Engine reads a DM48X): 1 vibrato, 2 / 7 / 11 breath, 64 hold, 71 off, 74 voice tone. Row 3 shows the last CC that arrived, to find what your controller sends.
 
@@ -124,7 +125,7 @@ Defaults (as the DM48 Engine reads a DM48X): 1 vibrato, 2 / 7 / 11 breath, 64 ho
 
 | | Choices (each piece picks its own) |
 |---|---|
-| **Pads** | 11 types (most stereo inside): fm, vox formants, bowed string, drifting partials, wavefolder, pulsar, **saws** (detuned analog ensemble through a tracking resonant low-pass), **pwm** (Juno-like), **digi** (ring mod, bit crush, sample-rate reduction), **sync** (hard-sync sweep), **tine** (an electric-piano bell that strikes itself). A piece uses a palette of 3, per voice and per section, weighted towards the electronic and bell-like types (about 80 % of picks). |
+| **Pads** | 12 types (most stereo inside): fm, vox formants, bowed string, drifting partials, wavefolder, pulsar, **saws** (detuned analog ensemble through a tracking resonant low-pass), **pwm** (Juno-like), **digi** (ring mod, bit crush, sample-rate reduction), **sync** (hard-sync sweep), **tine** (an electric-piano bell that strikes itself), **sine** (a harmonic sine pad). A piece uses a palette of 3, per voice and per section, weighted towards the electronic and bell-like types (about 80 % of picks). |
 | **Drone** | 4 designs: pure, analog (saws and a square through a slow resonant sweep), organ (drawbars with a rotary shimmer), fm (an electric growl). The break may switch to the piece's second design. |
 | **Sub** | A dedicated layer: the pedal an octave under the tonic, the chord root as a bass line, or both. Softly saturated, so small speakers still hear it. |
 | **Character** | On the pads: clean, chorus, tape (wow, saturation, hiss that follows the music), ring modulation, or crush. |

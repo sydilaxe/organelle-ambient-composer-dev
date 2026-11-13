@@ -51,7 +51,7 @@ BRTOS = ["voice+piece", "voice", "density", "brightness", "reverb", "swell"]
 CCS = [1, 2, 7, 11, 64, 71, 74]
 CC_DEFAULTS = [2, 1, 1, 1, 6, 0, 3]          # mod = vibrato, 2 / 7 / 11 = breath, 64 = hold, 71 off, 74 = voice tone
 TARGETS = ["off", "breath", "vibrato", "voice tone", "voice level", "voice type", "hold", "density", "colour",
-           "reverb", "swell", "motion"]
+           "reverb", "swell", "motion", "resolve"]
 TARGET_KNOB = {7: "acdens", 8: "accolor", 9: "acrvmix", 11: "acmotion"}   # piece targets: the knob they move
 CCSEL = "if(acccsel == 0, 1, " + ", ".join(f"if(acccsel == {j}, {n}" for j, n in enumerate(CCS) if j) + ", 0" + ")" * 7
 MAPSEL = "if(acccsel == 0, acmap0, " + ", ".join(f"if(acccsel == {j}, acmap{j}" for j in range(1, 7)) + ", 0" + ")" * 7

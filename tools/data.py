@@ -35,8 +35,12 @@ FAMILIES = [
     ("sus",      0, [0, 3, 4, 8]),        # root, 4th, 5th, 9th
 ]
 
-FLAVOURS = ["fm", "vox", "bow", "part", "fold", "pulsr", "saws", "pwm", "digi", "sync", "tine"]          # pad synthesis types
-TEXTURES = ["rain", "wind", "ember", "chirp", "radio", "data", "buzz"]
+FLAVOURS = ["fm", "vox", "bow", "part", "fold", "pulsr", "saws", "pwm", "digi", "sync", "tine", "sine"]          # pad synthesis types
+# texture output gains (calibrated so each texture sits near the others, see tools/ci_check.py)
+TEXG = dict(RAIN_PAT=1.4, RAIN_PLOP=30.0, RAIN_G=1.0, MURMUR_G=1.5, MURMUR_X=0.3, ECHO_G=1.1, WHISPER_G=0.26,
+            LEAVES_G=0.2, BROOK_G=0.5)
+TEXTURES = ["rain", "wind", "ember", "chirp", "radio", "data", "buzz", "murmur", "echoes", "whisper",
+            "leaves", "brook"]
 DRONES = ["pure", "analog", "organ", "fm"]
 CHARACTERS = ["clean", "chorus", "tape", "ring", "crush"]
 # SETUP SOUNDS "raw": the pad types of the first demos (vox, partials, fold, pulsar), with no character effect
@@ -137,7 +141,7 @@ SCENE_DATA = [
 # the scenes each section role chooses from (3 picks)
 SCENE_ROLE = [[2, 0, 2], [0, 4, 0], [1, 4, 0], [3, 1, 3], [3, 0, 4], [1, 2, 1], [0, 4, 0], [2, 3, 2]]
 # preferences: the electronic and bell-like sounds come up more often
-FLAVOUR_WEIGHTS = [1.6, 0.5, 0.5, 1.3, 0.6, 1.0, 1.3, 1.3, 1.2, 1.1, 1.8]
+FLAVOUR_WEIGHTS = [1.6, 0.5, 0.5, 1.3, 0.6, 1.0, 1.3, 1.3, 1.2, 1.1, 1.8, 1.3]
 FM_RATIO_WEIGHTS = [1, 1, 2, 2, 0.7, 2, 1, 1.5]
 PARTIAL_WEIGHTS = [1, 0.8, 2, 1, 0.8, 2]
 

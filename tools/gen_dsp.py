@@ -4,7 +4,7 @@ FDN reverb and the master stage.
 Buses (throw~/catch~): ac-mixL/R dry mix, ac-padL/R the pad voices, ac-send reverb input (mono),
 ac-src what the cloud resamples. Every layer that can be silent sits in a switch~ed subpatch."""
 from pdlib import Canvas
-from data import CLOUD_LEN
+from data import CLOUD_LEN, TEXG
 
 
 def switched(name, gain, block=None, hook=None):
@@ -99,7 +99,7 @@ def _flav_inlets(s, n):
 
 def _out(s, sig, ln, sigR=None, outlets=False):
     """a pad type's output, left and right, thrown to its voice's body bus ($0-bL / $0-bR, caught in the voice):
-    a type that is switched off adds nothing there (11 types wired to outlets cost 20 additions a block per
+    a type that is switched off adds nothing there (12 types wired to outlets cost 20 additions a block per
     voice, sounding or not); mono types send the same to both"""
     # (outlets=True: a type in its own block size, which throw~ can't cross - the bow, in 16s)
     dst = ("outlet~", "outlet~") if outlets else ("throw~ $0-bL", "throw~ $0-bR")
@@ -373,28 +373,22 @@ def drone():
 
 def tex_rain():
     s, ln = switched("rain", "ac-g-tex0")
-    s.comment("Rain: water-drop bubbles (a sine whose pitch rises as it dies) on chord tones")
-    rt = s.to(s.recv("ac-drop"), "route 0 1 2")
-    L, R = s.obj("*~"), s.obj("*~")
-    s.c(ln, 0, L, 1)
-    s.c(ln, 0, R, 1)
-    for i in range(3):
-        up = s.to((rt, i), "unpack f f")
-        pn = s.to((up, 1), "expr cos($f1*1.5708); sin($f1*1.5708)")
-        tf = s.ch((up, 0), "mtof", "t f f")
-        env = s.ch(s.m(s.to((tf, 1), "expr 90 + 30000/$f1"), "0.9, 0 $1"), "vline~")
-        ex = s.to((tf, 0), "expr $f1*0.7; $f1")
-        pk = s.obj("pack f f")
-        s.c(ex, 1, pk, 1)
-        s.c(ex, 0, pk, 0)
-        fr = s.ch(s.m(pk, "$1, $2 40"), "vline~")
-        sig = mul(s, s.to(fr, "osc~"), mul(s, env, env))
-        for k, dst in ((0, L), (1, R)):
-            m = s.to(sig, "*~ 0.5")
-            s.c(pn, k, m, 1)
-            s.c(m, 0, dst, 0)
-        s.col(160)
-    throws(s, L, R, mix=0.13, send=0.3)
+    s.comment("Rain: a soft hiss, a dense patter of tiny unpitched ticks (sparse noise impulses ringing bright "
+              "bands that wander), and a few heavier plops - each side its own")
+    swell = s.ch(s.obj("osc~ 0.031"), "*~ 0.3", "+~ 0.7")
+    outs = []
+    for side in range(2):
+        bed = s.ch(s.obj("noise~"), "hip~ 600", "lop~ 6000", "*~ 0.05")
+        pat = s.obj("vcf~ 2.5")
+        s.c(s.ch(s.obj("noise~"), "-~ 0.97", "max~ 0", "*~ 30", "lop~ 9000"), 0, pat, 0)   # ~1300 small drops a second
+        s.c(s.ch(s.obj("noise~"), "lop~ 50", "*~ 40000", f"+~ {3800 + 600 * side}", "clip~ 1500 7500"), 0, pat, 1)
+        plop = s.obj("vcf~ 6")
+        s.c(s.ch(s.obj("noise~"), "-~ 0.9997", "max~ 0", "*~ 1500"), 0, plop, 0)
+        s.c(s.obj(f"sig~ {850 + 150 * side}"), 0, plop, 1)
+        o = add(s, add(s, bed, s.to(pat, f"*~ {TEXG['RAIN_PAT']}")), s.to(plop, f"*~ {TEXG['RAIN_PLOP']}"))
+        outs.append(mul(s, mul(s, o, swell), ln))
+        s.col(220)
+    throws(s, s.to(outs[0], f"*~ {TEXG['RAIN_G']}"), s.to(outs[1], f"*~ {TEXG['RAIN_G']}"), mix=0.5, send=0.35)
     return s
 
 

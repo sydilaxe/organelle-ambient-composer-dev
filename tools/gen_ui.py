@@ -22,7 +22,7 @@ for _i in range(12, 4 * len(PAGES)):          # the SENDS pages
     SIDE[_i] = [Call("ac-sendupd")]
 NP = len(PAGES)
 # the function keys (top octave, C..B): the manual (tools/manual.py) documents these, in this order
-FKEYS = ["COMPOSE / DRIFT", "chord change now", "next section", "drone on/off", "pads on/off", "textures on/off",
+FKEYS = ["COMPOSE / DRIFT", "chord change now | aux: Resolve", "next section", "drone on/off", "pads on/off", "textures on/off",
          "cloud on/off | aux: Freeze", "bells on/off", "capture 8 s of input", "input mode", "start / stop",
          "new piece"]
 TAP2_MS = 350          # standalone: aux + F# twice within this = Freeze (a single tap waits this long)
@@ -97,7 +97,13 @@ def keys():
                           Toast("COMPOSE new arc")],
             [Call("ac-section"), Call("ac-change"), Toast("DRIFT endless")]),
          Call("ac-scr"), Send("ac-led")],
-        [Call("ac-change"), Toast("chord change")],
+        # C#: chord change now. Resolve (open fifths on the tonic, held) = aux + C# with an external controller;
+        # standalone aux + C# twice quickly (once = chord change, after TAP2_MS)
+        [If("(acext || acforce == 1) && acforce != 0", [If("acauxheld", [Call("ac-resolvetoggle")],
+                                                         [Call("ac-chordnow")])],
+            [If("acnow - acctap < " + str(TAP2_MS + 100),
+                [Send("ac-chordtapstop"), V("acctap", "-1e+06"), Call("ac-resolvetoggle")],
+                [V("acctap", "acnow"), Later("ac-chordnow", TAP2_MS, stop="ac-chordtapstop")])])],
         [V("acsec", "acsec+1"), Call("ac-section"), Toast("next section")],
         mute("acmdrone", "drone"), mute("acmpad", "pads"), mute("acmtex", "texture"),
         # F#: cloud on/off. With an external controller (plain keys = functions) aux + F# = Freeze; standalone
@@ -114,6 +120,10 @@ def keys():
         [Call("ac-reseed"), Toast("new piece")],
     ]
     proc(c, "ac-cloudtoggle", mute("acmcloud", "cloud"))
+    proc(c, "ac-chordnow", [Call("ac-change"), Toast("chord change")])
+    proc(c, "ac-resolvetoggle", [V("acres", "1 - acres"), Call("ac-resolveupd")])
+    proc(c, "ac-resolveupd", [Call("ac-change"),
+                              If("acres", [Toast("resolve - open fifths")], [Toast("resolve released")])])
     proc(c, "ac-freezetoggle", [
         V("acvfreeze", "1-acvfreeze"), V("acfreeze", "acvfreeze"), Call("ac-freezeupd"), Call("ac-revupd"),
         If("acvfreeze", [Toast("freeze - reverb and cloud")], [Toast("freeze released")])])

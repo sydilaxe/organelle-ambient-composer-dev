@@ -2,6 +2,7 @@
 (chorus, tape, ring, crush) on the pads, and the vocoder (input speaks through a synth choir or the pads)."""
 from pdlib import Canvas
 from gen_dsp import switched, mul, add, ctl, throws, throws_to, _flav_inlets, _out
+from data import TEXG
 
 
 # ---------------------------------------------------------------- pad types 6..9 (inlets: freq~, bright~)
@@ -119,7 +120,27 @@ def flav_tine():
     return s
 
 
-NEW_FLAVS = (flav_saws, flav_pwm, flav_digi, flav_sync, flav_tine)
+def flav_sine():
+    s, ln = switched("sine", "$0-fw11")
+    s.comment("Sine: a harmonic sine pad - the fundamental and harmonics 2-6 at 1/n, brightness tilting the upper "
+              "ones in; the right side a hair sharp, its odd and even harmonics balanced the other way")
+    f, b = _flav_inlets(s, 2)
+    tilt = [None, b]
+    for _ in range(4):
+        tilt.append(mul(s, tilt[-1], b))
+    outs = []
+    for d, oddeven in ((1.0, (1.0, 0.75)), (1.0009, (0.75, 1.0))):
+        sm = s.obj("*~ 0.42")
+        for n in range(1, 7):
+            o = s.ch(s.to(f, f"*~ {n * d}"), "osc~", f"*~ {1 / n * (oddeven[0] if n % 2 else oddeven[1]):.4f}")
+            s.c(mul(s, o, tilt[n - 1]) if tilt[n - 1] is not None else o, 0, sm, 0)
+        outs.append(sm)
+    # mono-safe: the right side keeps part of the left
+    _out(s, outs[0], ln, add(s, s.to(outs[0], "*~ 0.5"), s.to(outs[1], "*~ 0.65")))
+    return s
+
+
+NEW_FLAVS = (flav_saws, flav_pwm, flav_digi, flav_sync, flav_tine, flav_sine)
 
 
 # ---------------------------------------------------------------- drone designs 1..3 (0 is the original)
@@ -212,17 +233,20 @@ def sub():
 # ---------------------------------------------------------------- electric textures 4..6
 def tex_radio():
     s, ln = switched("radio", "ac-g-tex4")
-    s.comment("Radio: a soft band of static that drifts in and out, and a heterodyne whistle drifting near a "
-              "chord tone (the static's gate is slow and smoothed, so it never crackles)")
-    st = s.ch(s.obj("noise~"), "hip~ 900", "lop~ 2200", "lop~ 2600")
+    s.comment("Radio: a soft band of static, always there and swelling in and out, and a heterodyne whistle "
+              "drifting near a chord tone - tuning between stations (the static's gate is slow and smoothed, so "
+              "it never crackles)")
     gate = s.ch(s.obj("noise~"), "lop~ 0.3", "*~ 200", "-~ 0.1", "clip~ 0 1", "lop~ 1", "lop~ 1")
-    stat = s.to(mul(s, st, gate), "*~ 0.6")
+    g2 = s.ch(gate, "*~ 0.65", "+~ 0.35")
+    # each side its own static (a diffuse band, not a centred hiss)
+    stat, statR = [s.to(mul(s, s.ch(s.obj("noise~"), "hip~ 900", "lop~ 2200", "lop~ 2600"), g2), "*~ 0.6")
+                   for _ in range(2)]
     wf = s.ch(s.recv("ac-radio"), "line~")
     drift = s.ch(s.obj("osc~ 0.13"), "*~ 0.004", "+~ 1")
     wh = s.ch(mul(s, wf, drift), "osc~", "*~ 0.06")
     swell = s.ch(s.obj("osc~ 0.05"), "*~ 0.5", "+~ 0.5")
     L = mul(s, add(s, s.to(stat, "*~ 0.5"), mul(s, wh, swell)), ln)
-    R = mul(s, add(s, s.to(stat, "*~ 0.35"), s.to(mul(s, wh, swell), "*~ 0.7")), ln)
+    R = mul(s, add(s, s.to(statR, "*~ 0.35"), s.to(mul(s, wh, swell), "*~ 0.7")), ln)
     throws(s, L, R, mix=0.6, send=0.5)
     return s
 
@@ -263,7 +287,132 @@ def tex_buzz():
     return s
 
 
-NEW_TEXTURES = (tex_radio, tex_data, tex_buzz)
+# ---------------------------------------------------------------- textures 7..11: voices, echoes, nature
+def _lpnoise(s, hz, scale, off, lo, hi):
+    """a slowly wandering value: white noise low-passed at hz, scaled, offset, clipped (a jittering centre)"""
+    return s.ch(s.obj("noise~"), f"lop~ {hz}", f"*~ {scale}", f"+~ {off}", f"clip~ {lo} {hi}")
+
+
+def _syllables(s, rate, scale, smooth, phrase_hz, phase):
+    """speech-like loudness: random syllable bursts (noise low-passed at rate, clipped) inside slow phrases"""
+    syl = s.ch(s.obj("noise~"), f"lop~ {rate}", f"*~ {scale}", "clip~ 0 1", f"lop~ {smooth}")
+    ph = s.obj(f"osc~ {phrase_hz}")
+    s.c(s.m(s.obj("loadbang"), f"{phase}"), 0, ph, 1)
+    phrase = s.ch(ph, "-~ 0.2", "max~ 0", "*~ 1.25")
+    return mul(s, syl, phrase)
+
+
+def tex_murmur():
+    s, ln = switched("murmur", "ac-g-tex7")
+    s.comment("Murmur: two distant voices - a breathy low buzz through two drifting vowel formants, in syllables "
+              "and phrases, far back (mostly reverb)")
+    outs = []
+    for side, (f0, ph) in enumerate(((112, 0), (147, 0.5))):
+        vib = s.ch(s.obj(f"osc~ {4.1 + side}"), "*~ 0.012", "+~ 1")
+        buzz = s.ch(mul(s, s.obj(f"sig~ {f0}"), vib), "phasor~", "-~ 0.5", "lop~ 1400")
+        src = add(s, buzz, s.ch(s.obj("noise~"), "lop~ 3000", "*~ 0.25"))
+        sm = s.obj("+~")
+        for q, (hz, sc, off, lo, hi) in ((6, (3, 30000, 550, 250, 900)), (8, (2.5, 80000, 1500, 800, 2500))):
+            v = s.obj(f"vcf~ {q}")
+            s.c(src, 0, v, 0)
+            s.c(_lpnoise(s, hz, sc, off, lo, hi), 0, v, 1)
+            s.c(v, 0, sm, 0)
+        env = _syllables(s, 5, 120, 20, 0.055 + 0.017 * side, ph)
+        outs.append(mul(s, mul(s, s.to(sm, "lop~ 2600"), env), ln))
+        s.col(260)
+    L = add(s, s.to(outs[0], f"*~ {TEXG['MURMUR_G']}"), s.to(outs[1], f"*~ {TEXG['MURMUR_X']}"))
+    R = add(s, s.to(outs[1], f"*~ {TEXG['MURMUR_G']}"), s.to(outs[0], f"*~ {TEXG['MURMUR_X']}"))
+    throws(s, L, R, mix=0.35, send=1.0)
+    return s
+
+
+def tex_echoes():
+    s, ln = switched("echoes", "ac-g-tex8")
+    s.comment("Echoes: alien blips on chord tones (a gliding sine ring-modulated a tritone up) into ping-pong "
+              "echoes whose delay times wobble, so each repeat bends in pitch")
+    up = s.to(s.recv("ac-echo"), "unpack f f")
+    tf = s.to((up, 0), "t f f")
+    ex = s.to((tf, 0), "expr $f1; $f1*0.86")
+    pk = s.obj("pack f f")
+    s.c(ex, 1, pk, 1)
+    s.c(ex, 0, pk, 0)
+    fr = s.ch(s.m(pk, "$1, $2 160"), "vline~")
+    env = s.ch(s.m((tf, 1), "0.6, 0 180"), "vline~")
+    blip = mul(s, mul(s, s.to(fr, "osc~"), s.ch(fr, "*~ 1.414", "osc~")), mul(s, env, env))
+    pn = s.to((up, 1), "expr cos($f1*1.5708); sin($f1*1.5708)")
+    dl, dr = s.to(blip, "*~ 1"), s.to(blip, "*~ 1")
+    s.c(pn, 0, dl, 1)
+    s.c(pn, 1, dr, 1)
+    s.col()
+    # ping-pong: each side's echo feeds the other, through a band (lop / hip) so repeats darken
+    reads = []
+    for name, ms, rate, dep in (("$0-ecL", 420, 0.13, 25), ("$0-ecR", 610, 0.09, 30)):
+        vd = s.obj(f"vd~ {name}")
+        s.c(s.ch(s.obj(f"osc~ {rate}"), f"*~ {dep}", f"+~ {ms}"), 0, vd, 0)
+        reads.append(s.ch(vd, "lop~ 2400", "hip~ 250"))
+    for i, (name, dry) in enumerate((("$0-ecL", dl), ("$0-ecR", dr))):
+        w = add(s, dry, s.to(reads[1 - i], "*~ 0.58"))
+        s.to(w, f"delwrite~ {name} 1500")
+    L = mul(s, add(s, s.to(dl, "*~ 0.35"), reads[0]), ln)
+    R = mul(s, add(s, s.to(dr, "*~ 0.35"), reads[1]), ln)
+    throws(s, s.to(L, f"*~ {TEXG['ECHO_G']}"), s.to(R, f"*~ {TEXG['ECHO_G']}"), mix=0.6, send=0.6)
+    return s
+
+
+def tex_whisper():
+    s, ln = switched("whisper", "ac-g-tex9")
+    s.comment("Whisper: breath noise shaped by two moving formants into fast syllables, in phrases - one each "
+              "side")
+    outs = []
+    for side, ph in enumerate((0, 0.35)):
+        src = s.ch(s.obj("noise~"), "hip~ 1200")
+        sm = s.obj("+~")
+        for q, (hz, sc, off, lo, hi) in ((4, (6, 60000, 2200, 1200, 3500)), (5, (5, 90000, 5000, 3500, 8000))):
+            v = s.obj(f"vcf~ {q}")
+            s.c(src, 0, v, 0)
+            s.c(_lpnoise(s, hz, sc, off, lo, hi), 0, v, 1)
+            s.c(v, 0, sm, 0)
+        env = _syllables(s, 8, 150, 40, 0.045 + 0.013 * side, ph)
+        outs.append(mul(s, mul(s, sm, env), ln))
+        s.col(260)
+    throws(s, s.to(outs[0], f"*~ {TEXG['WHISPER_G']}"), s.to(outs[1], f"*~ {TEXG['WHISPER_G']}"), mix=0.6, send=0.6)
+    return s
+
+
+def tex_leaves():
+    s, ln = switched("leaves", "ac-g-tex10")
+    s.comment("Leaves: a rustle in the trees - high noise in a fast flutter, dry little clicks, swelling with gusts")
+    gust = s.ch(add(s, s.obj("osc~ 0.051"), s.ch(s.obj("osc~ 0.083"), "*~ 0.7")), "*~ 0.45", "+~ 0.35", "max~ 0.05")
+    outs = []
+    for side in range(2):
+        n = s.ch(s.obj("noise~"), "hip~ 2500", "lop~ 9000")
+        flutter = s.ch(s.obj("noise~"), "lop~ 60", "abs~", "*~ 25", "clip~ 0 1")
+        ticks = s.ch(s.obj("noise~"), "-~ 0.997", "max~ 0", "*~ 300", "lop~ 7000")
+        o = add(s, mul(s, n, flutter), s.to(ticks, "*~ 0.3"))
+        outs.append(mul(s, mul(s, o, s.to(gust, f"*~ {1 - 0.15 * side}")), ln))
+    throws(s, s.to(outs[0], f"*~ {TEXG['LEAVES_G']}"), s.to(outs[1], f"*~ {TEXG['LEAVES_G']}"), mix=0.6, send=0.4)
+    return s
+
+
+def tex_brook():
+    s, ln = switched("brook", "ac-g-tex11")
+    s.comment("Brook: a babbling stream - brown noise ringing very narrow bands whose pitch jitters at a few "
+              "hertz (the classic brook model), two layers each side")
+    outs = []
+    for side in range(2):
+        brown = s.ch(s.obj("noise~"), "lop~ 70", "*~ 12")
+        sm = s.obj("+~")
+        for sc, off in ((8000, 500 + 40 * side), (16000, 1000 + 80 * side)):
+            v = s.obj("vcf~ 30")
+            s.c(brown, 0, v, 0)
+            s.c(_lpnoise(s, 14, sc, off, 150, 4000), 0, v, 1)
+            s.c(v, 0, sm, 0)
+        outs.append(mul(s, s.ch(sm, "hip~ 120"), ln))
+    throws(s, s.to(outs[0], f"*~ {TEXG['BROOK_G']}"), s.to(outs[1], f"*~ {TEXG['BROOK_G']}"), mix=0.6, send=0.4)
+    return s
+
+
+NEW_TEXTURES = (tex_radio, tex_data, tex_buzz, tex_murmur, tex_echoes, tex_whisper, tex_leaves, tex_brook)
 
 
 # ---------------------------------------------------------------- character on the pads (inlet 0 L, 1 R)

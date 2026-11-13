@@ -12,7 +12,7 @@ NS = len(SCALES)
 
 GLOBALS = dict(
     acseed=1, account=0, actonic=38, acsci=0, acn=7, acfamA=0, acfamB=1, acfam=0, acdeg=0, acpend=-1,
-    acmode=1, acrun=1, acended=0, acstopped=0, acsecrem=0, acftap=-1e+06, acsec=0, acnsec=8, acenergy=0.5, acdeff=0.5, acsecdur=60000, acchsec=20,
+    acmode=1, acrun=1, acended=0, acstopped=0, acsecrem=0, acftap=-1e+06, acctap=-1e+06, acsec=0, acnsec=8, acenergy=0.5, acdeff=0.5, acsecdur=60000, acchsec=20,
     acpage=0, acinmode=0, acfreeze=0, accapt=0, acvfreeze=0,
     acmdrone=1, acmpad=1, acmtex=1, acmcloud=1, acmbell=1, acmmotion=1,
     acfdrone=1, acfpad=1, acftex=1, acfcloud=1, acfbell=1, acfmotion=0, actex1=0, actex2=1, actexA=0, actexB=1,
@@ -27,7 +27,7 @@ GLOBALS = dict(
     acmtr=2, acbld=1, acblp=0.5, acvauto=1, acvsec=1, acvtype=1, acrvsize=1,
     # rhythm
     acbpm0=56, acbpm=56, actpos=0.5, acmeter=4, actick=0, acstep=0, acms=0, acmk=5, acmn=8, acmei=0, acmrot=0, acmdiv=1,
-    acmarp=0, acshed=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acdtype=0, acdtype2=1, acdcur=0, acsubm=0, acchar=0, accheff=0, acflstag=4200, acdauto=0, actex1a=0, actex2a=1, acspad=0, acsdrone=0, acstex=0, acschar=0, acsnew=0, acchamt=0.5, acavoc=0, acgvoc=0, acdb=0, acgt4=0, acgt5=0, acgt6=0, acgsub=0, acatm=0, acatmT=0, acatmT2=1, acfatm=0, acatmcur=0, acgatm=0, acscene=0, acmono=0, acwidth=1, acpanmot=0.8, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
+    acmarp=0, acshed=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acdtype=0, acdtype2=1, acdcur=0, acsubm=0, acchar=0, accheff=0, acflstag=4200, acres=0, acdauto=0, actex1a=0, actex2a=1, acspad=0, acsdrone=0, acstex=0, acschar=0, acsnew=0, acchamt=0.5, acavoc=0, acgvoc=0, acdb=0, acgt4=0, acgt5=0, acgt6=0, acgt7=0, acgt8=0, acgt9=0, acgt10=0, acgt11=0, acgsub=0, acatm=0, acatmT=0, acatmT2=1, acfatm=0, acatmcur=0, acgatm=0, acscene=0, acmono=0, acwidth=1, acpanmot=0.8, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
 )
 for page in PAGES:
     for _, name, d in page:
@@ -232,7 +232,7 @@ def piece():
         V("actick", "-1"), Send("ac-clockgo"), Call("ac-clockstart"),
         Later("ac-playgo", 60),
     ])
-    proc(c, "ac-playgo", [Send(t) for t in ("ac-ctick", "ac-rtick", "ac-btick", "ac-dtick", "ac-ttick")])
+    proc(c, "ac-playgo", [Send(t) for t in ("ac-ctick", "ac-rtick", "ac-btick", "ac-dtick", "ac-ttick", "ac-etick")])
     # the form: an archetype's energy curve over 6-12 sections, then a role for each section
     arch = ARCH_EXPR.replace("X", "((aci+0.5)/acnsec)")
     proc(c, "ac-plan", [
@@ -385,7 +385,7 @@ def section():
     # After FIN, Start begins a new piece.
     proc(c, "ac-stop", [If("acrun && acended == 0 && acstopped == 0", [
         X("1; 0; max(1000, acsecdur*actime - acsecel)", "v acstopped", "v acrun", "v acsecrem"),
-        Send("ac-master", "0 2500"),
+        Send("ac-master", "0 8000"),            # a long fade: the sound and its reverb die away slowly
         Send("ac-chgstop"), Send("ac-secstop"), Call("ac-clockstop"),
         Toast("stopped - A# to start"), Call("ac-scr"), Send("ac-led"),
     ])])
@@ -584,17 +584,18 @@ def change():
     steps = [
         RNG,
         V("acchsec", "(6 + 84*pow(actide, 2)) * actidef * (0.75+acr3*0.5)"),
-        V("acnewt", "if(acpend>=0, 36 + acpend, if(acmode==0 && ackeyc == 0 && acr1 < 0.03 + acweird*0.15 && acfirst==0, "
-                    "36 + ((int(actonic) - 36 + int(acmods[int(acr2*12)])) % 12 + 12) % 12, actonic))"),
-        X("acnewt != actonic; acnewt; -1", "v acmodflag", "v actonic", "v acpend"),
+        V("acnewt", "if(acres, actonic, if(acpend>=0, 36 + acpend, if(acmode==0 && ackeyc == 0 && acr1 < 0.03 + acweird*0.15 && acfirst==0, "
+                    "36 + ((int(actonic) - 36 + int(acmods[int(acr2*12)])) % 12 + 12) % 12, actonic)))"),
+        # (while resolved, a pending key move waits)
+        X("acnewt != actonic; acnewt; if(acres, acpend, -1)", "v acmodflag", "v actonic", "v acpend"),
         If("acr3 < acweird*0.12 && acfirst==0 && acsclc == 0", [RNG, V("acsci", f"int(acr4*{NS})"), Call("ac-loadscale")]),
         RNG,
-        V("acdeg", "if(acmodflag || acfirst, 0, if(acrole==6 && acprogi < acprogn, acprog[int(acprogi)], "
+        V("acdeg", "if(acmodflag || acfirst || acres, 0, if(acrole==6 && acprogi < acprogn, acprog[int(acprogi)], "
                    "if(acr1 < 0.1 + 0.15*(1-acweird) && acdeg != 0, 0, "
                    "((int(acdeg) + int(acmoves[int(acr2*12)])) % int(acn) + int(acn)) % int(acn))))"),
         V("acprogi", "acprogi + (acrole==6)"),
         # listening: what you hold (or sing) pulls the chord - pick a root whose triad contains it
-        If("acfocus >= 0 && acr3 < acfollow && acfirst == 0 && acmodflag == 0", [
+        If("acfocus >= 0 && acr3 < acfollow && acfirst == 0 && acmodflag == 0 && acres == 0", [
             V("acfd", "-1"),
             Loop("acn", "aci", [If("abs(fmod(actonic + acscale[int(aci)] - acfocus + 1200, 12)) < 0.6 || "
                                    "abs(fmod(actonic + acscale[int(aci)] - acfocus + 1200, 12)) > 11.4",
@@ -609,6 +610,8 @@ def change():
             V("acD", f"acdeg + acfamt[int(acfam)*5+{1 + k}]"),
             V("acp0", f"if(acfamt[int(acfam)*5]==0, {deg2p('acD')} + 12, "
                       f"actonic + 12 + acscale[int(acdeg)] + acfamt[int(acfam)*5+{1 + k}])"),
+            # Resolve: the tonic as open fifths (root, 5th, octave, 12th - pure 5ths, whatever the scale)
+            V("acp0", f"if(acres, actonic + 12 + {[0, 7, 12, 19][k]}, acp0)"),
             RNG,
             V("acp1", f"if(acfirst || acfamt[int(acfam)*5]==1 || acr1>0.7, acp0, "
                       f"acp0 + 12*floor((acch[{k}]-acp0)/12 + 0.5))"),
@@ -680,10 +683,7 @@ def players():
     proc(c, "ac-bellnow", [If("acmbell && acrun", [RNG] + play + [V("acbi", "(acbi+1) % 5")])])
     proc(c, "ac-rtick", [
         RNG,
-        If("acgt0 > 0.01", [
-            V("acdropi", "(acdropi+1) % 3"),
-            SendL("ac-drop", ["acdropi", "min(100, acch[int(acr1*4)] + 24 + 12*int(acr2*2))", "acr3"]),
-        ]),
+        If("acgt0 > 0.01", [V("acdropi", "(acdropi+1) % 3")]),     # (rain is all signal now: no drop events)
         RNG,
         Arm("ac-rtick", "(90 + 2200*(1-acdeff)) * (0.15 + 1.7*acr4)", stop="ac-playstop"),
     ])
@@ -697,6 +697,12 @@ def players():
         ]),
         RNG,
         Arm("ac-ctick", "if(acbc>0, 80 + acr2*240, 1500 + acr3*9000)", stop="ac-playstop"),
+    ])
+    # echoes texture: an alien blip on a chord tone now and then, into its wobbling ping-pong echoes
+    proc(c, "ac-etick", [
+        RNG,
+        If("acgt8 > 0.01", [SendL("ac-echo", ["mtof(min(100, acch[int(acr1*4)] + 24 + 12*int(acr2*2)))", "acr3"])]),
+        Arm("ac-etick", "(1800 + acr4*5000) * (1.4 - 0.6*acdeff)", stop="ac-playstop"),
     ])
     # ghost input mode: a played onset rings the next bell note
     # data texture: bursts of blips on chord tones

@@ -23,9 +23,9 @@ def main_patch():
     m.c(t, 3, m.obj("s ac-init", 230, 95), 0)
     m.c(t, 2, m.obj("s ac-loadsettings", 160, 120), 0)
     m.c(t, 1, m.obj("s ac-seedinit", 90, 145), 0)
-    tk = m.obj("t b b b b b", 20, 120)
+    tk = m.obj("t b b b b b b", 20, 120)
     m.c(t, 0, tk, 0)
-    for i, n in enumerate(("ac-ctick", "ac-rtick", "ac-btick", "ac-dtick", "ac-ttick")):
+    for i, n in enumerate(("ac-ctick", "ac-rtick", "ac-btick", "ac-dtick", "ac-ttick", "ac-etick")):
         m.c(tk, i, m.obj("s " + n, 20 + i * 90, 150), 0)
     m.c(m.m(m.obj("loadbang", 400, 40), "0"), 0, m.obj("s midiOutGate", 400, 90), 0)
     m.comment("control", 20, 200)
