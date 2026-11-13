@@ -81,8 +81,13 @@ FUNCTION KEYS (aux + key standalone, plain keys with external MIDI)
   G#  capture 8 s of input (cloud + a memory)
   A   input mode: auto / reso / cloud / tape / ghost / bands / vocode /
       morph
-  A#  HOLD: freeze the reverb tail and the cloud
+  A#  START / STOP: stop fades out and freezes the piece where it is
+      (section, chord, time left); start fades back in and goes on.
+      After FIN it starts a new piece. MIDI Start / Stop do the same
+      when Sync = follow clock.
   B   new piece
+  FREEZE (the reverb tail and the cloud): aux + F# with an external
+      controller; standalone, aux + F# twice quickly
   Aux alone: next knob page.  Footswitch: chord change now
 
 AUDIO INPUT (In knob = amount, always 0 when Amble loads; samples, guitar,
@@ -131,7 +136,7 @@ SETUP (hold aux 1 s; aux tap = next page (4); hold aux 1 s to leave, save)
        +4    the bass (the sub's note)      +5  the ARP CHORD: the chord in
              close position from the Arp octave - for arpeggiators
   2 Sync       internal / follow clock (external clock drives the rhythm;
-               Start restarts the bar, Stop pauses the pulse layers)
+               Start restarts the bar and the piece, Stop stops it)
   3 Keys       auto / play notes / functions
   4 Bloom      clean / vintage (13-bit, as the unit)
   page 2: Follow you (how much chords follow what you play), MPE bend

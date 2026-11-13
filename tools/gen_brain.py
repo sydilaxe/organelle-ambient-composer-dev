@@ -12,7 +12,7 @@ NS = len(SCALES)
 
 GLOBALS = dict(
     acseed=1, account=0, actonic=38, acsci=0, acn=7, acfamA=0, acfamB=1, acfam=0, acdeg=0, acpend=-1,
-    acmode=1, acrun=1, acended=0, acsec=0, acnsec=8, acenergy=0.5, acdeff=0.5, acsecdur=60000, acchsec=20,
+    acmode=1, acrun=1, acended=0, acstopped=0, acsecrem=0, acftap=-1e+06, acsec=0, acnsec=8, acenergy=0.5, acdeff=0.5, acsecdur=60000, acchsec=20,
     acpage=0, acinmode=0, acfreeze=0, accapt=0, acvfreeze=0,
     acmdrone=1, acmpad=1, acmtex=1, acmcloud=1, acmbell=1, acmmotion=1,
     acfdrone=1, acfpad=1, acftex=1, acfcloud=1, acfbell=1, acfmotion=0, actex1=0, actex2=1, actexA=0, actexB=1,
@@ -210,8 +210,8 @@ def piece():
         steps += [RNG, SendL(f"ac-v{k}-lfo", [f"1/(30/(acbpm0/(1 + (acbpm0 > {HALFTIME})))*acmeter*acbreath[{k}]*(0.97+acr1*0.06))",
                                               "0.03+acr2*0.15", "0.04+acr3*0.25", "0.03+acr4*0.2"])]
     steps += [
-        X("0; -1; 0; 1; 0; 0; 1; 0; 0", "v acdeg", "v acpend", "v acchg", "v acfirst", "v acended", "v accapt",
-          "v acrun", "v acsec", "v acprogn"),
+        X("0; -1; 0; 1; 0; 0; 1; 0; 0; 0", "v acdeg", "v acpend", "v acchg", "v acfirst", "v acended", "v accapt",
+          "v acrun", "v acsec", "v acprogn", "v acstopped"),
         Send("ac-master", "1 3000"),
         V("acel", "0"), Call("ac-clockstop"),
         Call("ac-motif0"),
@@ -360,6 +360,26 @@ def section():
         Call("ac-scr"),
     ])
     c.c(fin_off, 0, c.obj("s ac-finoff"), 0)
+    # Start / Stop (A#, or an incoming MIDI Start / Stop when following a clock): Stop fades out over 2.5 s and
+    # freezes the piece where it is (section, chord, time left); Start fades back in and goes on from there.
+    # After FIN, Start begins a new piece.
+    proc(c, "ac-stop", [If("acrun && acended == 0 && acstopped == 0", [
+        X("1; 0; max(1000, acsecdur*actime - acsecel)", "v acstopped", "v acrun", "v acsecrem"),
+        Send("ac-master", "0 2500"),
+        Send("ac-chgstop"), Send("ac-secstop"), Call("ac-clockstop"),
+        Toast("stopped - A# to start"), Call("ac-scr"), Send("ac-led"),
+    ])])
+    proc(c, "ac-start", [If("acstopped", [
+        X("0; 1", "v acstopped", "v acrun"),
+        SendL("ac-master", ["0.62 + 0.38*acenergy", "2500"]),
+        Arm("ac-nextsec", "acsecrem", stop="ac-secstop"),
+        Arm("ac-change", "max(2500, 0.5*acchsec*1000*actime)", stop="ac-chgstop"),
+        Call("ac-clockstart"), Call("ac-outchord"),
+        Toast("playing again"), Call("ac-scr"), Send("ac-led"),
+    ])])
+    proc(c, "ac-startstop", [If("acstopped", [Call("ac-start")],
+                                [If("acended || acrun == 0", [Call("ac-reseed"), Toast("new piece")],
+                                    [Call("ac-stop")])])])
     proc(c, "ac-finoff", [If("acrun==0", [V("acended", "1"), V("acfade", "2000"), Call("ac-layers"),
                                           Call("ac-scr"), Send("ac-led")])])
     return c

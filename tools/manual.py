@@ -57,11 +57,14 @@ FKEY_DESC = {
     "drone on/off": "Mute or unmute the drone (and sub).",
     "pads on/off": "Mute or unmute the 4 pad voices.",
     "textures on/off": "Mute or unmute the textures and atmosphere.",
-    "cloud on/off": "Mute or unmute the granular cloud.",
+    "cloud on/off | aux: Freeze": "Mute or unmute the granular cloud. Aux + F# = Freeze: the reverb tail and "
+                                  "the cloud hold still; again to release (standalone: aux + F# twice quickly).",
     "bells on/off": "Mute or unmute the bell motif.",
     "capture 8 s of input": "Record 8 s of the input into the cloud and keep it as a memory.",
     "input mode": "Step through the input modes (see Audio input).",
-    "HOLD": "Freeze the reverb tail and the cloud; press again to release.",
+    "start / stop": "Stop fades out over 2.5 s and freezes the piece where it is (section, chord, time left; "
+                    "MIDI clock Stop and notes off). Start fades back in and goes on from there. After FIN it "
+                    "starts a new piece.",
     "new piece": "Start a new piece with a new seed.",
 }
 
@@ -69,7 +72,7 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
     "MIDI out": (", ".join(S.MOUT), "Tempo = MIDI clock (24 per beat) following the piece's tempo, with Start and "
                                     "Stop. Notes = the parts listed under MIDI out."),
     "Sync": ("internal, follow clock", "Follow clock: an incoming MIDI clock drives Amble's rhythm; Start restarts "
-                                       "the bar, Stop pauses the pulse layers."),
+                                       "the bar and starts a stopped piece, Stop stops the piece."),
     "Keys": ("auto, play notes, functions", "Auto: the Organelle keys play notes until an external controller plays, "
                                             "then they become function keys (and play again after 2 minutes "
                                             "without external notes)."),
@@ -274,6 +277,9 @@ def story():
                "keys become function keys without aux. After 2 minutes without external notes the keys play "
                "again. SETUP <i>Keys</i> can fix either behaviour."),
           para("<b>Low octave</b> (C to B): choose the next key centre. <b>Top octave</b>: the functions below."),
+          para("<b>Combinations.</b> With an external controller (plain keys are functions), <b>aux + F#</b> is "
+               "<b>Freeze</b>. Standalone (functions are already aux + key), Freeze is <b>aux + F# twice "
+               f"quickly</b> (within {U.TAP2_MS} ms); a single aux + F# toggles the cloud after that short wait."),
           table(frows, [0.9, 1.6, 4.2]),
           Spacer(1, 6),
           table([["Control", "What it does"],
@@ -366,7 +372,8 @@ def story():
           Paragraph("Memories, capture and hold", H2),
           para("While the piece develops, Amble keeps 8 s of what you played (up to 4 memories). Break, return and "
                "dissolve sections bring them back: reversed, slowed or retuned to the chord. <b>Capture</b> (G#, "
-               "top) records 8 s now. <b>HOLD</b> (A#, top) freezes the reverb tail and the cloud.")]
+               "top) records 8 s now. <b>Freeze</b> (aux + F#; standalone aux + F# twice) holds the reverb tail "
+               "and the cloud still.")]
 
     s += [Paragraph("9  MIDI", H1),
           Paragraph("MIDI in: notes, MPE and breath", H2),
@@ -382,8 +389,9 @@ def story():
           para("Chord and bass velocities follow the piece's energy. Notes are rounded to the nearest semitone. "
                "SETUP <i>MIDI notes</i> chooses all parts, harmony only, or the arp chord only."),
           Paragraph("Sync", H2),
-          para("SETUP <i>Sync</i> = follow clock: an incoming MIDI clock drives the rhythm; Start restarts the bar; "
-               "Stop pauses the pulse layers. Any tempo then comes from outside.")]
+          para("SETUP <i>Sync</i> = follow clock: an incoming MIDI clock drives the rhythm. MIDI Start restarts the "
+               "bar and starts the piece if it was stopped; MIDI Stop stops the piece (as A#). Any tempo then comes "
+               "from outside.")]
 
     s += [Paragraph("10  Tempo", H1),
           table([["Range", "BPM"]] + [[n, f"{lo}-{hi}"] for n, lo, hi in DT.TEMPOS], [1.2, 5.5]),
@@ -408,8 +416,10 @@ def story():
                                                    "page 4; lower Dens or choose Bloom instead of Shimmer."],
                  ["Keys run functions instead of notes", "An external controller took over: wait 2 minutes, or "
                                                          "set SETUP Keys to play notes."],
-                 ["Nothing happens at the end", "COMPOSE ended (FIN): press B (top) for a new piece, or switch "
-                                                "to DRIFT with C (top)."]], [2.0, 4.7]),
+                 ["Nothing happens at the end", "COMPOSE ended (FIN): press B or A# (top) for a new piece, or "
+                                                "switch to DRIFT with C (top)."],
+                 ["Silence and STOPPED on the screen", "The piece is stopped: A# (top) starts it again where it "
+                                                       "was."]], [2.0, 4.7]),
           Spacer(1, 10),
           Paragraph(f"Amble {esc(VERSION)} is GPL-3. The Bloom reverb follows Conduit's bloom.c, after "
                     "thement's midiverb_emulator analysis of the Alesis MidiVerb II.", NOTE)]

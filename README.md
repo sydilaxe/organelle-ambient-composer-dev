@@ -47,6 +47,9 @@ The layers and their rhythms:
   voices' level and brightness.
 - **The Organelle keys** play notes when Amble is standalone. When an external controller plays, they
   become function keys; aux + key is a function at any time.
+- **Start / Stop** (A#, top octave): Stop fades out and freezes the piece where it is; Start goes on from there.
+  An incoming MIDI Start / Stop does the same when Sync is set to follow clock. **Freeze** (the reverb tail and
+  the cloud) is aux + F# with an external controller, or aux + F# twice quickly standalone.
 - **Listening:**
   - A held or sung pitch pulls the next chord to contain it.
   - A note held for 6 s becomes the key centre.

@@ -265,7 +265,7 @@ def cpu_guard():
 def clock_in():
     c = Canvas("clock-in", w=1800)
     c.comment("Follow an incoming MIDI clock (SETUP Sync = follow clock): its ticks drive Amble's rhythm, Start "
-              "restarts the bar, Stop pauses the rhythm layers; the tempo is measured")
+              "restarts the bar (and starts a stopped piece), Stop stops the piece; the tempo is measured")
     rti = c.obj("midirealtimein")
     c.c(rti, 0, c.obj("s ac-rtin"), 0)
     up = c.to(c.recv("ac-rtin"), "t f f")
@@ -281,6 +281,6 @@ def clock_in():
         If("int(actick) % 24 == 0", [V("acbpm", "acextbpm")]),
     ])])
     # the timer measures from one tick to the next: read (right inlet) then restart (left)
-    run_steps(c, (sel, 1), [If("acsync", [V("actick", "-1"), Toast("clock start")])])
-    run_steps(c, (sel, 3), [If("acsync", [Toast("clock stop")])])
+    run_steps(c, (sel, 1), [If("acsync", [V("actick", "-1"), Call("ac-start"), Toast("clock start")])])
+    run_steps(c, (sel, 3), [If("acsync", [Call("ac-stop"), Toast("clock stop")])])
     return c

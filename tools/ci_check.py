@@ -89,7 +89,7 @@ log, _ = run(ev, T / 1000 + 2)
 check("ac-txt5: list Colr 50 In 60 auto" in log, "knob pickup scales towards the end (In 60)")
 check("ac-txt4: list Mix 9 Verb auto" in log, "page 2 knobs (SPACE)")
 check("ac-txt4: list Len 12 min Weird 30" in log, "page 3 (PIECE)")
-for t in ("next key E", "chord change", "next section", "drone off", "input reso", "hold - reverb and cloud", "new piece"):
+for t in ("next key E", "chord change", "next section", "drone off", "input reso", "stopped - A# to start", "new piece"):
     check(f"ac-toast: list {t}" in log, f"key toast: {t}")
 
 # 6. input processing: every mode makes sound from the input, and ghost onsets ring bells
@@ -525,6 +525,27 @@ check(len(lv) >= 2 and lv[0] == 3 and lv[-1] == 0 and log.count("ac-toast: list 
       f"CPU guard: 3 steps lighter under overload, all back after it ({lv})")
 lv, log = lite_at([(40, "acguard 0"), (50, "ac-setseed 7"), (5000, "acloadtest 0.9")], 15, [14000])
 check(lv and lv[-1] == 0 and "CPU high" not in log, "CPU guard off: never sheds")
+
+# 25. Start / Stop (A#), Freeze (aux + F#; standalone aux + F# twice), MIDI Start / Stop when following
+log, a = run([(40, "acforce 1"), (50, "ac-setseed 7"), (8000, "notesRaw 82 100"), (8050, "notesRaw 82 0"),
+              (16000, "notesRaw 82 100"), (16050, "notesRaw 82 0")], 24)
+t1 = sorted({l for l in log.splitlines() if l.startswith("ac-txt1")})
+check(rms_db(a[12 * SR:15 * SR, 0]) < -100 and rms_db(a[19 * SR:23 * SR, 0]) > -40
+      and "ac-txt1: list STOPPED - A# start" in t1 and "ac-txt1: list COMP 1 of 6 emerge" in t1,
+      f"A# stops (silent, STOPPED) and starts again in the same section ({rms_db(a[12 * SR:15 * SR, 0]):.0f} dB "
+      f"stopped, {rms_db(a[19 * SR:23 * SR, 0]):.0f} dB playing)")
+def toasts(ev, secs=6):
+    log, _ = run([(50, "ac-setseed 7")] + ev, secs)
+    return [l.split("list ", 1)[-1] for l in log.splitlines() if l.startswith("ac-toast")]
+F = [(2100, "notesRaw 78 100"), (2150, "notesRaw 78 0")]
+F2 = [(2300, "notesRaw 78 100"), (2350, "notesRaw 78 0")]
+cases = [toasts([(40, "acforce 1")] + F), toasts([(40, "acforce 1"), (2000, "aux 1")] + F + [(2500, "aux 0")]),
+         toasts([(2000, "aux 1")] + F + [(2500, "aux 0")]), toasts([(2000, "aux 1")] + F + F2 + [(2500, "aux 0")])]
+check(cases[0] == ["cloud off"] and cases[1] == ["freeze - reverb and cloud"] and cases[2] == ["cloud off"]
+      and cases[3] == ["freeze - reverb and cloud"],
+      f"F# = cloud, aux + F# = Freeze; standalone aux + F# once = cloud, twice = Freeze ({cases})")
+mt = toasts([(40, "acsync 1"), (2000, "ac-rtin 252"), (4000, "ac-rtin 250")])
+check("stopped - A# to start" in mt and "playing again" in mt, "following a clock: MIDI Stop / Start stop and start")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)
