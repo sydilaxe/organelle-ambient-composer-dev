@@ -196,7 +196,10 @@ Requirements: Python 3 with numpy and scipy, Pure Data 0.53+, gcc, and ffmpeg fo
 ## Releases
 
 `.github/workflows/release.yml` builds, checks the committed patch is up to date, runs the tests and
-packages `Amble-<version>.zip`. Push a tag `v*` to publish a release.
+packages `Amble-<version>.zip`. Push a tag `v*`, or run the workflow by hand (Actions → Release build →
+Run workflow, with a version such as `v0.1`), to publish a GitHub Release with the zip attached. The
+version `dev` makes a pre-release that is replaced each time. The zip goes on a Release rather than a
+workflow artifact, so it doesn't use the Actions storage quota.
 
 ## Licence
 
