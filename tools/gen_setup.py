@@ -16,6 +16,7 @@ NP = len(PAGES)
 SETTINGS = [n for p in PAGES for _, n, _ in p] + ["acmout", "acsync", "acforce", "acvintage", "acfollow", "acnbr",
                                                   "acoutch", "accurve", "acmono", "acwidth", "acpanmot",
                                                   "actrange", "acmparts", "acarpoct", "acguard"]
+IN_IDX = [n for p in PAGES for _, n, _ in p].index("acinput")     # the In knob's slot in acparams
 MOUT = ["off", "tempo only", "tempo+notes", "notes only"]
 PARTS = ["all", "harmony", "arp only"]
 NSET = 4                                   # SETUP pages
@@ -41,7 +42,10 @@ def settings():
     c.col()
     # knob values out of the array into their values
     tb = c.to((ln, 0), "t b")
-    run_steps(c, (tb, 0), [Loop("12", "aci", [SendL("ac-pset", ["aci", "acparams[int(aci)]"])]),
+    # the In knob (external audio) always starts at 0, whatever was saved: nothing reaches the input until
+    # you turn it up
+    run_steps(c, (tb, 0), [T("acparams", IN_IDX, "0"),
+                           Loop("12", "aci", [SendL("ac-pset", ["aci", "acparams[int(aci)]"])]),
                            SendL("ac-vintage", ["acvintage"]), SendL("ac-brcurve", ["accurve"])])
     rt = c.to(c.recv("ac-pset"), "route " + " ".join(str(i) for i in range(12)))
     for i, n in enumerate(SETTINGS[:12]):

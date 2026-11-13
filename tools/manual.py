@@ -38,7 +38,8 @@ KNOBS = {   # value name -> (range, what it does)
     "actide": ("0-100 %", "Harmonic pace: the time between chord changes (the section's role scales it further)."),
     "accolor": ("0-100 %", "Brightness of the pads, filters and resonators."),
     "acinput": ("0-100 %", "External audio amount. At 0 the input is ignored completely (no dry signal, no "
-                           "processing, no listening, the pitch tracker off)."),
+                           "processing, no listening, the pitch tracker off). It always starts at 0 when Amble "
+                           "loads, whatever was saved: turn it up when something is plugged in."),
     "acrvmix": ("0-100 %", "Reverb mix."),
     "acrvtype": ("5 steps", "Reverb: Auto (the piece chooses), Bloom 1, Bloom 2, Hall, Shimmer."),
     "acrvtime": ("1.5-30 s", "Reverb decay time."),
@@ -224,8 +225,9 @@ def story():
                "live score; the knobs shape it; the keys play notes (or, with an external controller, run "
                "functions); hold <b>aux</b> for 1 s for SETUP."),
           para("<b>Audio input.</b> Amble uses the Organelle's line input. Set the Organelle's mic/line switch to "
-               "<b>Line</b>, plug in, and raise the <b>In</b> knob (SHAPE page). At In 0 the input is ignored."),
-          para("<b>Settings</b> (knob values and SETUP) are saved in <b>settings.txt</b> in the patch folder. "
+               "<b>Line</b>, plug in, and raise the <b>In</b> knob (SHAPE page). At In 0 the input is ignored, and "
+               "In always starts at 0 when Amble loads."),
+          para("<b>Settings</b> (knob values and SETUP, except In) are saved in <b>settings.txt</b> in the patch folder. "
                "<b>seed.txt</b> counts start-ups so no two sessions begin the same way.")]
 
     s += [Paragraph("2  The screen", H1),

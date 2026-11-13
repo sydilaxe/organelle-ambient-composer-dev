@@ -299,6 +299,13 @@ run([(100, "knob2 0.5"), (200, "knob2 0.9"), (400, "aux 1"), (1600, "aux 0"), (1
 log, _ = run([(500, "aux 1"), (1700, "aux 0")], 3, d=d, prints=("ac-sett1",))
 check("ac-sett1: 1 MIDI out off" in log and "ac-txt4: list Dens 50 Tide 89" in log,
       "settings (a knob, MIDI out) are saved and loaded")
+d = build_tmp()
+log1, _ = run([(100, "knob4 0.5"), (200, "knob4 0.9")], 6, d=d)
+log2, _ = run([(500, "knob1 0.5"), (600, "knob1 0.51")], 3, d=d)
+in1 = re.findall(r"ac-txt5: list Colr \d+ In (\d+)", log1)
+in2 = re.findall(r"ac-txt5: list Colr \d+ In (\d+)", log2)
+check(in1 and int(in1[-1]) > 50 and in2 and int(in2[-1]) == 0,
+      f"the In knob always starts at 0 (was {in1[-1] if in1 else '?'} before the restart, {in2[-1] if in2 else '?'} after)")
 
 # 17. the OLED score draws every region, and SETUP shows its pages
 def snap(c):

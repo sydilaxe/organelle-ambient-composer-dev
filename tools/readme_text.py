@@ -85,8 +85,8 @@ FUNCTION KEYS (aux + key standalone, plain keys with external MIDI)
   B   new piece
   Aux alone: next knob page.  Footswitch: chord change now
 
-AUDIO INPUT (In knob = amount; samples, guitar, harmonica, voice, field
-recordings). Gate and automatic gain, then Amble listens for pitch, attacks
+AUDIO INPUT (In knob = amount, always 0 when Amble loads; samples, guitar,
+harmonica, voice, field recordings). Gate and automatic gain, then Amble listens for pitch, attacks
 and noisiness and calls it pitched, plucked or texture (screen line 5).
   auto   pitched: chord strings ring with you, grains retuned to the chord,
          your pitch steers the harmony; plucked: attacks ring bells, the
