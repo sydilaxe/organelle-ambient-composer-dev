@@ -434,6 +434,8 @@ def layers():
             steps += [SendL("ac-g-" + name, ["acg" + name, "acfade"])]
     steps += [V("acgatm", "(acshed < 1)*acfatm*acmtex*(1-acended)*(0.55 + 0.45*min(1, acdeff*2))")]
     steps += [SendL(f"ac-g-atm{i}", [f"acgatm*(acatmcur=={i})", "acfade*1.5"]) for i in range(len(ATMOS_NAMES))]
+    # the pad character: SETUP SOUNDS, else none for raw pads, else the piece's
+    steps += [V("accheff", "if(acschar > 0, acschar - 1, if(acspad == 1, 0, acchar))")]
     steps += [SendL(f"ac-g-ch{i}", [f"(acshed < 2)*(accheff=={i})*min(1, acchamt*if(acrole==4, 1.3, 1))*min(1, acgpad*4)", "acfade"])
               for i in range(1, len(CHARACTERS))]
     steps += [SendL("ac-chdry", ["1 - (acshed < 2)*((accheff==2)*0.9*acchamt + (accheff==4)*0.6*acchamt)", "acfade"])]
