@@ -652,8 +652,21 @@ def master():
     hl = s.sub(gen_verb.hall())
     s.c(rvlp, 0, hl, 0)
     wet = s.ch(s.recv("ac-rwet"), "line~")
-    wL = mul(s, add(s, s.ch((bl, 0), "lop~ 9000"), (hl, 0)), wet)
-    wR = mul(s, add(s, s.ch((bl, 1), "lop~ 9000"), (hl, 1)), wet)
+    rL = add(s, s.ch((bl, 0), "lop~ 9000"), (hl, 0))
+    rR = add(s, s.ch((bl, 1), "lop~ 9000"), (hl, 1))
+    # the reverb's low end in mono (below about 250 Hz, where the drone and sub put most of their energy): the
+    # prominent reverb then sums to mono without losing much, and stays fully decorrelated above. The left
+    # side's lows serve both sides (averaging the two would cancel on held tones, where the sides can sit in
+    # opposite phase)
+    lowL, lowR = s.to(rL, "lop~ 250"), s.to(rR, "lop~ 250")
+    low = lowL
+    wides = []
+    for r, lo in ((rL, lowL), (rR, lowR)):
+        hi = s.obj("-~")
+        s.c(r, 0, hi, 0)
+        s.c(lo, 0, hi, 1)
+        wides.append(add(s, hi, low))
+    wL, wR = mul(s, wides[0], wet), mul(s, wides[1], wet)
     s.c(s.ch(wL, "env~ 4096 2048"), 0, s.obj("v acrvlvl"), 0)
     s.col()
     mg = s.ch(s.recv("ac-master"), "line~")
