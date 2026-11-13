@@ -132,7 +132,7 @@ THE SCREEN (a live score)
               E = following an external clock; FIN at the end
   Turning a knob shows its page for 6 s.
 
-SETUP (hold aux 1 s; aux tap = next page (5); hold aux 1 s to leave, save)
+SETUP (hold aux 1 s; aux tap = next page (8); hold aux 1 s to leave, save)
   1 MIDI out   off / tempo only / tempo+notes / notes only
      tempo: MIDI clock, 24 a beat at the piece's tempo, Start/Stop with it
      notes, by channel from the base channel (page 2):
@@ -163,6 +163,30 @@ SETUP (hold aux 1 s; aux tap = next page (5); hold aux 1 s to leave, save)
     Drone      auto / pure / analog / organ / fm
     Texture    auto / rain / wind / ember / chirp / radio / data / buzz
     Character  auto / clean / chorus / tape / ring / crush
+  page 6, MUSIC (a fixed choice stays: no modulation, no scale change):
+    Key        auto / C .. B (applies at once, with a chord change)
+    Scale      auto / one of the 16 scales
+    Chords     auto / one voicing: spread quartal cluster fifths ninths
+               spectral mirror sus
+    Pulse      off / gentle / normal / strong - the drone and sub swell
+               on every bar
+  page 7, MIDI IN:
+    Notes to   what MIDI notes and the keys play: voice (the live voice) /
+               chords (your held notes are the pad chord) / drone (drone
+               and sub on your note) / bells (a bell per note) / cloud
+               (each note tunes a grain stream)
+    Breath to  voice+piece / voice / density / brightness / reverb /
+               swell (the whole level, like an expression pedal)
+    Pressure to  what channel / poly pressure does (a target, below)
+    Breath in  the breath level arriving now
+  page 8, CC MAP (knob 1 picks a CC: 1 2 7 11 64 71 74; knob 2 its target):
+    targets    off / breath (into Breath to) / vibrato / voice tone /
+               voice level / voice type / hold (sustain) / density /
+               colour / reverb / swell / motion. Voice tone and level act
+               per note on the CC's channel (MPE; channel 1 = all).
+    defaults   1 vibrato, 2 7 11 breath, 64 hold, 71 off, 74 voice tone
+    Last CC    the last CC in and its value
+    Vib rate   3-8 Hz
 
 CPU GUARD: Amble measures its own load each second. Above 78 % it gets
 lighter in steps ("CPU high - lighter"): 1 cloud and atmosphere off,

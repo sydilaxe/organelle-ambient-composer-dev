@@ -289,8 +289,10 @@ log, _ = run([(40, "acmout 2"), (50, "ac-setseed 7")], 8, prints=("ac-noteout",)
 check(log.count("ac-noteout:") >= 5, "clock + notes: the chord and the drone go out as notes")
 ev = [(40, "acsync 1"), (50, "ac-setseed 7"), (100, "ac-rtin 250")] + \
      [(int(200 + i * 20.833), "ac-rtin 248") for i in range(24 * 16)]
-log, _ = run(ev, 9, prints=("ac-step",))
-check(log.count("ac-step: bang") == 64, f"follows an external clock (16 beats -> {log.count('ac-step: bang')} steps)")
+log, _ = run(ev, 9, prints=("ac-step", "ac-toast"))
+# (steps counted from the external Start: a new piece starts the internal clock at once, before Sync follows)
+st = log.split("clock start")[-1].count("ac-step: bang")
+check(st == 64, f"follows an external clock (16 beats -> {st} steps)")
 
 # 16. SETUP and settings survive a restart
 d = build_tmp()
@@ -320,7 +322,7 @@ for what, pat in (("form strip", "gFillArea 3 0 0 128 8 0"), ("ladder", "gFillAr
                   ("meters", "gFillArea 3 62 20 33 33 0"), ("rhythm", "gFillArea 3 96 20 32 33 0"),
                   ("tempo", "bpm"), ("knob page", "page SHAPE")):
     check(any(pat in l for l in osc), f"OLED draws the {what}")
-check("ac-sett0: list SETUP 2 of 5 - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
+check("ac-sett0: list SETUP 2 of 8 - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
 
 # 18. the wider sound world: drone designs, the sub, electric textures, character, the vocoder, variety
 from data import DRONES, TEXTURES, CHARACTERS, FLAVOURS
@@ -590,7 +592,7 @@ run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 
 vals = open(os.path.join(d, "settings.txt")).read().split()
 log, _ = run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 1"), (550, "aux 0"),
               (700, "knob2 0.5"), (750, "knob2 0.52")], 3, d=d)
-check(len(vals) == 39 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
+check(len(vals) == 54 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
       "SENDS: a send is saved after the SETUP values and comes back after a restart")
 
 # 29. the patch asks the Organelle OS for a larger audio buffer (pd-opts.txt is appended to Pd's options)
@@ -625,6 +627,94 @@ log, _ = run([(50, "ac-setseed 7"), (300, "acsetup 1"), (310, "acsetpg 4"), (400
 sv = [l.split()[1:] for l in log.splitlines() if l.startswith("SV:")]
 check("2 Drone fm" in log and "3 Texture wind" in log and "4 Character tape" in log
       and sv[-1] == ["3112"], f"SOUNDS: Drone fm, Texture wind, Character tape applied and kept ({sv[-1]})")
+
+# 31. SETUP page 6, MUSIC (key, scale, chords stay as chosen; the bar pulse) and page 7, MIDI IN (where notes go,
+#     what breath does)
+import gen_setup as S
+def setk(pg, k, label, opts, t=400):
+    return [(t - 100, "acsetup 1"), (t - 90, f"acsetpg {pg}"), (t, f"ac-setknob {k} {(opts.index(label) + 0.5) / len(opts)}"),
+            (t + 100, "acsetup 0")]
+ev = [(40, "acmode 0"), (45, "actime 0.05"), (46, "acweird 1"), (50, "ac-setseed 7")] + setk(5, 0, "D", S.SKEYS) + \
+     setk(5, 1, "minpent", S.SSCALES, 700) + setk(5, 2, "quartal", S.SCHORDS, 1000) + [(1200, "h-mark bang"), (6000, "ac-setseed 99")]
+log, _ = run(ev, 14, prints=("ac-dronep", "h-mark", "ac-txt2"))
+after = log.split("h-mark")[-1]
+tonics = {int(float(l.split()[1])) % 12 for l in after.splitlines() if l.startswith("ac-dronep")}
+s2 = [l for l in after.splitlines() if l.startswith("ac-txt2")]
+check(tonics == {2} and s2 and all("minpent quartal" in l for l in s2[-3:]),
+      f"MUSIC: key D, minpent, quartal stay through changes and a new piece (tonics {sorted(tonics)}, {s2[-1:]})")
+def pulses(label):
+    log, _ = run([(50, "ac-setseed 7"), (60, "acrhythm 1")] + setk(5, 3, label, S.PULSES) +
+                 [(1000, "acrole 4"), (1001, "ac-pulseupd bang")], 2,
+                 prints=("ac-pulse",))
+    return [float(l.split()[1]) for l in log.splitlines() if l.startswith("ac-pulse")][-1]
+p0, p2, p3 = pulses("off"), pulses("normal"), pulses("strong")
+check(p0 == 0 and p3 > p2, f"MUSIC Pulse: off {p0}, normal {p2:.2f}, strong {p3:.2f}")
+def routed(label, notes, prints):
+    ev = [(50, "ac-setseed 7")] + setk(6, 0, label, S.ROUTES) + [(800, "h-mark bang")]
+    ev += [(1000 + 10 * i, f"ac-livenote 1 {n} 100") for i, n in enumerate(notes)]
+    ev += [(2900, "h-mark2 bang")] + [(3000 + 10 * i, f"ac-livenote 1 {n} 0") for i, n in enumerate(notes)]
+    log, _ = run(ev, 5, prints=prints + ("h-mark", "h-mark2", "ac-lvon"))
+    return log.split("h-mark: bang")[1].split("h-mark2")[0], log.split("h-mark2")[-1]
+held, _ = routed("bells", [72], ("ac-bell",))
+check("ac-bell: 72 " in held and "ac-lvon" not in held, "MIDI IN Notes to bells: a note strikes a bell, no live voice")
+held, _ = routed("chords", [60, 64, 67], tuple(f"ac-v{k}-pitch" for k in range(4)))
+ch = [int(float(l.split()[1])) for l in held.splitlines() if "-pitch:" in l and l.split()[2] == "300"][-4:]
+check(set(ch) == {60, 64, 67, 72}, f"MIDI IN Notes to chords: the held notes are the pad chord ({ch})")
+held, rel = routed("drone", [43], ("ac-dronep",))
+dr = [int(float(l.split()[1])) for l in held.splitlines() if l.startswith("ac-dronep")]
+back = [int(float(l.split()[1])) for l in rel.splitlines() if l.startswith("ac-dronep")]
+check(dr and dr[-1] == 43 and back and back[0] != 43, f"MIDI IN Notes to drone: the drone on your note, home after ({dr}, {back})")
+def swell(v):
+    ev = [(50, "ac-setseed 7")] + setk(6, 1, "swell", S.BRTOS) + [(t, f"ac-livebreath 1 {v}") for t in range(800, 6000, 200)]
+    _, a = run(ev, 6)
+    return rms_db(a[4 * SR:6 * SR, 0])
+lo, hi = swell(0), swell(127)
+check(lo < hi - 40, f"MIDI IN Breath to swell: breath sets the level (no breath {lo:.0f} dB, full {hi:.0f} dB)")
+
+held, rel = routed("cloud", [69], tuple(f"ac-gr{i}" for i in range(4)))
+gr = [l for l in held.splitlines() if l.startswith("ac-gr")]
+check(gr and any(abs(float(l.split()[1]) - 2 ** (((69 - 37) % 12) / 12)) < 0.001 for l in gr) and
+      any(l.startswith("ac-gr") for l in rel.splitlines()), f"MIDI IN Notes to cloud: a note tunes a grain stream ({gr[-1:]})")
+
+# 32. SETUP CC MAP: each CC to its own target (defaults: 1 vibrato, 2 / 7 / 11 breath, 64 hold, 74 voice tone per
+#     channel); pressure to breath; a CC remapped to a knob of the piece or the voice type
+pr = ("ac-livebreath", "ac-lvvib", "ac-lvtim", "ac-lvoff", "ac-param", "ac-lvtype", "ac-sett3", "h-mark")
+ev = [(50, "ac-setseed 7"), (600, "ac-livenote 3 60 100"), (700, "h-mark bang"), (800, "ac-ccin 7 100 1"),
+      (850, "ac-pressin 1 90"), (900, "ac-ccin 1 127 1"), (950, "ac-ccin 74 127 3"), (960, "ac-ccin 74 0 5"),
+      (1000, "ac-ccin 64 127 1"), (1100, "ac-livenote 3 60 0"), (1500, "h-mark bang"), (2000, "ac-ccin 64 0 1")]
+log, _ = run(ev, 3, prints=pr)
+mid = log.split("h-mark: bang")[1]
+late = log.split("h-mark: bang")[2]
+check("ac-livebreath: 1 100" in mid and "ac-livebreath: 1 90" in mid and "ac-lvvib: 1" in mid,
+      "CC MAP defaults: CC 7 is breath, pressure is breath, CC 1 is vibrato")
+check([l for l in mid.splitlines() if l.startswith("ac-lvtim")] == ["ac-lvtim: 0 1"],
+      "CC MAP: CC 74 sets the tone of the note on its own channel only")
+check("ac-lvoff" not in mid and "ac-lvoff: 0" in late, "CC MAP: CC 64 holds a released note until it lets go")
+sel = lambda cc: (S.CCS.index(cc) + 0.5) / len(S.CCS)
+tgt = lambda t: (S.TARGETS.index(t) + 0.5) / len(S.TARGETS)
+ev = [(50, "ac-setseed 7"), (300, "acsetup 1"), (310, "acsetpg 7"), (400, f"ac-setknob 0 {sel(71)}"),
+      (450, f"ac-setknob 1 {tgt('density')}"), (500, "ac-ccin 71 64 1"), (550, "ac-oledsetup bang"),
+      (600, f"ac-setknob 0 {sel(11)}"), (650, f"ac-setknob 1 {tgt('voice type')}"), (700, "acsetup 0"),
+      (800, "ac-ccin 11 127 1")]
+log, _ = run(ev, 2, prints=pr)
+check("ac-param: 0 0.5039" in log and "3 Last CC 71 = 64" in log and "ac-lvtype: 10" in log,
+      "CC MAP: CC 71 remapped to density moves the Dens knob; CC 11 remapped to voice type picks the type")
+
+# 33. a seed replays its piece whatever played before it (the clock and event players restart with the piece):
+#     the random generator's state, read every second, is the same
+def rngprobe(c):
+    d = c.obj("delay 3500", 1400, 0)
+    c.c(c.obj("loadbang", 1400, -20), 0, d, 0)
+    m = c.obj("metro 1000", 1400, 20)
+    c.c(d, 0, m, 0)
+    c.c(c.to(m, "expr acr1*1e6"), 0, c.obj("print RS", 1400, 80), 0)
+def rng_after(first):
+    log, _ = run([(10, f"ac-setseed {first}"), (40, "acdens 1"), (3000, "ac-setseed 2718")], 40, extra=rngprobe)
+    return [l.split()[1] for l in log.splitlines() if l.startswith("RS:")]
+r1, r2 = rng_after(140919), rng_after(137919)
+check(len(r1) > 30 and r1 == r2 and len(set(r1)) > 20,
+      f"a seed replays its piece after any other piece (random state equal for {sum(x == y for x, y in zip(r1, r2))} "
+      f"of {len(r1)} s)")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

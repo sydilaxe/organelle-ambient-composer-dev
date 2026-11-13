@@ -30,7 +30,7 @@ def main_patch():
     m.c(m.m(m.obj("loadbang", 400, 40), "0"), 0, m.obj("s midiOutGate", 400, 90), 0)
     m.comment("control", 20, 200)
     for i, sub in enumerate((B.globals_(), B.rng(), B.seed(), B.piece(), B.section(), B.change(), B.layers(),
-                             B.players(), B.capture(), B.verb(), B.stereo(), B.rhythm(), L.midi_in(), L.live(), L.memories(), L.tables(),
+                             B.players(), B.capture(), B.verb(), B.stereo(), B.rhythm(), L.midi_in(), L.cc_map(), L.live(), L.memories(), L.tables(),
                              O.oled(), S.settings(), S.setup(), S.midi_out(), S.clock_in(), S.cpu_guard(),
                              U.knobs(), U.keys(), U.screen())):
         m.sub(sub, 20 + (i % 4) * 110, 225 + (i // 4) * 30)
@@ -61,7 +61,7 @@ def build(out=OUT):
         from data import PAGES
         from data import FILE_KNOBS
         kd = [d for p in PAGES for _, _, d in p]
-        vals = kd[:FILE_KNOBS] + [1, 0, -1, 0, 0.7, 48, 1, 1.2, 0, 1, 0.8, 0, 0, 48, 1] + kd[FILE_KNOBS:] + [0, 0, 0, 0]
+        vals = kd[:FILE_KNOBS] + [1, 0, -1, 0, 0.7, 48, 1, 1.2, 0, 1, 0.8, 0, 0, 48, 1] + kd[FILE_KNOBS:] + [0, 0, 0, 0] + [0, 0, 0, 2, 0, 0, 1, 5.5] + gen_setup.CC_DEFAULTS
         open(sf, "w").write(" ".join(f"{v:g}" for v in vals) + ";\n")
     # Pd start-up options: the Organelle OS starts Pd with a 6 ms audio buffer and appends the patch folder's
     # pd-opts.txt, so a later -audiobuf wins. 25 ms gives Pd room for brief spikes (screen, section changes,

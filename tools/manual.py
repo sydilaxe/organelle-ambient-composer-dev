@@ -110,6 +110,27 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
     "Drone": ("auto, " + ", ".join(DT.DRONES), "The drone's design; auto = the piece's (and its break's)."),
     "Texture": ("auto, " + ", ".join(DT.TEXTURES), "The texture layer; auto = the section's two."),
     "Character": ("auto, " + ", ".join(DT.CHARACTERS), "The effect on the pads; auto = the piece's."),
+    "Key": ("auto, C-B", "The home key. A fixed key stays: no modulation, no key plan, no key from you (a top-octave "
+            "key still moves it). Applies at once with a chord change."),
+    "Scale": ("auto, " + ", ".join(n for n, _ in DT.SCALES), "The scale. A fixed scale stays (no chance scale "
+              "changes). Applies at once."),
+    "Chords": ("auto, " + ", ".join(n for n, _, _ in DT.FAMILIES), "How the 4 pad voices stack the chord "
+               "(see Voicings). Applies at once."),
+    "Pulse": (", ".join(S.PULSES), "How much the drone and sub swell on every bar (normal = as designed; its "
+              "depth also follows the section and the Rhy knob)."),
+    "Notes to": (", ".join(S.ROUTES), "What MIDI notes and the Organelle keys play: voice = the live voice; chords "
+                 "= the notes you hold are the pad chord; drone = the drone and sub on your note; bells = a bell per "
+                 "note; cloud = each note tunes a grain stream. The notes still steer the harmony (Follow you)."),
+    "Breath to": (", ".join(S.BRTOS), "What breath does: voice+piece = the live voice's level and tone and the "
+                  "piece's density; voice or density alone; brightness, reverb (the sends) or swell (the whole "
+                  "level, like an expression pedal). After 10 s without breath it lets go."),
+    "Pressure to": ("a target (see CC)", "What channel and poly pressure do (default breath)."),
+    "CC": (", ".join(str(n) for n in S.CCS), "Knob 1 picks a CC to set; row 2 shows what it does. Defaults: 1 vibrato, "
+           "2 / 7 / 11 breath, 64 hold, 71 off, 74 voice tone."),
+    "to": (", ".join(S.TARGETS), "off; breath (into the breath path, see Breath to); vibrato (the live voices' vibrato depth); voice tone and voice level (per note: the voice on the CC's channel, channel 1 = all, so MPE controllers shape each note); voice type (the live voices' synthesis type, across the 11 pad types); hold (a sustain pedal: released notes keep sounding until it lets go); density, colour, reverb, motion (move that knob); swell (the whole level)."),
+    "Last CC": ("shown only", "The last CC that arrived and its value (0-127), to find what your controller sends."),
+    "Vib rate": ("3-8 Hz", "The speed of the live voices' vibrato (its depth comes from a CC mapped to vibrato)."),
+    "Breath in": ("shown only", "The breath level arriving now (after the Breath curve)."),
 }
 
 INMODE_DESC = {
@@ -318,7 +339,8 @@ def story():
           Spacer(1, 6),
           Table([[shot("setup", 3.1, "SETUP page 1"), shot("setup_page2", 3.1, "SETUP page 2")],
                  [shot("setup_page3", 3.1, "SETUP page 3"), shot("setup_page4", 3.1, "SETUP page 4")],
-                 [shot("setup_page5", 3.1, "SETUP page 5: SOUNDS"), ""]],
+                 [shot("setup_page5", 3.1, "SETUP page 5: SOUNDS"), shot("setup_page6", 3.1, "SETUP page 6: MUSIC")],
+                 [shot("setup_page7", 3.1, "SETUP page 7: MIDI IN"), shot("setup_page8", 3.1, "SETUP page 8: CC MAP")]],
                 colWidths=[3.35 * inch, 3.35 * inch])]
 
     s += [PageBreak(), Paragraph("6  How a piece is composed", H1),

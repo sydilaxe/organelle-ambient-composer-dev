@@ -167,8 +167,8 @@ def piece():
     c.comment("A new piece: tonic, scale, voicings, timbre palette, ratios, tempo and meter, reverb, form")
     steps = [
         RNG,
-        V("actonic", "36 + int(acr1*12)"),
-        V("acsci", "int(acr2*%d)" % NS), Call("ac-loadscale"),
+        V("actonic", "if(ackeyc > 0, 35 + ackeyc, 36 + int(acr1*12))"),
+        V("acsci", "if(acsclc > 0, acsclc - 1, int(acr2*%d))" % NS), Call("ac-loadscale"),
         V("acfamA", f"int(acr3*{NF})"), V("acfamB", f"int(acr4*{NF})"),
         RNG,
         # the palette leans to the electronic and bell-like types (weights in data.py)
@@ -183,7 +183,7 @@ def piece():
         SendL("ac-bellset", ["acbellt[int(acbellI)*3]", "acbellt[int(acbellI)*3+1]", "acbellt[int(acbellI)*3+2]"]),
         RNG,
         SendL("ac-dint", ["acdintt[int(acr1*5)]"]),
-        SendL("ac-lvtype", ["acpal1"]),
+        SendL("ac-lvtype", ["if(acvtsel >= 0, acvtsel, acpal1)"]),
         # the piece's drone design (and one for its break), sub mode, character on the pads, auto-vocode
         RNG,
         X(f"int(acr1*{len(DRONES)}); int(acr2*{len(DRONES)}); int(acr3*3); if(acr4 < 0.22, 0, 1 + int(acr4*4.99) % 4)",
@@ -210,6 +210,9 @@ def piece():
         steps += [RNG, SendL(f"ac-v{k}-lfo", [f"1/(30/(acbpm0/(1 + (acbpm0 > {HALFTIME})))*acmeter*acbreath[{k}]*(0.97+acr1*0.06))",
                                               "0.03+acr2*0.15", "0.04+acr3*0.25", "0.03+acr4*0.2"])]
     steps += [
+        # the clock and the event players stop until the piece is set up, then start afresh (np3), so a seed
+        # replays its piece whatever played before
+        Send("ac-playstop"), Send("ac-clockhalt"),
         X("0; -1; 0; 1; 0; 0; 1; 0; 0; 0", "v acdeg", "v acpend", "v acchg", "v acfirst", "v acended", "v accapt",
           "v acrun", "v acsec", "v acprogn", "v acstopped"),
         Send("ac-master", "1 3000"),
@@ -226,8 +229,10 @@ def piece():
         Call("ac-change"),
         Call("ac-brightupd"), Call("ac-inputupd"),
         SendL("ac-weird", ["acweird"]), SendL("ac-motion", ["acmotion"]),
-        V("actick", "-1"), Call("ac-clockstart"),
+        V("actick", "-1"), Send("ac-clockgo"), Call("ac-clockstart"),
+        Later("ac-playgo", 60),
     ])
+    proc(c, "ac-playgo", [Send(t) for t in ("ac-ctick", "ac-rtick", "ac-btick", "ac-dtick", "ac-ttick")])
     # the form: an archetype's energy curve over 6-12 sections, then a role for each section
     arch = ARCH_EXPR.replace("X", "((aci+0.5)/acnsec)")
     proc(c, "ac-plan", [
@@ -285,7 +290,7 @@ def section():
         V("acrole", "if(acmode==1, acroles[int(acsec)], if(acr1<0.25, 1, if(acr1<0.55, 2, "
                     "if(acr1<0.8, 3, 5))))"),
         V("acenergy", "if(acmode==1, acplan[int(acsec)], 0.3 + acr2*0.7)"),
-        V("acfam", f"if(acrole==6, acfamA, if(acr3<0.55, acfamA, if(acr3<0.88, acfamB, int(acr4*{NF}))))"),
+        V("acfam", f"if(acchdc > 0, acchdc - 1, if(acrole==6, acfamA, if(acr3<0.55, acfamA, if(acr3<0.88, acfamB, int(acr4*{NF})))))"),
         RNG,
         V("actidef", "acrtide[int(acrole)] * (0.85 + acr1*0.3)"),
         V("acdauto", "if(acrole == 5 && acr2 < 0.6, acdtype2, acdtype)"),
@@ -308,13 +313,13 @@ def section():
         X("12*(1 + int(acr1*2)); (0.08 + acr2*0.25)*acrhythm; (acrole==3 || acrole==4) && acr3 < 0.6",
           "v acmoct", "v acmswing", "v acgdlock"),
         # key plan: move to this section's key area at the next chord change
-        If("acmode==1", [V("acpend", "if(((int(actonic)-36) % 12) != ((int(achome)-36 + int(ackeyp[int(acsec)])) "
+        If("acmode==1 && ackeyc == 0", [V("acpend", "if(((int(actonic)-36) % 12) != ((int(achome)-36 + int(ackeyp[int(acsec)])) "
                                      "% 12 + 12) % 12, ((int(achome)-36 + int(ackeyp[int(acsec)])) % 12 + 12) % 12, "
                                      "acpend)")]),
         V("acprogi", "0"),
         # tempo and the drone's pulse on the bar
         Call("ac-settempo"),
-        SendL("ac-pulse", ["acrpulse[int(acrole)] * (0.3 + 1.4*acrhythm)"]),
+        Call("ac-pulseupd"),
         # the stereo scene: where the pads live, where bells and motion play, how far the cloud spreads
         RNG,
         V("acscene", "acscrole[int(acrole)*3 + int(acr1*3)]"),
@@ -351,7 +356,7 @@ def section():
         steps += [RNG, X(f"if(acspad==0, if(acr1<0.4, acpal1, if(acr1<0.72, acpal2, if(acr1<0.9, acpal3, "
                          f"int(acr2*{len(FLAVOURS)})))), if(acspad==1, {RAW_EXPR}, acspad-2))",
                          lambda c, src, k=k: _flav(c, src, k))]
-    steps += [SendL("ac-lvtype", ["if(acspad>=2, acspad-2, if(acspad==1, 5, acpal1))"])]
+    steps += [SendL("ac-lvtype", ["if(acvtsel >= 0, acvtsel, if(acspad>=2, acspad-2, if(acspad==1, 5, acpal1)))"])]
     proc(c, "ac-padpick", steps)
     # SETUP SOUNDS overrides on what the section chose (auto = the section's own choice)
     proc(c, "ac-sndovr", [
@@ -415,15 +420,16 @@ def layers():
     c.comment("Layer levels from density (knob x section energy), the section's layers, mutes, input mode")
     th = lambda t: f"min(1, max(0, (acdeff-{t})/0.15))"
     lay = [
-        ("drone", "acfdrone*acmdrone*(1-acended)*(0.55+0.45*min(1, acdeff*3))"),
+        ("drone", "acmdrone*(1-acended)*max(acfdrone*(0.55+0.45*min(1, acdeff*3)), (acroute==2)*0.9)"),
         ("pad", f"acfpad*acmpad*(1-acended)*{th(0.06)}"),
         ("tex", f"(acshed < 2)*acftex*acmtex*(1-acended)*{th(0.28)}"),
-        ("cloud", f"(acshed < 1)*acmcloud*(1-acended)*max(acfcloud*{th(0.42)}, ((acinmode==2) || (acinmode==0)*(acinclass>=1))"
-                  f"*min(1, acinput*2)*0.8)"),
-        ("bell", f"acmbell*(1-acended)*max(acfbell*{th(0.45)}, (acinmode==4)*min(1, acinput*2))"),
+        ("cloud", f"(acshed < 1)*acmcloud*(1-acended)*max(acfcloud*{th(0.42)}, max(((acinmode==2) || (acinmode==0)*(acinclass>=1))"
+                  f"*min(1, acinput*2)*0.8, (acroute==4)*0.85))"),
+        ("bell", f"acmbell*(1-acended)*max(acfbell*{th(0.45)}, max((acinmode==4)*min(1, acinput*2), (acroute==3)*0.9))"),
         ("motion", f"acfmotion*acmmotion*(1-acended)*{th(0.3)}*min(1, acrhythm*2.5)"),
     ]
-    steps = [V("acdeff", "min(1, if(acmode==1, acenergy*(0.35+1.3*acdens), acdens*(0.8+0.4*acenergy)) + 0.35*acbreath)")]
+    steps = [V("acdeff", "min(1, if(acmode==1, acenergy*(0.35+1.3*acdens), acdens*(0.8+0.4*acenergy)) + 0.35*acbreath*"
+                             "(acbrto == 0 || acbrto == 2))")]
     for name, e in lay:
         steps += [V("acg" + name, e)]
         if name == "drone":
@@ -535,6 +541,8 @@ def rhythm():
     c.c(c.to(c.recv("ac-init"), "delay 50"), 0, met, 0)
     c.c(c.to(c.recv("ac-bpm"), "expr 60000/max(20, $f1)/24"), 0, met, 1)
     c.c(met, 0, c.obj("s ac-mtick"), 0)
+    c.c(c.m(c.recv("ac-clockhalt"), "stop"), 0, met, 0)
+    c.c(c.recv("ac-clockgo"), 0, met, 0)
     proc(c, "ac-mtick", [If("acsync == 0", [Send("ac-tick")])])
     # the tempo of this section: the piece's place in the tempo range, x the role's tempo
     proc(c, "ac-settempo", [V("acbpm0", TEMPO0), V("acbpm", "acbpm0 * acrtempo[int(acrole)]"), SendL("ac-bpm", ["acbpm"])])
@@ -571,10 +579,10 @@ def change():
     steps = [
         RNG,
         V("acchsec", "(6 + 84*pow(actide, 2)) * actidef * (0.75+acr3*0.5)"),
-        V("acnewt", "if(acpend>=0, 36 + acpend, if(acmode==0 && acr1 < 0.03 + acweird*0.15 && acfirst==0, "
+        V("acnewt", "if(acpend>=0, 36 + acpend, if(acmode==0 && ackeyc == 0 && acr1 < 0.03 + acweird*0.15 && acfirst==0, "
                     "36 + ((int(actonic) - 36 + int(acmods[int(acr2*12)])) % 12 + 12) % 12, actonic))"),
         X("acnewt != actonic; acnewt; -1", "v acmodflag", "v actonic", "v acpend"),
-        If("acr3 < acweird*0.12 && acfirst==0", [RNG, V("acsci", f"int(acr4*{NS})"), Call("ac-loadscale")]),
+        If("acr3 < acweird*0.12 && acfirst==0 && acsclc == 0", [RNG, V("acsci", f"int(acr4*{NS})"), Call("ac-loadscale")]),
         RNG,
         V("acdeg", "if(acmodflag || acfirst, 0, if(acrole==6 && acprogi < acprogn, acprog[int(acprogi)], "
                    "if(acr1 < 0.1 + 0.15*(1-acweird) && acdeg != 0, 0, "
@@ -611,13 +619,17 @@ def change():
                   T("acch", k, f"acnew[{k}]")]
         steps += [SendL(f"ac-res{k}", [f"1000/mtof(43 + fmod(acnew[{k}]-43, 24))", "2500"])]
     steps += [Later("ac-grains", 13), Later("ac-change2", 29, stop="ac-chgstop")]
-    proc(c, "ac-change", [If("acrun", steps)])
+    # Notes to chords: while you hold notes, they are the chord (the composer waits)
+    proc(c, "ac-change", [If("acrun && (acroute != 1 || acheld == 0)", steps,
+                             [If("acrun", [Arm("ac-change", "3000", stop="ac-chgstop")])])])
     steps = []
     steps += [SendL(f"ac-band{k}", [f"mtof(min(120, acnew[{k % 4}] + {12 * (k // 4) + 12}))", "3000"]) for k in range(8)]
     steps += [
-        SendL("ac-dronep", ["actonic", "if(acfirst, 0, if(acmodflag, 9000, 200))"]),
-        SendL("ac-subp", ["mtof(if(acsubm==0 || (acsubm==2 && int(acsec) % 2 == 0), actonic - 12, "
-                          "acnew[0] - 12*ceil((acnew[0] - 42)/12)))", "if(acfirst, 0, if(acmodflag, 9000, 1800))"]),
+        # (Notes to drone: the drone stays on your note while you hold it)
+        If("acroute != 2 || acheld == 0", [
+            SendL("ac-dronep", ["actonic", "if(acfirst, 0, if(acmodflag, 9000, 200))"]),
+            SendL("ac-subp", ["mtof(if(acsubm==0 || (acsubm==2 && int(acsec) % 2 == 0), actonic - 12, "
+                              "acnew[0] - 12*ceil((acnew[0] - 42)/12)))", "if(acfirst, 0, if(acmodflag, 9000, 1800))"])]),
         SendL("ac-ringf", ["mtof(acnew[1] + 12)", "3000"]),
         SendL("ac-radio", ["mtof(min(115, acnew[2] + 36))", "4000"]),
     ] + [SendL(f"ac-atmf{k}", [f"mtof(min(112, acnew[{k % 4}] + {24 + 12 * (k // 4)}))", "6000"]) for k in range(6)] + [
@@ -637,7 +649,9 @@ def change():
     for i in range(4):
         gs += [RNG, SendL(f"ac-gr{i}", [f"if(acharm && acinp > 0, pow(2, (acnew[{i}] + 12*floor((acinp - acnew[{i}])/12 + 0.5)"
                                         f" - acinp)/12), acgrt[int(acr1*12)] * if(acr2 < acweird*0.3, -1, 1))"])]
-    proc(c, "ac-grains", gs)
+    # Notes to cloud: held notes tune the grain streams (the chord's ratios come back when you let go)
+    proc(c, "ac-grains", [If("acroute != 4 || acheld == 0", gs)])
+    proc(c, "ac-pulseupd", [SendL("ac-pulse", ["min(0.9, acrpulse[int(acrole)] * (0.3 + 1.4*acrhythm) * " + _S.PULSE_X + ")"])])
     return c
 
 
@@ -649,14 +663,14 @@ def players():
             SendL("ac-bell", ["acbp", "0.35+0.65*acr2", "min(0.97, max(0.03, acscn[int(acscene)*10 + 4] + "
                                                      "acscn[int(acscene)*10 + 5]*(acr3 - 0.5)))"])]
     proc(c, "ac-btick", [
-        If("acgbell > 0.01 && acrun", [
+        If("acgbell > 0.01 && acrun && (acroute != 3 || acnow - aclnt > 8000)", [
             RNG,
             If("acr1 > 0.18", play),
             V("acbi", "(acbi+1) % 5"),
             If("acbi==0 && acr3<0.6", [RNG, T("acmotif", "int(acr1*5)", "acmotif[int(acr1*5)] + int(acr2*5) - 2")]),
         ]),
         RNG,
-        Arm("ac-btick", f"(60000/{BPMH}) * acmrhy[int(acbi)] * (1 + int(acr4*3)) * (1.6 - 0.7*acdeff) * (0.9 + acr1*0.2)"),
+        Arm("ac-btick", f"(60000/{BPMH}) * acmrhy[int(acbi)] * (1 + int(acr4*3)) * (1.6 - 0.7*acdeff) * (0.9 + acr1*0.2)", stop="ac-playstop"),
     ])
     proc(c, "ac-bellnow", [If("acmbell && acrun", [RNG] + play + [V("acbi", "(acbi+1) % 5")])])
     proc(c, "ac-rtick", [
@@ -666,7 +680,7 @@ def players():
             SendL("ac-drop", ["acdropi", "min(100, acch[int(acr1*4)] + 24 + 12*int(acr2*2))", "acr3"]),
         ]),
         RNG,
-        Arm("ac-rtick", "(90 + 2200*(1-acdeff)) * (0.15 + 1.7*acr4)"),
+        Arm("ac-rtick", "(90 + 2200*(1-acdeff)) * (0.15 + 1.7*acr4)", stop="ac-playstop"),
     ])
     proc(c, "ac-ctick", [
         If("acgt3 > 0.01", [
@@ -677,18 +691,18 @@ def players():
             ], [RNG, V("acbc", "2 + int(acr1*5)")]),
         ]),
         RNG,
-        Arm("ac-ctick", "if(acbc>0, 80 + acr2*240, 1500 + acr3*9000)"),
+        Arm("ac-ctick", "if(acbc>0, 80 + acr2*240, 1500 + acr3*9000)", stop="ac-playstop"),
     ])
     # ghost input mode: a played onset rings the next bell note
     # data texture: bursts of blips on chord tones
     proc(c, "ac-ttick", [RNG, If("acgatm > 0.01 && acatmcur == 1 && acr1 < 0.4", [Send("ac-thunder")]),
-                         Arm("ac-ttick", "9000 + acr2*20000")])
+                         Arm("ac-ttick", "9000 + acr2*20000", stop="ac-playstop")])
     proc(c, "ac-dtick", [
         If("acgt5 > 0.01", [If("acdb > 0", [
             RNG, SendL("ac-data", ["min(110, acnew[int(acr1*4)] + 36 + 12*int(acr2*2))", "25 + acr3*50"]),
             V("acdb", "acdb - 1")], [RNG, V("acdb", "4 + int(acr1*10)")])]),
         RNG,
-        Arm("ac-dtick", "if(acdb > 0, 45 + acr2*80, 1200 + acr3*6000)"),
+        Arm("ac-dtick", "if(acdb > 0, 45 + acr2*80, 1200 + acr3*6000)", stop="ac-playstop"),
     ])
     # input onsets: counted for the class; in ghost mode (and for plucked sounds in auto) they ring a bell
     proc(c, "ac-inonset", [Call("ac-inonset2"),
