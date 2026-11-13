@@ -13,9 +13,10 @@ GLOBALS = dict(
     acgbr=2, acnbr=48, aclbv=0, aclbs=0,
     acinlvl=0, acinp=-1, acinpp=-1, acinclr=0, acpconf=0, acnoisy=0, acons=0, acact=0, acinclass=0,
     acinhf=-40, acpst=0, acharm=0, acharmp=0, acgdry=0,
-    acclt=0, aci2=40, aclnt=-1e+06, acyn=0, acbrfx=-1, acwi=0, acmemn=0, acmemw=0, acmemt=-1e+06, acmemr=0, acmems=0, acmemrate=1, acgmem=0, acrec=0,
+    acclt=0, aci2=40, aclnt=-1e+06, acyn=0, acbrfx=-1,
+    acctlch=1, acctlv=0, acctlv127=0, acccn=0, actg=0, acvtsel=-1, achold=0, acwi=0, acmemn=0, acmemw=0, acmemt=-1e+06, acmemr=0, acmems=0, acmemrate=1, acgmem=0, acrec=0,
 )
-ARRAYS = dict(acyh=NV, acbrch=17, aclvn=NV, aclvc=NV, aclva=NV, acbendt=17, achpc=12, acmemp=4)
+ARRAYS = dict(acyh=NV, actim=17, aclev=17, aclsus=NV, acbrch=17, aclvn=NV, aclvc=NV, aclva=NV, acbendt=17, achpc=12, acmemp=4)
 CLASSES = ["quiet", "pitched", "plucked", "texture"]
 
 
@@ -46,8 +47,8 @@ def midi_in():
     c.c(bx, 0, bp2, 0)
     c.c(bp2, 0, c.obj("s ac-livebend"), 0)
     c.col()
-    # breath: channel pressure, poly pressure, CC 2 / 11
-    br = c.obj("s ac-livebreath")
+    # channel and poly pressure -> ac-pressin "ch value127" (SETUP Pressure to)
+    br = c.obj("s ac-pressin")
     tch = c.obj("touchin")
     tp = c.obj("pack f f")
     c.c(tch, 1, tp, 1)
@@ -65,15 +66,56 @@ def midi_in():
     rt = c.ch(c.m(cp, "$2 $3 $1"), "route 123 120")
     for o in (0, 1):
         c.c(c.to((rt, o), "t b"), 0, c.obj("s ac-allnotesoff"), 0)
-    # breath CCs: the ones SETUP Breath CC chooses ("cc value ch")
+    # every other CC -> ac-ccin "cc value ch" (SETUP CC MAP)
+    c.c(c.m((rt, 2), "$1 $2 $3"), 0, c.obj("s ac-ccin"), 0)
+    return c
+
+
+def cc_map():
+    """SETUP CC MAP and Pressure to: a CC or pressure goes to one target (gen_setup.TARGETS)."""
     import gen_setup as _S
-    tl = c.to(c.m((rt, 2), "$1 $2 $3"), "t l l")
-    sp = c.obj("spigot")
-    gate = c.ch((tl, 1), "unpack f f f")
-    c.c(c.to(gate, "expr " + _S.BRCC_EXPR), 0, sp, 1)
-    c.c(c.to((tl, 0), "list split 1"), 1, sp, 0)
-    c.c(c.m(sp, "$2 $1"), 0, br, 0)
-    # breath values: "ch value127" -> "ch 0..1" (channel folded)
+    c = Canvas("cc-map", w=2400)
+    c.comment("CCs and pressure -> their target: breath, the live voices (per channel; channel 1 = all), hold, "
+              "or a knob of the piece")
+    up = c.to(c.recv("ac-ccin"), "unpack f f f")
+    c.c(up, 2, c.obj("v acctlch"), 0)
+    c.c(up, 1, c.obj("v acctlv127"), 0)
+    tb = c.to(up, "t b f")
+    c.c(tb, 1, c.obj("v acccn"), 0)
+    look = "-1"
+    for j, n in reversed(list(enumerate(_S.CCS))):
+        look = f"if(acccn == {n}, acmap{j}, {look})"
+    run_steps(c, (tb, 0), [X("acccn; acctlv127", "v aclastcc", "v aclastv"), V("actg", look),
+                           If("actg >= 0", [Call("ac-ctl")])])
+    c.col()
+    up = c.to(c.recv("ac-pressin"), "unpack f f")
+    c.c(up, 1, c.obj("v acctlv127"), 0)
+    tb = c.to(up, "t b f")
+    c.c(tb, 1, c.obj("v acctlch"), 0)
+    run_steps(c, (tb, 0), [V("actg", "acpressto"), Call("ac-ctl")])
+    c.col()
+    vch = lambda i: f"aclvc[{i}]"
+    tone = lambda i: f"0.5 + actim[int({vch(i)})] + ({vch(i)} != 1)*actim[1]"
+    lev = lambda i: f"(1 - aclev[int({vch(i)})])*(1 - ({vch(i)} != 1)*aclev[1])"
+    mine = lambda i: f"aclvn[{i}] >= 0 && (aclvc[{i}] == acctlch || acctlch == 1)"
+    knobs = [n for p in _S.PAGES for _, n, _ in p]
+    proc(c, "ac-ctl", [
+        V("acctlch", "(acctlch - 1) % 16 + 1"), V("acctlv", "acctlv127/127"),
+        If("actg == 1", [SendL("ac-livebreath", ["acctlch", "acctlv127"])]),
+        If("actg == 2", [SendL("ac-lvvib", ["acctlv"])]),
+        If("actg == 3", [T("actim", "acctlch", "acctlv - 0.5")]
+           + [If(mine(i), [SendL("ac-lvtim", [str(i), tone(i)])]) for i in range(NV)]),
+        If("actg == 4", [T("aclev", "acctlch", "1 - acctlv")]
+           + [If(mine(i), [SendL("ac-lvlev", [str(i), lev(i)])]) for i in range(NV)]),
+        If("actg == 5", [V("acvtsel", "int(acctlv*10.99)"), SendL("ac-lvtype", ["acvtsel"])]),
+        If("actg == 6", [If("(acctlv >= 0.5) != achold", [V("achold", "acctlv >= 0.5"),
+                                                          If("achold == 0", [Call("ac-holdoff")])])]),
+        If("actg == 10", [SendL("ac-brsw", ["acctlv", "30"])]),
+    ] + [If(f"actg == {t}", [T("acparams", knobs.index(n), "acctlv"), SendL("ac-param", [str(knobs.index(n)), "acctlv"])])
+         for t, n in _S.TARGET_KNOB.items()])
+    # a new note takes its channel's tone and level
+    proc(c, "ac-lvctl", [SendL("ac-lvtim", ["acvi", "0.5 + actim[int(aclch)] + (aclch != 1)*actim[1]"]),
+                         SendL("ac-lvlev", ["acvi", "(1 - aclev[int(aclch)])*(1 - (aclch != 1)*aclev[1])"])])
     return c
 
 
@@ -88,7 +130,7 @@ def live():
     proc(c, "ac-now", [V("acnow", "acnow + 100"), If("acrun", [V("acel", "acel + 100/actime"),
                                                                V("acsecel", "acsecel + 100")]), If("int(acnow) % 500 == 0", [Call("ac-listen")]), Call("ac-ana"),
                             # SETUP page 7 shows the breath level as it comes in
-                            If("acsetup && acsetpg == 6 && int(acnow) % 300 == 0", [Call("ac-oledsetup")])])
+                            If("acsetup && acsetpg >= 6 && int(acnow) % 300 == 0", [Call("ac-oledsetup")])])
     # ---- notes
     up = c.to(c.recv("ac-livenote"), "unpack f f f")
     for i, n in ((2, "aclvel"), (1, "aclnote")):
@@ -102,7 +144,8 @@ def live():
         V("acvi", f"if(aclvn[0]<0, 0, if(aclvn[1]<0, 1, if(aclvn[2]<0, 2, if(aclvn[3]<0, 3, {oldest}))))"),
         V("acheld", "min(4, acheld + (aclvn[int(acvi)] < 0))"),
         V("aclage", "aclage + 1"),
-        T("aclvn", "acvi", "aclnote"), T("aclvc", "acvi", "aclch"), T("aclva", "acvi", "aclage"),
+        T("aclvn", "acvi", "aclnote"), T("aclvc", "acvi", "aclch"), T("aclva", "acvi", "aclage"), T("aclsus", "acvi", "0"),
+        Call("ac-lvctl"),
         SendL("ac-lvbr", ["acvi", "if(acbrmode, max(acbrch[int(aclch)], acbrch[1]), 1)"]),
         If("acroute == 0", [SendL("ac-lvon", ["acvi", "aclnote + acbendt[int(aclch)]", "aclvel/127"])]),
         V("aclnt", "acnow"),
@@ -125,7 +168,14 @@ def live():
         If("acroute == 4 && acvi >= 0", [If(f"acvi == {i}", [SendL(f"ac-gr{i}", ["1"])]) for i in range(NV)]),
         If("acroute >= 2 && acheld == 0", [Call("ac-routehome")]),
     ]
-    run_steps(c, (tb, 0), [If("aclvel > 0", on, off)])
+    proc(c, "ac-noteoff", off)
+    # hold (a CC mapped to hold, e.g. 64): a released note keeps sounding until hold lets go
+    held_i = V("acvi", " + ".join(f"if(aclvn[{i}]==aclnote && aclvc[{i}]==aclch, {i + 1}, 0)" for i in range(NV)) + " - 1")
+    run_steps(c, (tb, 0), [If("aclvel > 0", on, [If("achold", [held_i, If("acvi >= 0", [T("aclsus", "acvi", "1")])],
+                                                     [Call("ac-noteoff")])])])
+    proc(c, "ac-holdoff", [If(f"aclsus[{i}] && aclvn[{i}] >= 0", [V("aclnote", f"aclvn[{i}]"), V("aclch", f"aclvc[{i}]"),
+                                                                 T("aclsus", i, "0"), Call("ac-noteoff")])
+                           for i in range(NV)])
     c.col()
     # Notes to chords: the held notes become the pad chord (doubled an octave up when fewer than 4)
     steps = [V("acyn", "0")] + [If(f"aclvn[{i}] >= 0", [T("acyh", "acyn", f"aclvn[{i}]"), V("acyn", "acyn + 1")])

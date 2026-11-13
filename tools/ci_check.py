@@ -320,7 +320,7 @@ for what, pat in (("form strip", "gFillArea 3 0 0 128 8 0"), ("ladder", "gFillAr
                   ("meters", "gFillArea 3 62 20 33 33 0"), ("rhythm", "gFillArea 3 96 20 32 33 0"),
                   ("tempo", "bpm"), ("knob page", "page SHAPE")):
     check(any(pat in l for l in osc), f"OLED draws the {what}")
-check("ac-sett0: list SETUP 2 of 7 - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
+check("ac-sett0: list SETUP 2 of 8 - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
 
 # 18. the wider sound world: drone designs, the sub, electric textures, character, the vocoder, variety
 from data import DRONES, TEXTURES, CHARACTERS, FLAVOURS
@@ -590,7 +590,7 @@ run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 
 vals = open(os.path.join(d, "settings.txt")).read().split()
 log, _ = run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 1"), (550, "aux 0"),
               (700, "knob2 0.5"), (750, "knob2 0.52")], 3, d=d)
-check(len(vals) == 46 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
+check(len(vals) == 54 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
       "SENDS: a send is saved after the SETUP values and comes back after a restart")
 
 # 29. the patch asks the Organelle OS for a larger audio buffer (pd-opts.txt is appended to Pd's options)
@@ -668,14 +668,35 @@ def swell(v):
     return rms_db(a[4 * SR:6 * SR, 0])
 lo, hi = swell(0), swell(127)
 check(lo < hi - 40, f"MIDI IN Breath to swell: breath sets the level (no breath {lo:.0f} dB, full {hi:.0f} dB)")
-check(all(eval(S.BRCC_EXPR.replace("$f1", str(cc)).replace("&&", " and ").replace("||", " or "), {"acbrcc": i})
-          == (cc in want) for i, want in enumerate([(2, 11), (2,), (11,), (1,), (74,), ()]) for cc in (1, 2, 7, 11, 74)),
-      "MIDI IN Breath CC: each choice listens to its CC only (touch only = none)")
 
 held, rel = routed("cloud", [69], tuple(f"ac-gr{i}" for i in range(4)))
 gr = [l for l in held.splitlines() if l.startswith("ac-gr")]
 check(gr and any(abs(float(l.split()[1]) - 2 ** (((69 - 37) % 12) / 12)) < 0.001 for l in gr) and
       any(l.startswith("ac-gr") for l in rel.splitlines()), f"MIDI IN Notes to cloud: a note tunes a grain stream ({gr[-1:]})")
+
+# 32. SETUP CC MAP: each CC to its own target (defaults: 1 vibrato, 2 / 7 / 11 breath, 64 hold, 74 voice tone per
+#     channel); pressure to breath; a CC remapped to a knob of the piece or the voice type
+pr = ("ac-livebreath", "ac-lvvib", "ac-lvtim", "ac-lvoff", "ac-param", "ac-lvtype", "ac-sett3", "h-mark")
+ev = [(50, "ac-setseed 7"), (600, "ac-livenote 3 60 100"), (700, "h-mark bang"), (800, "ac-ccin 7 100 1"),
+      (850, "ac-pressin 1 90"), (900, "ac-ccin 1 127 1"), (950, "ac-ccin 74 127 3"), (960, "ac-ccin 74 0 5"),
+      (1000, "ac-ccin 64 127 1"), (1100, "ac-livenote 3 60 0"), (1500, "h-mark bang"), (2000, "ac-ccin 64 0 1")]
+log, _ = run(ev, 3, prints=pr)
+mid = log.split("h-mark: bang")[1]
+late = log.split("h-mark: bang")[2]
+check("ac-livebreath: 1 100" in mid and "ac-livebreath: 1 90" in mid and "ac-lvvib: 1" in mid,
+      "CC MAP defaults: CC 7 is breath, pressure is breath, CC 1 is vibrato")
+check([l for l in mid.splitlines() if l.startswith("ac-lvtim")] == ["ac-lvtim: 0 1"],
+      "CC MAP: CC 74 sets the tone of the note on its own channel only")
+check("ac-lvoff" not in mid and "ac-lvoff: 0" in late, "CC MAP: CC 64 holds a released note until it lets go")
+sel = lambda cc: (S.CCS.index(cc) + 0.5) / len(S.CCS)
+tgt = lambda t: (S.TARGETS.index(t) + 0.5) / len(S.TARGETS)
+ev = [(50, "ac-setseed 7"), (300, "acsetup 1"), (310, "acsetpg 7"), (400, f"ac-setknob 0 {sel(71)}"),
+      (450, f"ac-setknob 1 {tgt('density')}"), (500, "ac-ccin 71 64 1"), (550, "ac-oledsetup bang"),
+      (600, f"ac-setknob 0 {sel(11)}"), (650, f"ac-setknob 1 {tgt('voice type')}"), (700, "acsetup 0"),
+      (800, "ac-ccin 11 127 1")]
+log, _ = run(ev, 2, prints=pr)
+check("ac-param: 0 0.5039" in log and "3 Last CC 71 = 64" in log and "ac-lvtype: 10" in log,
+      "CC MAP: CC 71 remapped to density moves the Dens knob; CC 11 remapped to voice type picks the type")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

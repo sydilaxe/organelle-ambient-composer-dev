@@ -124,7 +124,12 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
     "Breath to": (", ".join(S.BRTOS), "What breath does: voice+piece = the live voice's level and tone and the "
                   "piece's density; voice or density alone; brightness, reverb (the sends) or swell (the whole "
                   "level, like an expression pedal). After 10 s without breath it lets go."),
-    "Breath CC": (", ".join(S.BRCCS), "Which control change is breath. Channel and poly pressure always count."),
+    "Pressure to": ("a target (see CC)", "What channel and poly pressure do (default breath)."),
+    "CC": (", ".join(str(n) for n in S.CCS), "Knob 1 picks a CC to set; row 2 shows what it does. Defaults: 1 vibrato, "
+           "2 / 7 / 11 breath, 64 hold, 71 off, 74 voice tone."),
+    "to": (", ".join(S.TARGETS), "off; breath (into the breath path, see Breath to); vibrato (the live voices' vibrato depth); voice tone and voice level (per note: the voice on the CC's channel, channel 1 = all, so MPE controllers shape each note); voice type (the live voices' synthesis type, across the 11 pad types); hold (a sustain pedal: released notes keep sounding until it lets go); density, colour, reverb, motion (move that knob); swell (the whole level)."),
+    "Last CC": ("shown only", "The last CC that arrived and its value (0-127), to find what your controller sends."),
+    "Vib rate": ("3-8 Hz", "The speed of the live voices' vibrato (its depth comes from a CC mapped to vibrato)."),
     "Breath in": ("shown only", "The breath level arriving now (after the Breath curve)."),
 }
 
@@ -335,7 +340,7 @@ def story():
           Table([[shot("setup", 3.1, "SETUP page 1"), shot("setup_page2", 3.1, "SETUP page 2")],
                  [shot("setup_page3", 3.1, "SETUP page 3"), shot("setup_page4", 3.1, "SETUP page 4")],
                  [shot("setup_page5", 3.1, "SETUP page 5: SOUNDS"), shot("setup_page6", 3.1, "SETUP page 6: MUSIC")],
-                 [shot("setup_page7", 3.1, "SETUP page 7: MIDI IN"), ""]],
+                 [shot("setup_page7", 3.1, "SETUP page 7: MIDI IN"), shot("setup_page8", 3.1, "SETUP page 8: CC MAP")]],
                 colWidths=[3.35 * inch, 3.35 * inch])]
 
     s += [PageBreak(), Paragraph("6  How a piece is composed", H1),

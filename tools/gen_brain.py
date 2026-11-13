@@ -183,7 +183,7 @@ def piece():
         SendL("ac-bellset", ["acbellt[int(acbellI)*3]", "acbellt[int(acbellI)*3+1]", "acbellt[int(acbellI)*3+2]"]),
         RNG,
         SendL("ac-dint", ["acdintt[int(acr1*5)]"]),
-        SendL("ac-lvtype", ["acpal1"]),
+        SendL("ac-lvtype", ["if(acvtsel >= 0, acvtsel, acpal1)"]),
         # the piece's drone design (and one for its break), sub mode, character on the pads, auto-vocode
         RNG,
         X(f"int(acr1*{len(DRONES)}); int(acr2*{len(DRONES)}); int(acr3*3); if(acr4 < 0.22, 0, 1 + int(acr4*4.99) % 4)",
@@ -351,7 +351,7 @@ def section():
         steps += [RNG, X(f"if(acspad==0, if(acr1<0.4, acpal1, if(acr1<0.72, acpal2, if(acr1<0.9, acpal3, "
                          f"int(acr2*{len(FLAVOURS)})))), if(acspad==1, {RAW_EXPR}, acspad-2))",
                          lambda c, src, k=k: _flav(c, src, k))]
-    steps += [SendL("ac-lvtype", ["if(acspad>=2, acspad-2, if(acspad==1, 5, acpal1))"])]
+    steps += [SendL("ac-lvtype", ["if(acvtsel >= 0, acvtsel, if(acspad>=2, acspad-2, if(acspad==1, 5, acpal1)))"])]
     proc(c, "ac-padpick", steps)
     # SETUP SOUNDS overrides on what the section chose (auto = the section's own choice)
     proc(c, "ac-sndovr", [
