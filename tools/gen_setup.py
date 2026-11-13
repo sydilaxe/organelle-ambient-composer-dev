@@ -10,12 +10,12 @@ from data import PAGES, TEMPOS
 
 GLOBALS = dict(acmout=1, acsync=0, acvintage=0, acoutch=1, accurve=1.2, acsk=0, acsv=0, acextbpm=60,
                acrtb=0, acoutroot=-1, acclkon=0, acsaved=0, actrange=0,
-               acmparts=0, acarpoct=48, acoutbass=-1)
+               acmparts=0, acarpoct=48, acoutbass=-1, acload=0, acloadtest=0, acshedt=0, acldraw=0, acguard=1)
 ARRAYS = dict(acout=4, acarp=4)
 NP = len(PAGES)
 SETTINGS = [n for p in PAGES for _, n, _ in p] + ["acmout", "acsync", "acforce", "acvintage", "acfollow", "acnbr",
                                                   "acoutch", "accurve", "acmono", "acwidth", "acpanmot",
-                                                  "actrange", "acmparts", "acarpoct"]
+                                                  "actrange", "acmparts", "acarpoct", "acguard"]
 MOUT = ["off", "tempo only", "tempo+notes", "notes only"]
 PARTS = ["all", "harmony", "arp only"]
 NSET = 4                                   # SETUP pages
@@ -102,6 +102,8 @@ def setup():
         If(f"{item} == 11", [V("actrange", f"int(acsv*{len(TEMPOS) - 0.01})"), Call("ac-settempo")]),
         If(f"{item} == 12", [V("acmparts", f"int(acsv*{len(PARTS) - 0.01})"), Call("ac-notesoff"), Call("ac-outchord")]),
         If(f"{item} == 13", [V("acarpoct", "24 + 12*int(acsv*4.99)"), Call("ac-notesoff"), Call("ac-outchord")]),
+        If(f"{item} == 15", [V("acguard", "acsv > 0.5"),
+                             If("acguard == 0 && acshed > 0", [V("acshed", "0"), Call("ac-layers"), Call("ac-inputupd")])]),
         Call("ac-oledsetup"), Send("ac-dirty"),
     ])
     c.col()
@@ -121,11 +123,11 @@ def setup():
             ("list 2 Arp octave C$1", [("f", "acarpoct/12 - 1")])),
         (3, ("list 3 Keys $1", [("s", "acforce + 1", ["auto", "play notes", "functions"])]),
             ("list 3 MIDI out ch $1", [("f", "acoutch")]), ("list 3 Pan motion $1", [("f", "int(acpanmot*100)")]),
-            ("list 3 -", [])),
+            ("list 3 CPU $1% lite $2", [("f", "int(acload*100)"), ("f", "acshed")])),
         (4, ("list 4 Bloom $1", [("s", "acvintage", ["clean", "vintage"])]),
             ("list 4 Breath curve $1", [("f", "int(accurve*100)")]), ("list 4 Tempo $1 $2-$3", [("s", "actrange", [n for n, _, _ in TEMPOS]),
                                           ("f", "actlo[int(actrange)]"), ("f", "acthi[int(actrange)]")]),
-            ("list 4 -", [])),
+            ("list 4 CPU guard $1", [("s", "acguard", ["off", "on"])])),
     ]
     for k, *rows in defs:
         s = c.ch(c.recv(f"ac-setl{k}"), "expr acsetpg", "sel " + " ".join(str(j) for j in range(NSET)))
@@ -213,6 +215,41 @@ def midi_out():
         c.c(mk, 0, pk, 0)
         c.c(pk, 0, c.obj("s ac-noteout"), 0)
         c.col(200)
+    return c
+
+
+def cpu_guard():
+    c = Canvas("cpu-guard", w=1800)
+    c.comment("CPU guard: Pd's load = CPU time / logical time, each second. Above 78 % the piece gets lighter "
+              "(1: cloud and atmosphere off, 2: textures and pad character off, 3: auto-vocoder off); below 50 % "
+              "for 20 s it steps back. SETUP page 4 can turn the guard off. In a batch (offline) run the load reads near 0. acloadtest overrides "
+              "it for tests.")
+    met = c.obj("metro 1000")
+    c.c(c.to(c.recv("ac-init"), "delay 3000"), 0, met, 0)
+    # right to left: elapsed logical time, elapsed CPU time (-> the load), then both restart
+    tb = c.to(met, "t b b b b")
+    ct, tm = c.obj("cputime"), c.obj("timer")
+    pk = c.obj("pack f f")
+    c.c(tb, 3, tm, 1)
+    c.c(tm, 0, pk, 1)
+    c.c(tb, 2, ct, 1)
+    c.c(ct, 0, pk, 0)
+    c.c(tb, 1, ct, 0)
+    c.c(tb, 0, tm, 0)
+    up = c.ch(pk, "expr $f1/max(1, $f2)", "t b f")
+    c.c(up, 1, c.obj("v acldraw"), 0)
+    run_steps(c, (up, 0), [V("acload", "max(acloadtest, 0.6*acload + 0.4*acldraw)"), Call("ac-cpucheck")])
+    c.col()
+    proc(c, "ac-cpucheck", [
+        If("acguard && acload > 0.78 && acshed < 3 && acnow - acshedt > 4000", [
+            X("acshed + 1; acnow", "v acshed", "v acshedt"), Call("ac-layers"), Call("ac-inputupd"),
+            Toast("CPU high - lighter"),
+        ]),
+        If("acload < 0.5 && acshed > 0 && acnow - acshedt > 20000", [
+            X("acshed - 1; acnow", "v acshed", "v acshedt"), Call("ac-layers"), Call("ac-inputupd"),
+        ]),
+        If("acsetup && acsetpg == 3", [Call("ac-oledsetup")]),
+    ])
     return c
 
 

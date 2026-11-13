@@ -1,6 +1,8 @@
 # Build, test in Pure Data, and package the patch.
 #  - push a tag like v1.0 -> a GitHub Release with the zip attached
-#  - Actions > "Release build" > Run workflow -> the same build, zip kept as a workflow artifact
+#  - Actions > "Release build" > Run workflow (version e.g. v0.1) -> the same: a Release with the zip
+#    ("dev" makes a pre-release that is replaced each time)
+# The zip goes on a Release, not a workflow artifact: Releases don't count against the Actions storage quota.
 name: Release build
 
 on:
@@ -54,18 +56,20 @@ jobs:
       - name: Package
         run: tools/package.sh "${{ steps.v.outputs.version }}"
 
-      # artifacts only for release runs: PR and branch builds just build and test (keeps artifact storage free)
-      - uses: actions/upload-artifact@v4
-        if: github.event_name == 'workflow_dispatch' || github.ref_type == 'tag'
-        with:
-          name: amble-${{ steps.v.outputs.version }}
-          path: dist/
-
       - name: Publish the release
-        if: github.ref_type == 'tag'
+        if: github.event_name == 'workflow_dispatch' || github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           v="${{ steps.v.outputs.version }}"
           printf '## Install\nUnzip and copy the "Amble" folder into the Organelle Patches folder.\n' > notes.md
-          gh release create "$v" dist/*.zip --target "$GITHUB_SHA" --title "Amble $v" --notes-file notes.md --generate-notes
+          pre=""
+          if [ "$v" = "dev" ]; then
+            pre="--prerelease"
+            gh release delete dev --cleanup-tag --yes 2>/dev/null || true
+          elif [ "${GITHUB_REF_TYPE}" != "tag" ] && gh release view "$v" >/dev/null 2>&1; then
+            echo "::error::Release $v already exists - choose a new version"
+            exit 1
+          fi
+          gh release create "$v" dist/*.zip --target "$GITHUB_SHA" --title "Amble $v" --notes-file notes.md \
+            --generate-notes $pre

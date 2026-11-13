@@ -31,7 +31,7 @@ def main_patch():
     m.comment("control", 20, 200)
     for i, sub in enumerate((B.globals_(), B.rng(), B.seed(), B.piece(), B.section(), B.change(), B.layers(),
                              B.players(), B.capture(), B.verb(), B.stereo(), B.rhythm(), L.midi_in(), L.live(), L.memories(), L.tables(),
-                             O.oled(), S.settings(), S.setup(), S.midi_out(), S.clock_in(),
+                             O.oled(), S.settings(), S.setup(), S.midi_out(), S.clock_in(), S.cpu_guard(),
                              U.knobs(), U.keys(), U.screen())):
         m.sub(sub, 20 + (i % 4) * 110, 225 + (i // 4) * 30)
     m.comment("sound", 20, 340)
@@ -59,7 +59,7 @@ def build(out=OUT):
     if not os.path.exists(sf):
         import gen_setup
         from data import PAGES
-        vals = [d for p in PAGES for _, _, d in p] + [1, 0, -1, 0, 0.7, 48, 1, 1.2, 0, 1, 0.8, 0, 0, 48]
+        vals = [d for p in PAGES for _, _, d in p] + [1, 0, -1, 0, 0.7, 48, 1, 1.2, 0, 1, 0.8, 0, 0, 48, 1]
         open(sf, "w").write(" ".join(f"{v:g}" for v in vals) + ";\n")
     from readme_text import PATCH_README
     open(os.path.join(out, "README.txt"), "w").write(PATCH_README)

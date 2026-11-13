@@ -2,7 +2,7 @@
 
 Conventions: global state lives in [value]s named ac<word> (no dash, so [expr] can read them);
 every [send]/[receive] name has a dash (ac-<word>), so values and sends never share a symbol."""
-from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Arm, Toast, RNG
+from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Arm, Toast, RNG, Later
 from data import *
 from data import DRONES, CHARACTERS, ATMOS_NAMES, ATMOS_ROLE, SCENES, SCENE_DATA, SCENE_ROLE, \
     FLAVOUR_WEIGHTS, FM_RATIO_WEIGHTS, PARTIAL_WEIGHTS, pick_table
@@ -27,7 +27,7 @@ GLOBALS = dict(
     acmtr=2, acbld=1, acblp=0.5, acvauto=1, acvsec=1, acvtype=1, acrvsize=1,
     # rhythm
     acbpm0=56, acbpm=56, actpos=0.5, acmeter=4, actick=0, acstep=0, acms=0, acmk=5, acmn=8, acmei=0, acmrot=0, acmdiv=1,
-    acmarp=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acdtype=0, acdtype2=1, acdcur=0, acsubm=0, acchar=0, acchamt=0.5, acavoc=0, acgvoc=0, acdb=0, acgt4=0, acgt5=0, acgt6=0, acgsub=0, acatm=0, acatmT=0, acatmT2=1, acfatm=0, acatmcur=0, acgatm=0, acscene=0, acmono=0, acwidth=1, acpanmot=0.8, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
+    acmarp=0, acshed=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acdtype=0, acdtype2=1, acdcur=0, acsubm=0, acchar=0, acchamt=0.5, acavoc=0, acgvoc=0, acdb=0, acgt4=0, acgt5=0, acgt6=0, acgsub=0, acatm=0, acatmT=0, acatmT2=1, acfatm=0, acatmcur=0, acgatm=0, acscene=0, acmono=0, acwidth=1, acpanmot=0.8, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
 )
 for page in PAGES:
     for _, name, d in page:
@@ -216,14 +216,18 @@ def piece():
         V("acel", "0"), Call("ac-clockstop"),
         Call("ac-motif0"),
         Call("ac-plan"),
-        Call("ac-section"),
+        # the rest in stages a few ms apart (no single long tick): the first section, then the first chord
+        Later("ac-np2", 3),
+        Later("ac-scr", 109), Later("ac-oledall", 131),
+    ]
+    proc(c, "ac-newpiece", steps)
+    proc(c, "ac-np2", [Call("ac-section"), Later("ac-np3", 5)])
+    proc(c, "ac-np3", [
         Call("ac-change"),
         Call("ac-brightupd"), Call("ac-inputupd"),
         SendL("ac-weird", ["acweird"]), SendL("ac-motion", ["acmotion"]),
         V("actick", "-1"), Call("ac-clockstart"),
-        Call("ac-scr"), Send("ac-oledall"),
-    ]
-    proc(c, "ac-newpiece", steps)
+    ])
     # the form: an archetype's energy curve over 6-12 sections, then a role for each section
     arch = ARCH_EXPR.replace("X", "((aci+0.5)/acnsec)")
     proc(c, "ac-plan", [
@@ -317,7 +321,7 @@ def section():
         V("acscene", "acscrole[int(acrole)*3 + int(acr1*3)]"),
     ] + [SendL(f"ac-v{k}-home", [f"acscn[int(acscene)*10 + {k}]", "6000"]) for k in range(4)] + [
         SendL("ac-cloudspread", ["acscn[int(acscene)*10 + 8]*0.5"]),
-        Call("ac-stereo"),
+        Later("ac-stereo", 11),
         # an atmosphere in some sections of pieces that have one (the break may use the second kind)
         RNG,
         X("acatm && acr1 < acatmrole[int(acrole)]; if(acrole == 5 && acr2 < 0.5, acatmT2, acatmT)", "v acfatm",
@@ -325,7 +329,7 @@ def section():
         # reverb: Auto takes the piece's own, and sometimes Shimmer at the climax
         RNG,
         V("acvsec", "if(acrole==4 && acr1 < 0.4, 4, acvauto)"),
-        Call("ac-verbsel"),
+        Later("ac-verbsel", 23),
         Send("ac-rvin", "1.8 1500"), Arm("ac-rvback", "3500"),
         V("acsecel", "0"),
         V("acsecdur", "if(acmode==1, (5 + 25*aclen)*60000*acpdur[int(acsec)]/acpsum, "
@@ -333,11 +337,11 @@ def section():
         Arm("ac-nextsec", "acsecdur*actime", stop="ac-secstop"),
         V("acfade", "9000*actime + 500"),
         SendL("ac-master", ["0.62 + 0.38*acenergy", "acfade"]),
-        Call("ac-layers"),
-        Call("ac-brightupd"),
-        Call("ac-motifgen"),
-        Call("ac-memsec"),
-        Call("ac-scr"),
+        Later("ac-layers", 41),
+        Later("ac-brightupd", 53),
+        Later("ac-motifgen", 67),
+        Later("ac-memsec", 79),
+        Later("ac-scr", 97),
         Send("ac-led"),
     ]
     proc(c, "ac-section", [If("acmode==1 && acsec>=acnsec", [Call("ac-fin")], rest)])
@@ -378,8 +382,8 @@ def layers():
     lay = [
         ("drone", "acfdrone*acmdrone*(1-acended)*(0.55+0.45*min(1, acdeff*3))"),
         ("pad", f"acfpad*acmpad*(1-acended)*{th(0.06)}"),
-        ("tex", f"acftex*acmtex*(1-acended)*{th(0.28)}"),
-        ("cloud", f"acmcloud*(1-acended)*max(acfcloud*{th(0.42)}, ((acinmode==2) || (acinmode==0)*(acinclass>=1))"
+        ("tex", f"(acshed < 2)*acftex*acmtex*(1-acended)*{th(0.28)}"),
+        ("cloud", f"(acshed < 1)*acmcloud*(1-acended)*max(acfcloud*{th(0.42)}, ((acinmode==2) || (acinmode==0)*(acinclass>=1))"
                   f"*min(1, acinput*2)*0.8)"),
         ("bell", f"acmbell*(1-acended)*max(acfbell*{th(0.45)}, (acinmode==4)*min(1, acinput*2))"),
         ("motion", f"acfmotion*acmmotion*(1-acended)*{th(0.3)}*min(1, acrhythm*2.5)"),
@@ -393,11 +397,11 @@ def layers():
             steps += [V("acgsub", "acgdrone*acmdrone*(1-acended)"), SendL("ac-g-sub", ["acgsub", "acfade"])]
         elif name != "tex":
             steps += [SendL("ac-g-" + name, ["acg" + name, "acfade"])]
-    steps += [V("acgatm", "acfatm*acmtex*(1-acended)*(0.55 + 0.45*min(1, acdeff*2))")]
+    steps += [V("acgatm", "(acshed < 1)*acfatm*acmtex*(1-acended)*(0.55 + 0.45*min(1, acdeff*2))")]
     steps += [SendL(f"ac-g-atm{i}", [f"acgatm*(acatmcur=={i})", "acfade*1.5"]) for i in range(len(ATMOS_NAMES))]
-    steps += [SendL(f"ac-g-ch{i}", [f"(acchar=={i})*min(1, acchamt*if(acrole==4, 1.3, 1))*min(1, acgpad*4)", "acfade"])
+    steps += [SendL(f"ac-g-ch{i}", [f"(acshed < 2)*(acchar=={i})*min(1, acchamt*if(acrole==4, 1.3, 1))*min(1, acgpad*4)", "acfade"])
               for i in range(1, len(CHARACTERS))]
-    steps += [SendL("ac-chdry", ["1 - (acchar==2)*0.9*acchamt - (acchar==4)*0.6*acchamt", "acfade"])]
+    steps += [SendL("ac-chdry", ["1 - (acshed < 2)*((acchar==2)*0.9*acchamt + (acchar==4)*0.6*acchamt)", "acfade"])]
     for i in range(len(TEXTURES)):
         steps += [V(f"acgt{i}", f"acgtex*((actex1=={i}) || (actex2=={i}))"),
                   SendL(f"ac-g-tex{i}", [f"acgt{i}", "acfade"])]
@@ -416,8 +420,11 @@ def layers():
     ])
     A = "(acinmode==0)"
     proc(c, "ac-inputupd", [
+        # the pitch tracker runs only while there is input to hear
+        SendL("ac-trk", ["acinput > 0.01"]),
+        If("acinput <= 0.01", [X("-1; 0", "v acinp", "v acinclr")]),
         V("acgres", f"acinput * if(acinmode==1, 1, {A}*if(acinclass==1, if(acavoc, 0.3, 0.8), if(acinclass==2, 0.4, 0)))"),
-        V("acgvoc", f"acinput * ((acinmode==6) || (acinmode==7) || {A}*(acinclass==1)*acavoc)"),
+        V("acgvoc", f"acinput * ((acinmode==6) || (acinmode==7) || {A}*(acinclass==1)*acavoc*(acshed < 3))"),
         SendL("ac-g-voc", ["acgvoc", "1500"]),
         SendL("ac-vcsyn", [f"(acinmode==6) || {A}", "800"]),
         SendL("ac-vcpad", ["acinmode==7", "800"]),
@@ -432,7 +439,7 @@ def layers():
         SendL("ac-incl", [f"if(accapt, 1, ((acinmode==2) || {A}*(acinclass>=1))*min(1, acinput*3))", "500"]),
         SendL("ac-inclr", [f"1 - if(accapt, 1, ((acinmode==2) || {A}*(acinclass>=1))*min(1, acinput*3))", "500"]),
         SendL("ac-ghost", ["(acinmode==4)*acinput"]),
-        V("acfade", "1500"), Call("ac-layers"), Call("ac-grains"),
+        V("acfade", "1500"), Later("ac-layers", 7), Later("ac-grains", 17),
     ])
     return c
 
@@ -562,7 +569,9 @@ def change():
                                            "if(acfirst, 0, acr2*0.35*acchsec*1000*actime)"]),
                   T("acch", k, f"acnew[{k}]")]
         steps += [SendL(f"ac-res{k}", [f"1000/mtof(43 + fmod(acnew[{k}]-43, 24))", "2500"])]
-    steps += [Call("ac-grains")]
+    steps += [Later("ac-grains", 13), Later("ac-change2", 29, stop="ac-chgstop")]
+    proc(c, "ac-change", [If("acrun", steps)])
+    steps = []
     steps += [SendL(f"ac-band{k}", [f"mtof(min(120, acnew[{k % 4}] + {12 * (k // 4) + 12}))", "3000"]) for k in range(8)]
     steps += [
         SendL("ac-dronep", ["actonic", "if(acfirst, 0, if(acmodflag, 9000, 200))"]),
@@ -580,9 +589,9 @@ def change():
         SendL("ac-wind", ["mtof(acnew[1]+24)", "mtof(acnew[3]+12)", "5000"]),
         X("acchg + 1; 0", "v acchg", "v acfirst"),
         Arm("ac-change", "acchsec*1000*actime", stop="ac-chgstop"),
-        Call("ac-scr2"), Call("ac-scr3"), Send("ac-flash"), Call("ac-outchord"),
+        Later("ac-scr2", 37), Later("ac-scr3", 43), Send("ac-flash"), Call("ac-outchord"),
     ]
-    proc(c, "ac-change", [If("acrun", steps)])
+    proc(c, "ac-change2", [If("acrun", steps)])
     gs = []
     for i in range(4):
         gs += [RNG, SendL(f"ac-gr{i}", [f"if(acharm && acinp > 0, pow(2, (acnew[{i}] + 12*floor((acinp - acnew[{i}])/12 + 0.5)"

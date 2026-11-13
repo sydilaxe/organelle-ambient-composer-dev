@@ -94,7 +94,7 @@ for t in ("next key E", "chord change", "next section", "drone off", "input reso
 
 # 6. input processing: every mode makes sound from the input, and ghost onsets ring bells
 ALL = ["acmdrone", "acmpad", "acmtex", "acmcloud", "acmbell"]
-ev = [(50, "ac-setseed 99")] + [(60, f"{m} 0") for m in ALL] + [(61, "ac-layers bang")]
+ev = [(50, "ac-setseed 99")] + [(310, f"{m} 0") for m in ALL] + [(311, "ac-layers bang")]
 T = 1000
 for mode in range(1, 5):
     ev += [(T, f"acinmode {mode}"), (T, "acinput 0.9"), (T + 1, "ac-inputupd bang")]
@@ -141,9 +141,9 @@ subprocess.run(["gcc", "-O2", "-o", exe, os.path.join(here, "ref", "bloom_ir.c")
                 "-lm"], check=True)
 Tset = 1.5 + 28.5 * 0.32 ** 1.5
 for name, vt, typ in (("Bloom 1", 0.3, 0), ("Bloom 2", 0.5, 1), ("Hall", 0.7, None), ("Shimmer", 0.9, None)):
-    ev = [(50, "ac-setseed 5"), (60, "ac-secstop bang"), (60, "ac-chgstop bang")] + [(70, f"{m} 0") for m in ALL] + \
-         [(71, "acfade 10"), (72, "ac-layers bang"), (80, f"acrvtype {vt}"), (80, "acrvmix 1"), (80, "acrvtime 0.32"),
-          (80, "acrvtone 0.5"), (80, "acrvsize 1"), (80, "ac-rvsize 1"), (81, "ac-verbsel bang"), (9000, "h-imp bang")]
+    ev = [(50, "ac-setseed 5"), (310, "ac-secstop bang"), (310, "ac-chgstop bang")] + [(320, f"{m} 0") for m in ALL] + \
+         [(321, "acfade 10"), (322, "ac-layers bang"), (330, f"acrvtype {vt}"), (330, "acrvmix 1"), (330, "acrvtime 0.32"),
+          (330, "acrvtone 0.5"), (330, "acrvsize 1"), (330, "ac-rvsize 1"), (331, "ac-verbsel bang"), (9000, "h-imp bang")]
     log, a = run(ev, 20, extra=imp)
     seg = a[9 * SR:]
     e = env(seg.mean(1), SR)
@@ -195,9 +195,9 @@ def stepcount(c):
     c.c(e, 0, c.obj("print MN", 1000, 480), 0)
 
 
-ev = [(50, "ac-setseed 3"), (60, "ac-secstop bang"), (60, "ac-chgstop bang"), (70, "acdens 1"), (70, "acrhythm 1"),
-      (70, "acfmotion 1"), (70, "acenergy 1"), (70, "acfade 10"), (71, "ac-layers bang"),
-      (80, "acmk 5"), (80, "acmn 8"), (80, "acmdiv 1"), (80, "acmrot 0")]
+ev = [(50, "ac-setseed 3"), (310, "ac-secstop bang"), (310, "ac-chgstop bang"), (320, "acdens 1"), (320, "acrhythm 1"),
+      (320, "acfmotion 1"), (320, "acenergy 1"), (320, "acfade 10"), (321, "ac-layers bang"),
+      (330, "acmk 5"), (330, "acmn 8"), (330, "acmdiv 1"), (330, "acmrot 0")]
 log, _ = run(ev, 25, extra=stepcount)
 st = [int(float(l.split()[1])) for l in log.splitlines() if l.startswith("MN:")]
 hits = sorted({x for x in st if x > 40})
@@ -208,8 +208,8 @@ check(len(hits) > 20 and pat in rots and set(windows) == {5},
       f"motion follows E(5,8): {len(hits)} hits, steps mod 8 = {sorted(pat)}, 5 in every 8 steps")
 
 # 10. live notes: Organelle keys play, MPE bend retunes its own voice, breath controls the level
-mute = [(60, f"{m} 0") for m in ALL] + [(61, "acfade 10"), (62, "ac-layers bang"), (63, "ac-rwet 0 10")]
-ev = [(50, "ac-setseed 9"), (55, "ac-chgstop bang"), (55, "ac-secstop bang"), (70, "ac-lvtype 6")] + mute + [
+mute = [(310, f"{m} 0") for m in ALL] + [(311, "acfade 10"), (312, "ac-layers bang"), (313, "ac-rwet 0 10")]
+ev = [(50, "ac-setseed 9"), (305, "ac-chgstop bang"), (305, "ac-secstop bang"), (320, "ac-lvtype 6")] + mute + [
     (1000, "notesRaw 69 100"), (4000, "notesRaw 69 0"),
     (6000, "ac-livenote 2 57 100"), (9000, "ac-livebend 2 2"), (12000, "ac-livenote 2 57 0"),
     (14000, "ac-livebreath 3 0"), (14000, "ac-livenote 3 60 100"), (15000, "ac-livebreath 3 110"),
@@ -224,7 +224,7 @@ check(rms_db(lv(14.2, 14.9)) < -80 and rms_db(lv(15.5, 16.8)) > -45, "breath 0 i
 check("breath control" in log, "a breath controller is noticed")
 
 # 11. key modes and listening
-ev = [(50, "ac-setseed 21"), (60, "acfollow 1"), (1000, "notesRaw 73 100"), (1100, "notesRaw 73 0"),
+ev = [(50, "ac-setseed 21"), (310, "acfollow 1"), (1000, "notesRaw 73 100"), (1100, "notesRaw 73 0"),
       (2000, "aux 1"), (2100, "notesRaw 74 100"), (2200, "notesRaw 74 0"), (2300, "aux 0"),
       (3000, "aux 1"), (3100, "aux 0"), (4000, "ac-extnote 1"), (4100, "notesRaw 73 100"), (4200, "notesRaw 73 0"),
       (5000, "ac-livenote 1 64 100"), (13000, "ac-livenote 1 64 0")]
@@ -250,7 +250,7 @@ def probe(c):
 
 for inp, want, cls in (("sine", 57, "pitched"), ("saw", 52, "pitched"), ("clicks", None, "plucked"),
                        ("noise", None, "texture")):
-    log, _ = run([(50, "ac-setseed 4"), (60, "acinput 0.7"), (61, "ac-inputupd bang")], 12, inp=inp, extra=probe)
+    log, _ = run([(50, "ac-setseed 4"), (310, "acinput 0.7"), (311, "ac-inputupd bang")], 12, inp=inp, extra=probe)
     rows = [[float(x) for x in l.split()[1:]] for l in log.splitlines() if l.startswith("AN:")]
     ps = [r[0] for r in rows[8:] if r[0] > 0]
     got = ["quiet", "pitched", "plucked", "texture"][int(rows[-1][1])]
@@ -259,8 +259,8 @@ for inp, want, cls in (("sine", 57, "pitched"), ("saw", 52, "pitched"), ("clicks
         check(ps and abs(np.median(ps) - want) < 0.15, f"input {inp}: pitch {np.median(ps) if ps else -1:.2f} (want {want})")
 
 # 13. tuned bands ring the chord; memories record and come back
-log, a = run([(50, "ac-setseed 4"), (55, "ac-chgstop bang")] + mute +
-             [(70, "acinmode 5"), (70, "acinput 1"), (71, "ac-inputupd bang")], 10, inp="noise",
+log, a = run([(50, "ac-setseed 4"), (305, "ac-chgstop bang")] + mute +
+             [(320, "acinmode 5"), (320, "acinput 1"), (321, "ac-inputupd bang")], 10, inp="noise",
              prints=tuple(f"ac-band{k}" for k in range(4)))
 seg = a[5 * SR:9 * SR, 0]
 S = np.abs(np.fft.rfft(seg * np.hanning(len(seg))))
@@ -268,18 +268,18 @@ fr = np.fft.rfftfreq(len(seg), 1 / SR)
 bands = [float(l.split()[1]) for l in log.splitlines() if l.startswith("ac-band")][-4:]
 peaks = [20 * np.log10(S[(fr > b * 0.98) & (fr < b * 1.02)].mean() / np.median(S)) for b in bands]
 check(rms_db(seg) > -40 and sum(p > 10 for p in peaks) >= 2 and np.mean(peaks) > 12, f"bands: noise rings the chord tones {np.round(peaks, 1)} dB")
-log, a = run([(50, "ac-setseed 4"), (55, "ac-chgstop bang"), (55, "ac-secstop bang")] + mute +
-             [(70, "acinput 0.01"), (71, "ac-inputupd bang"), (500, "ac-memrec bang"), (9000, "ac-memplay 0 1"),
+log, a = run([(50, "ac-setseed 4"), (305, "ac-chgstop bang"), (305, "ac-secstop bang")] + mute +
+             [(320, "acinput 0.01"), (321, "ac-inputupd bang"), (500, "ac-memrec bang"), (9000, "ac-memplay 0 1"),
               (9000, "ac-g-mem 0.9 200")], 20, inp="sine")
 check(rms_db(a[12 * SR:18 * SR]) > -45 and rms_db(a[6 * SR:int(8.5 * SR)]) < -55, "a memory records and plays back")
 
 # 14. breath holds a section, then the form goes on
-ev = [(40, "actime 0.02"), (50, "ac-setseed 12"), (55, "aclen 0")] + [(t, "ac-livebreath 1 90") for t in range(300, 16000, 200)]
+ev = [(40, "actime 0.02"), (50, "ac-setseed 12"), (305, "aclen 0")] + [(t, "ac-livebreath 1 90") for t in range(300, 16000, 200)]
 log, _ = run(ev, 30)
 check("ac-toast: list holding - you are playing" in log and "FIN" in log, "breath holds sections; the piece still ends")
 
 # 15. MIDI clock out (24 a beat, Start), notes out, following an external clock
-log, _ = run([(50, "ac-setseed 7"), (60, "ac-secstop bang")], 10, prints=("ac-midibyte", "ac-bpm"))
+log, _ = run([(50, "ac-setseed 7"), (310, "ac-secstop bang")], 10, prints=("ac-midibyte", "ac-bpm"))
 by = [l for l in log.splitlines() if l.startswith("ac-midibyte")]
 bpm = [float(l.split()[1]) for l in log.splitlines() if l.startswith("ac-bpm")][-1]
 want = 24 * bpm / 60 * 9.9
@@ -318,21 +318,21 @@ check("ac-sett0: list SETUP 2 of 4 - hold aux" in log, "SETUP opens with aux hel
 # 18. the wider sound world: drone designs, the sub, electric textures, character, the vocoder, variety
 from data import DRONES, TEXTURES, CHARACTERS, FLAVOURS
 for dt, name in enumerate(DRONES):
-    ev = [(50, "ac-setseed 77"), (55, "ac-secstop bang")] + [(60, f"{m} 0") for m in ALL] + \
-         [(61, "acmdrone 1"), (61, "acfdrone 1"), (61, f"acdcur {dt}"), (61, "acfade 10"), (62, "ac-layers bang"),
-          (63, "ac-rwet 0 10"), (64, "ac-g-sub 0 10")]
+    ev = [(50, "ac-setseed 77"), (305, "ac-secstop bang")] + [(310, f"{m} 0") for m in ALL] + \
+         [(311, "acmdrone 1"), (311, "acfdrone 1"), (311, f"acdcur {dt}"), (311, "acfade 10"), (312, "ac-layers bang"),
+          (313, "ac-rwet 0 10"), (314, "ac-g-sub 0 10")]
     log, a = run(ev, 8)
     check(-45 < rms_db(a[4 * SR:8 * SR, 0]) < -20, f"drone {name}: {rms_db(a[4 * SR:8 * SR, 0]):.1f} dB")
-ev = [(50, "ac-setseed 77"), (55, "ac-secstop bang"), (56, "ac-chgstop bang")] + [(60, f"{m} 0") for m in ALL] + \
-     [(61, "acmdrone 1"), (61, "acfade 10"), (62, "ac-layers bang"), (63, "ac-g-drone 0 10"), (63, "ac-g-drone1 0 10"),
-      (63, "ac-g-drone2 0 10"), (63, "ac-g-drone3 0 10"), (63, "ac-rwet 0 10"),
-      (64, "acsubm 0"), (65, "ac-subp 41.2 0")]
+ev = [(50, "ac-setseed 77"), (305, "ac-secstop bang"), (306, "ac-chgstop bang")] + [(310, f"{m} 0") for m in ALL] + \
+     [(311, "acmdrone 1"), (311, "acfade 10"), (312, "ac-layers bang"), (313, "ac-g-drone 0 10"), (313, "ac-g-drone1 0 10"),
+      (313, "ac-g-drone2 0 10"), (313, "ac-g-drone3 0 10"), (313, "ac-rwet 0 10"),
+      (314, "acsubm 0"), (315, "ac-subp 41.2 0")]
 log, a = run(ev, 8)
 check(abs(f0(a[4 * SR:8 * SR, 0], lo=25, hi=200) - 41.2) < 1, f"sub alone at 41.2 Hz ({f0(a[4 * SR:8 * SR, 0], lo=25, hi=200):.1f})")
 for tx in range(4, len(TEXTURES)):
-    ev = [(50, "ac-setseed 77"), (55, "ac-secstop bang")] + [(60, f"{m} 0") for m in ALL] + \
-         [(61, "acmtex 1"), (61, "acftex 1"), (61, "acdens 1"), (61, "acenergy 1"), (61, f"actex1 {tx}"),
-          (61, f"actex2 {tx}"), (61, "acfade 10"), (62, "ac-layers bang")]
+    ev = [(50, "ac-setseed 77"), (305, "ac-secstop bang")] + [(310, f"{m} 0") for m in ALL] + \
+         [(311, "acmtex 1"), (311, "acftex 1"), (311, "acdens 1"), (311, "acenergy 1"), (311, f"actex1 {tx}"),
+          (311, f"actex2 {tx}"), (311, "acfade 10"), (312, "ac-layers bang")]
     log, a = run(ev, 12)
     check(rms_db(a[3 * SR:12 * SR]) > -50, f"texture {TEXTURES[tx]}: {rms_db(a[3 * SR:12 * SR]):.1f} dB")
 cents = []
@@ -359,9 +359,9 @@ def envl(x, w=0.05):
     return np.sqrt((x[:k * n] ** 2).reshape(k, n).mean(1))
 
 
-ev = [(50, "ac-setseed 31"), (55, "ac-secstop bang")] + [(60, f"{m} 0") for m in ALL] + \
-     [(62, "acfade 10"), (63, "ac-layers bang"), (64, "ac-rwet 0 10"), (70, "acinmode 6"), (70, "acinput 1"),
-      (71, "ac-inputupd bang")]
+ev = [(50, "ac-setseed 31"), (305, "ac-secstop bang")] + [(310, f"{m} 0") for m in ALL] + \
+     [(312, "acfade 10"), (313, "ac-layers bang"), (314, "ac-rwet 0 10"), (320, "acinmode 6"), (320, "acinput 1"),
+      (321, "ac-inputupd bang")]
 log, a = run(ev, 14, inp="tone", prints=("ac-voccar0", "ac-voccar1", "ac-voccar2", "ac-voccar3"))
 out = a[4 * SR:14 * SR, 0]
 t = np.arange(len(out)) / SR
@@ -411,9 +411,9 @@ for seed, extra, name in ((2718, [], "wide"), (2718, [(40, "acmono 1")], "mono")
 # 20. atmospheres; pad types in stereo but mono-safe; scenes place the voices; preferred sounds come up more
 from data import ATMOS_NAMES
 for at, name in enumerate(ATMOS_NAMES):
-    ev = [(50, "ac-setseed 77"), (55, "ac-secstop bang")] + [(60, f"{m} 0") for m in ALL] + \
-         [(61, "acmtex 1"), (61, "acftex 0"), (61, "acfatm 1"), (61, f"acatmcur {at}"), (61, "acfade 10"),
-          (62, "ac-layers bang"), (63, "ac-rwet 0 10"), (64, "ac-change bang")]
+    ev = [(50, "ac-setseed 77"), (305, "ac-secstop bang")] + [(310, f"{m} 0") for m in ALL] + \
+         [(311, "acmtex 1"), (311, "acftex 0"), (311, "acfatm 1"), (311, f"acatmcur {at}"), (311, "acfade 10"),
+          (312, "ac-layers bang"), (313, "ac-rwet 0 10"), (314, "ac-change bang")]
     log, a = run(ev, 12)
     seg = a[3 * SR:12 * SR]
     cr = np.corrcoef(seg[:, 0], seg[:, 1])[0, 1]
@@ -471,7 +471,7 @@ check(np.abs(a).max() < 0.8, f"a fast piece stays clean: the motion pings never 
 
 # 22. the OLED shows external audio: an input panel (waveform, mode, what Amble hears), the pitch on the ladder;
 #     the rhythm column comes back when the input stops
-ev = [(40, "actime 0.08"), (50, "ac-setseed 2718"), (61, "acinput 0.6"), (62, "ac-inputupd bang")]
+ev = [(40, "actime 0.08"), (50, "ac-setseed 2718"), (311, "acinput 0.6"), (312, "ac-inputupd bang")]
 log, _ = run(ev, 8, inp="voice", prints=("oscOut",))
 osc = log.splitlines()
 check(any("gPrintln 3 97 35 8 1 auto" in l for l in osc) and any("gPrintln 3 97 43 8 1 pitch" in l for l in osc)
@@ -504,6 +504,20 @@ log, _ = run([(40, "acmout 2"), (50, "ac-setseed 7"), (300, "acsetup 1"), (310, 
 arp = sorted(held_notes(log).get(6, []))
 check("1 MIDI notes arp\\ only" in log and "2 Arp octave C1" in log and arp
       and 24 <= arp[0] < 36, f"SETUP page 4: MIDI parts and Arp octave (arp chord now {arp})")
+
+# 24. CPU guard: under (simulated) overload the piece gets lighter step by step and comes back; off = never
+#     (the level is read from SETUP page 4: "CPU n% lite k")
+def lite_at(ev, secs, at):
+    ev = ev + [e for t in at for e in ((t, "acsetup 1"), (t + 10, "acsetpg 3"), (t + 20, "ac-oledsetup bang"),
+                                           (t + 30, "acsetup 0"))]
+    log, _ = run(ev, secs, prints=("ac-sett3",))
+    return [int(l.split("lite")[1]) for l in log.splitlines() if l.startswith("ac-sett3") and "lite" in l], log
+lv, log = lite_at([(40, "acdens 1"), (50, "ac-setseed 7"), (5000, "acloadtest 0.9"), (24000, "acloadtest 0")], 92,
+                  [22000, 90000])
+check(len(lv) >= 2 and lv[0] == 3 and lv[-1] == 0 and log.count("ac-toast: list CPU high - lighter") == 3,
+      f"CPU guard: 3 steps lighter under overload, all back after it ({lv})")
+lv, log = lite_at([(40, "acguard 0"), (50, "ac-setseed 7"), (5000, "acloadtest 0.9")], 15, [14000])
+check(lv and lv[-1] == 0 and "CPU high" not in log, "CPU guard off: never sheds")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)
