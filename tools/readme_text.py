@@ -141,7 +141,16 @@ SETUP (hold aux 1 s; aux tap = next page (4); hold aux 1 s to leave, save)
   ambient 40-72, slow 24-48, wide 30-110, pulse 60-100, fast 90-140. Above
   84 BPM bells, breathing and the drone swell move at half time.
   page 4: MIDI notes (all / harmony: no bells or motion / arp only),
-  Arp octave (C1-C5, where the arp chord starts).
+  Arp octave (C1-C5, where the arp chord starts), CPU (the load now and
+  the guard's level), CPU guard on/off.
+
+CPU GUARD: Amble measures its own load each second. Above 78 % it gets
+lighter in steps ("CPU high - lighter"): 1 cloud and atmosphere off,
+2 textures and the pad character off, 3 the automatic vocoder off. Below
+50 % for 20 s it steps back. Nothing else changes: the pads, drone, sub,
+bells, motion and reverb always keep their full sound. SETUP page 4 can
+turn it off. Heavy changes (a new piece, a new section, a chord) are
+spread over a few milliseconds so they don't click.
 
 STEREO SCENES: each section places the voices - spread (across the
 field), split (pads left, bells and motion right), center (a focused core,

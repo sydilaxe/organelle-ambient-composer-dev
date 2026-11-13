@@ -256,6 +256,19 @@ def voice():
     for i, n in ((1, "$0-ld"), (2, "$0-la"), (3, "$0-lb")):
         v.c(lu, i, v.obj("s " + n), 0)
     v.col()
+    # the whole voice computes only while the pad layer plays: on at once, off 200 ms after it has faded out
+    gp = v.ch(v.recv("ac-g-pad"), "unpack f f")
+    psw = v.obj("switch~")
+    v.c(v.m(v.obj("loadbang"), "0"), 0, psw, 0)
+    pd_ = v.obj("delay")
+    v.c(v.to((gp, 1), "+ 200"), 0, pd_, 1)
+    gsel = v.to(gp, "sel 0")
+    v.c(gsel, 0, pd_, 0)
+    gon = v.to((gsel, 1), "t b b")
+    v.c(v.m((gon, 1), "stop"), 0, pd_, 0)
+    v.c(v.m((gon, 0), "1"), 0, psw, 0)
+    v.c(v.m(pd_, "0"), 0, psw, 0)
+    v.col()
     from gen_sounds import NEW_FLAVS
     nf = 6 + len(NEW_FLAVS)
     ft = v.to(v.recv("ac-v$1-flav"), "t " + " ".join(["f"] * nf))
@@ -620,9 +633,10 @@ def master():
     rv = mul(s, mul(s, rin, s.ch(s.recv("ac-rvin"), "line~")), s.ch(s.recv("ac-rvfz"), "line~"))
     import gen_verb
     bl = s.sub(gen_verb.bloom())
-    s.c(s.ch(rv, "lop~ 8000", "lop~ 9000"), 0, bl, 0)
+    rvlp = s.ch(rv, "lop~ 8000", "lop~ 9000")          # both reverbs run at 22.05 kHz
+    s.c(rvlp, 0, bl, 0)
     hl = s.sub(gen_verb.hall())
-    s.c(rv, 0, hl, 0)
+    s.c(rvlp, 0, hl, 0)
     wet = s.ch(s.recv("ac-rwet"), "line~")
     wL = mul(s, add(s, s.ch((bl, 0), "lop~ 9000"), (hl, 0)), wet)
     wR = mul(s, add(s, s.ch((bl, 1), "lop~ 9000"), (hl, 1)), wet)
@@ -760,9 +774,15 @@ def live_voice():
     v.c(v.m(off, "0 1400"), 0, gate, 0)
     # breath (1 when there is no breath controller)
     br = v.obj("line~")
-    v.c(v.m(v.to(v.recv("ac-lvbr"), "route $1"), "$1 15"), 0, br, 0)
-    v.c(v.m(v.to(brm, "sel 0"), "1 50"), 0, br, 0)
+    brlast = v.obj("f 1")              # the latest breath, so the voice wakes at it (no ramp from an old value)
+    brin = v.ch(v.recv("ac-lvbr"), "route $1", "t f f")
+    v.c(brin, 1, brlast, 1)
+    v.c(v.m(brin, "$1 15"), 0, br, 0)
+    brm0 = v.ch(brm, "sel 0", "t b b")
+    v.c(v.m((brm0, 1), "1"), 0, brlast, 1)
+    v.c(v.m(brm0, "1 50"), 0, br, 0)
     v.c(v.m(v.obj("loadbang"), "1"), 0, br, 0)
+    v.c(v.m(brlast, "$1"), 0, br, 0)
     amp = mul(v, gate, br)
     bright = v.ch(add(v, v.ch(v.recv("ac-bright"), "line~"), v.to(br, "*~ 0.3")), "clip~ 0 1")
     v.col()
@@ -777,10 +797,19 @@ def live_voice():
     d = v.obj("delay 1600")
     v.c(off, 0, d, 0)
     v.c(v.m(c_vel, "stop"), 0, d, 0)
-    tb = v.to((c_vel, 0), "t b")
+    tb = v.to((c_vel, 0), "t b b")
     v.c(tb, 0, ty, 0)
     for i in range(nf):
         v.c(v.m(d, "0 50"), 0, v.obj(f"s $0-fw{i}"), 0)
+    # the whole voice computes only while it sounds: on at a note-on, off 1.75 s after the release
+    vsw = v.obj("switch~")
+    v.c(v.m(v.obj("loadbang"), "0"), 0, vsw, 0)
+    v.c(v.m((tb, 1), "1"), 0, vsw, 0)
+    v.c((tb, 1), 0, brlast, 0)
+    d2 = v.obj("delay 150")
+    v.c(d, 0, d2, 0)
+    v.c(v.m((tb, 1), "stop"), 0, d2, 0)
+    v.c(v.m(d2, "0"), 0, vsw, 0)
     lb = v.ch(v.obj("loadbang"), "f $1")
     v.c(v.to(lb, "expr 0.11 + 0.03*$f1"), 0, v.obj("s $0-la"), 0)
     v.c(v.to(lb, "expr 0.07 + 0.02*$f1"), 0, v.obj("s $0-lb"), 0)
@@ -813,11 +842,14 @@ def live_voice():
 
 
 def pitch_tracker(src_canvas, src):
-    """FFT autocorrelation pitch tracker (vanilla): 4096-point blocks, 2048 windowed samples (zero padded),
-    hop 1024. Lag 40..600 (73 Hz - 1.1 kHz), parabolic interpolation. -> acinp (MIDI, -1 = none), acinclr."""
+    """FFT autocorrelation pitch tracker (vanilla), at half rate (22.05 kHz): 2048-point blocks, 1024 windowed
+    samples (zero padded), hop 1024 (46 ms). Lag 20..300 (73 Hz - 1.1 kHz), parabolic interpolation.
+    -> acinp (MIDI, -1 = none), acinclr. Switched off (ac-trk 0) while the In knob is at 0."""
     p = Canvas("pitch", w=1400)
-    p.comment("autocorrelation by FFT: |X|^2 -> inverse FFT; the strongest lag in 40..600 is the period")
-    p.obj("block~ 4096 4")
+    p.comment("autocorrelation by FFT: |X|^2 -> inverse FFT; the strongest lag in 20..300 is the period")
+    tsw = p.obj("switch~ 2048 2 0.5")
+    p.c(p.ch(p.obj("loadbang"), "f 0"), 0, tsw, 0)
+    p.c(p.recv("ac-trk"), 0, tsw, 0)
     x = p.obj("inlet~", 20, 5)
     w = mul(p, x, p.obj("tabreceive~ achann"))
     ff = p.to(w, "rfft~")
@@ -826,7 +858,7 @@ def pitch_tracker(src_canvas, src):
     p.col()
     bg = p.obj("bang~")
     from pdlib import run_steps, X
-    mx = p.obj("array max acacf 40 560")
+    mx = p.obj("array max acacf 20 280")
     p.c(bg, 0, mx, 0)
     pk = p.obj("pack f f")
     p.c(mx, 1, pk, 1)
@@ -837,7 +869,7 @@ def pitch_tracker(src_canvas, src):
     p.c(tb, 1, p.obj("v aci2"), 0)
     y0, y1, y2 = "acacf[int(aci2)-1]", "acacf[int(aci2)]", "acacf[int(aci2)+1]"
     den = f"({y0} - 2*{y1} + {y2})"
-    run_steps(p, (tb, 0), [X(f"if(acinclr > 0.35 && acinlvl > 48, ftom(44100/(aci2 + max(-1, min(1, if({den} < -1e-09, "
+    run_steps(p, (tb, 0), [X(f"if(acinclr > 0.35 && acinlvl > 48, ftom(22050/(aci2 + max(-1, min(1, if({den} < -1e-09, "
                              f"0.5*({y0} - {y2})/{den}, 0))))), -1)", "v acinp")])
     sp = src_canvas.sub(p)
     src_canvas.c(src, 0, sp, 0)
@@ -870,7 +902,7 @@ def inp():
     hd = s.obj("expr $f1 - acinlvl")
     s.c(hf, 0, hd, 0)
     s.c(hd, 0, s.obj("v acinhf"), 0)
-    pitch_tracker(s, ain)
+    pitch_tracker(s, s.ch(ain, "lop~ 5000", "lop~ 6000"))     # band-limit before the half-rate tracker
     s.col()
     s.c(s.recv("ac-ghost"), 0, s.obj("v acghost"), 0)
     env = s.to((lvl, 0), "expr max(0, min(1, ($f1-45)/40))")

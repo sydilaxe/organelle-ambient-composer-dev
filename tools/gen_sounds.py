@@ -349,10 +349,22 @@ VOC_BANDS = [round(150 * (46.7 ** (i / 9))) for i in range(10)]
 
 
 def vocoder():
-    s, ln = switched("vocoder", "ac-g-voc")
-    s.comment("Vocoder: the input's 10 band envelopes shape a carrier - a synth choir on the chord (vocode) or "
-              "the pads themselves (morph)")
-    m = s.obj("r~ ac-in")
+    """The vocoder at half rate (22.05 kHz; its bands reach 7 kHz): an outer canvas feeds the input and the pad
+    signal in, and throws what comes out."""
+    o = Canvas("vocoder", w=900)
+    o.comment("Vocoder: the input's 10 band envelopes shape a carrier - a synth choir on the chord (vocode) or "
+              "the pads themselves (morph). The work runs at half rate inside.")
+    core = o.sub(_vocoder_core())
+    o.c(o.ch(o.obj("r~ ac-in"), "lop~ 8000"), 0, core, 0)
+    o.c(o.ch(o.obj("r~ ac-padsig"), "lop~ 8000"), 0, core, 1)
+    throws(o, (core, 0), (core, 1), mix=1.0, send=0.6, src=0.3)
+    return o
+
+
+def _vocoder_core():
+    s, ln = switched("vocoder-core", "ac-g-voc", block="64 1 0.5")
+    m = s.obj("inlet~", 20, 5)
+    padsig = s.obj("inlet~", 200, 5)
     # carriers
     choir = s.obj("*~ 0.25")
     for k in range(4):
@@ -361,7 +373,7 @@ def vocoder():
         s.c(s.ch(s.to(hz, "*~ 1.006"), "phasor~", "-~ 0.5"), 0, choir, 0)
     s.c(s.ch(s.obj("noise~"), "hip~ 5000", "*~ 0.15"), 0, choir, 0)
     car = add(s, mul(s, choir, s.ch(s.recv("ac-vcsyn"), "line~")),
-              mul(s, s.to(s.obj("r~ ac-padsig"), "*~ 4"), s.ch(s.recv("ac-vcpad"), "line~")))
+              mul(s, s.to(padsig, "*~ 4"), s.ch(s.recv("ac-vcpad"), "line~")))
     L, R = s.obj("*~ 11"), s.obj("*~ 11")
     s.col()
     for i, fc in enumerate(VOC_BANDS):
@@ -376,7 +388,8 @@ def vocoder():
         s.c(mul(s, cb, envl), 0, L if i % 2 == 0 else R, 0)
         if i % 3 == 2:
             s.col(160)
-    throws(s, mul(s, L, ln), mul(s, R, ln), mix=1.0, send=0.6, src=0.3)
+    for i, x in enumerate((L, R)):
+        s.c(mul(s, x, ln), 0, s.obj("outlet~ lin", 20 + i * 200, 980), 0)
     return s
 
 

@@ -208,10 +208,10 @@ def memories():
 def tables():
     c = Canvas("live-tables")
     c.comment("Arrays for the pitch tracker and the memories; the analysis window is built at start-up")
-    for n in ("acacf 4096", "achann 4096") + tuple(f"acmem{i} 352800" for i in range(4)):
+    for n in ("acacf 2048", "achann 2048") + tuple(f"acmem{i} 352800" for i in range(4)):
         c.obj("array define " + n)
-    proc(c, "ac-init", [Loop("4096", "acwi", [T("achann", "acwi",
-                                                 "if(acwi < 2048, 0.5 - 0.5*cos(6.283185*acwi/2048), 0)")])])
+    proc(c, "ac-init", [Loop("2048", "acwi", [T("achann", "acwi",
+                                                 "if(acwi < 1024, 0.5 - 0.5*cos(6.283185*acwi/1024), 0)")])])
     return c
 
 

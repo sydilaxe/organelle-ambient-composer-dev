@@ -100,7 +100,7 @@ Working memory for this project: read it first in a new session.
 - **Only these OLED commands are used:** gFillArea, gInvertArea, gBox, gPrintln, gFlip and gShowInfoBar,
   the ones DM48 Engine already uses on the device. Checked only in `oledemu.py` so far.
 - **SETUP:** aux held 1 s (a `[delay 1000]` started by `[t b]`; a float into `[delay]` would *set its time*).
-  Knobs in SETUP are absolute (selectors). `settings.txt` holds 26 numbers (12 knobs + 14 SETUP values).
+  Knobs in SETUP are absolute (selectors). `settings.txt` holds 27 numbers (12 knobs + 15 SETUP values).
   It is written 3 s after a change and when SETUP closes, and read at start-up before the first piece.
 - **MIDI out:** through `ac-midibyte` → `[midiout]` and `ac-noteout` → `[noteout]`, so the tests can print
   them. Clock 248 on every `ac-tick` while `acclkon`. Start (250) at a new piece, Stop (252) at FIN.
@@ -188,3 +188,15 @@ Working memory for this project: read it first in a new session.
 - MIDI in for key centre and chord-change triggers. MIDI clock out of the change grid.
 - A spectral freeze (`rfft~`) input mode.
 - Test on the hardware: CPU on the CM3, input levels, the LED colours.
+
+## CPU notes
+
+- `Later(recv, ms, stop)` (pdlib) defers a step through a `[delay]`. `ac-newpiece` → `ac-np2` (section) →
+  `ac-np3` (first chord); `ac-section` defers stereo, reverb, layers, brightness, motif, memories and the
+  screen; `ac-change` defers its second half (`ac-change2`: bands, drone, sub, atmospheres, vocoder, timers,
+  screen, MIDI). Tests that stop the timers right after `ac-setseed` do it at about 300 ms, after the staged
+  start.
+- The CPU guard reads `[cputime]` against `[timer]` (logical time), so an offline batch run reads near 0;
+  `acloadtest` overrides the load in tests.
+- `tools` has no profiler of its own; the numbers in the README came from timing `pd -batch` runs with one
+  part removed at a time, and `[realtime]` around a single message for the tick lengths.

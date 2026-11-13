@@ -295,6 +295,18 @@ def Arm(tick, expr, stop=None):
     return st
 
 
+def Later(recv, ms, stop=None):
+    """[s recv] after ms (a [delay]; a repeat before it fires restarts it; [s stop] cancels it). Spreads a
+    heavy update over several scheduler ticks so no single tick runs long enough to make the audio drop out."""
+    def st(c, src):
+        d = c.obj(f"delay {ms}")
+        c.c(*src, d, 0)
+        c.c(d, 0, c.obj("s " + recv), 0)
+        if stop:
+            c.c(c.m(c.recv(stop), "stop"), 0, d, 0)
+    return st
+
+
 def Toast(text):
     return Send("ac-toast", "list " + text)
 

@@ -78,9 +78,9 @@ def ap(c, src, name, ms, g):
 
 
 def hall():
-    s, ln = switched("hall", "ac-g-rvh")
+    s, ln = switched("hall", "ac-g-rvh", block="64 1 0.5")
     s.comment("Hall: 8-line FDN, Hadamard feedback, 2 modulated lines; Shimmer adds an octave-up shifter "
-              "in the loop")
+              "in the loop. At 22.05 kHz (half the CPU); its input is band-limited outside")
     x = s.obj("inlet~", 20, 5)
     shim_in = s.obj("+~")
     s.c(ap(s, ap(s, ap(s, x, "$0-hap1", 4.77, 0.62), "$0-hap2", 3.59, 0.62), "$0-hap3", 12.7, 0.6), 0, shim_in, 0)
@@ -142,5 +142,5 @@ def hall():
     sh = s.ch(s.recv("ac-shim"), "line~")
     s.c(mul(s, s.to(shout, "lop~ 7000"), sh), 0, shim_in, 1)
     for i, o in enumerate((L, R)):
-        s.c(mul(s, o, ln), 0, s.obj("outlet~", 20 + i * 200, 980), 0)
+        s.c(mul(s, o, ln), 0, s.obj("outlet~ lin", 20 + i * 200, 980), 0)
     return s

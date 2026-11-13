@@ -72,7 +72,7 @@ emulator, so the font only approximates the Organelle's.
 | **Score** | The form strip (one bar per section, height = energy, current one inverted, a playhead). Key and scale, with the time left. The pad voices gliding on a pitch ladder, with your held notes as boxes and a breath bar. Meters for every layer, the reverb and the input. The motion layer's Euclidean pattern with a moving cursor, the tempo and the reverb type. The section role and voicing, and K/M/E tags for who is playing and the clock. |
 | **Input** | While external audio plays, the right-hand column becomes an input panel: the last 6 s of the input as a waveform with its onsets ticked above, the input mode, and what Amble hears (pitch, pluck, texture), with a dot while it records a memory. A sung or played pitch is drawn as a line across the pitch ladder, so you see it against the pad voices. The rhythm column comes back 5 s after the input stops. |
 | **Knob page** | Shown for 2 s when you turn a knob. |
-| **SETUP** | Hold aux for 1 s; aux taps turn the 4 pages. Page 1: MIDI out (off, tempo only, tempo + notes, notes only), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Page 3: output, width, pan motion, tempo range. Page 4: which MIDI notes go out, arp octave. Saved in `settings.txt` with the knob values. |
+| **SETUP** | Hold aux for 1 s; aux taps turn the 4 pages. Page 1: MIDI out (off, tempo only, tempo + notes, notes only), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Page 3: output, width, pan motion, tempo range. Page 4: which MIDI notes go out, arp octave, the CPU load, the CPU guard (on or off). Saved in `settings.txt` with the knob values. |
 
 **MIDI out** (SETUP page 1): off, **tempo only** (clock), **tempo + notes**, or **notes only**.
 - **Clock:** 24 ticks a beat at the piece's tempo (following the form's tempo changes), with Start and Stop
@@ -192,6 +192,22 @@ python3 ci_check.py   # offline checks in Pure Data (needs gcc for the Bloom ref
 ```
 
 Requirements: Python 3 with numpy and scipy, Pure Data 0.53+, gcc, and ffmpeg for the demos.
+
+## CPU
+
+The Organelle-M runs Amble on one core, so a few things keep it from crackling:
+
+- **Only what sounds runs.** Every layer, pad voice and live voice switches its DSP off when silent. The
+  pitch tracker runs only while the In knob is up.
+- **Half rate where it can't be heard:** the Bloom and Hall/Shimmer reverbs, the vocoder and the pitch tracker
+  run at 22.05 kHz (their content stays below 11 kHz).
+- **No long ticks.** A new piece, a new section and a chord change are split into stages a few milliseconds
+  apart, so no single scheduler tick runs long enough to make the audio drop out (the longest went from about
+  0.9 ms to under 0.2 ms on a desktop core).
+- **CPU guard.** Amble measures its own load each second (CPU time over logical time). Above 78 % it gets
+  lighter in steps: 1, cloud and atmosphere off; 2, textures and the pad character off; 3, the automatic
+  vocoder off. Below 50 % for 20 s it steps back. The pads, drone, sub, bells, motion and reverb never change.
+  SETUP page 4 shows the load and the guard's level, and can turn the guard off.
 
 ## Releases
 
