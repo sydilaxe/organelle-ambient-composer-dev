@@ -59,7 +59,7 @@ def ctl(c, dest, recv, expr=None, inlet=1, first=False):
     return src
 
 
-def throws(c, L, R, mix=1.0, send=0.0, src=0.0, bus="mix"):
+def throws(c, L, R, mix=1.0, send=0.0, src=0.0, bus="mix", sbus="ac-send"):
     """to the mix (bus "mix") or the harmony bed (bus "bed": drone and sub, kept apart for SETUP Output split),
     plus the reverb send and the cloud source"""
     for sig, bus in ((L, f"ac-{bus}L"), (R, f"ac-{bus}R")):
@@ -67,9 +67,14 @@ def throws(c, L, R, mix=1.0, send=0.0, src=0.0, bus="mix"):
     if send or src:
         m = add(c, L, R)
         if send:
-            c.c(c.to(m, f"*~ {send * 0.5}"), 0, c.obj("throw~ ac-send"), 0)
+            c.c(c.to(m, f"*~ {send * 0.5}"), 0, c.obj("throw~ " + sbus), 0)
         if src:
             c.c(c.to(m, f"*~ {src * 0.5}"), 0, c.obj("throw~ ac-src"), 0)
+
+
+def throws_to(sbus):
+    """throws() with the reverb send on a group's bus (SENDS knob pages)"""
+    return lambda *a, **k: throws(*a, sbus=sbus, **k)
 
 
 def span(c, sig, pos):
@@ -352,7 +357,7 @@ def drone():
     s.c(s.to((pu, 0), "expr 1-$f1"), 0, pa, 1)
     oL = mul(s, mul(s, s.to(sL, "hip~ 25"), pa), ln)
     oR = mul(s, mul(s, s.to(sR, "hip~ 25"), pa), ln)
-    throws(s, oL, oR, mix=0.6, send=0.3, src=1, bus="bed")
+    throws_to("ac-sendd")(s, oL, oR, mix=0.6, send=0.3, src=1, bus="bed")
     return s
 
 
@@ -473,7 +478,7 @@ def cloud():
         s.c(gl, 0, L, 0)
         s.c(gr, 0, R, 0)
         s.col(160)
-    throws(s, mul(s, L, ln), mul(s, R, ln), mix=0.85, send=1.2)
+    throws_to("ac-sendc")(s, mul(s, L, ln), mul(s, R, ln), mix=0.85, send=1.2)
     return s
 
 
@@ -523,7 +528,7 @@ def bells():
                 s.c(bpn, 2 * k + side, m, 1)
                 s.c(m, 0, dst, 0)
         s.col(160)
-    throws(s, L, R, mix=1.1, send=1.0)
+    throws_to("ac-sendb")(s, L, R, mix=1.1, send=1.0)
     return s
 
 
@@ -574,7 +579,7 @@ def reso():
         r = s.recv(rcv)
         for o in lst:
             s.c(r, 0, o, 1)
-    throws(s, mul(s, s.to(L, "*~ 0.12"), ln), mul(s, s.to(R, "*~ 0.12"), ln), mix=1, send=0.6)
+    throws_to("ac-sendi")(s, mul(s, s.to(L, "*~ 0.12"), ln), mul(s, s.to(R, "*~ 0.12"), ln), mix=1, send=0.6)
     return s
 
 
@@ -591,7 +596,7 @@ def tape():
         s.c(s.to(m, f"+~ {base}"), 0, vd, 0)
         taps.append(vd)
     s.c(s.ch(taps[0], "lop~ 2400", "hip~ 90", "*~ 0.58", "clip~ -0.8 0.8"), 0, a, 1)
-    throws(s, mul(s, s.to(taps[0], "lop~ 3500"), ln), mul(s, s.to(taps[1], "lop~ 3000"), ln), mix=0.5, send=0.4)
+    throws_to("ac-sendi")(s, mul(s, s.to(taps[0], "lop~ 3500"), ln), mul(s, s.to(taps[1], "lop~ 3000"), ln), mix=0.5, send=0.4)
     return s
 
 
@@ -627,8 +632,13 @@ def master():
     # reverb send level: with the Mix knob at its default (45 %) the reverb sits about 6 dB under the dry sound,
     # at 100 % about level with it (measured in a playing piece; it was 17-27 dB under before)
     rin = s.obj("*~ 1.23")
-    s.c(s.obj("catch~ ac-send"), 0, rin, 0)
-    s.c(s.to(pm, "*~ 0.3"), 0, rin, 0)
+    # the send buses, each scaled by its SENDS knob (0..2: 50 % on the knob = the designed balance)
+    from data import SEND_BUS
+    for name, bus in SEND_BUS.items():
+        src = s.to(pm, "*~ 0.3") if name == "acsndp" else s.obj("catch~ " + bus)
+        if name == "acsndp":       # the pads are sent from their bus here, the notes you play throw to ac-sendp
+            s.c(s.obj("catch~ ac-sendp"), 0, src, 0)
+        s.c(mul(s, src, s.ch(s.recv("ac-sg-" + name), "line~")), 0, rin, 0)
     rs = s.obj("s~ ac-resamp")
     s.c(s.obj("catch~ ac-src"), 0, rs, 0)
     s.c(s.to(pm, "*~ 0.5"), 0, rs, 0)
@@ -750,7 +760,7 @@ def motion():
         s.c(s.to(rd, "*~ 0.6"), 0, o, 1)
         # soft limit: pings stacking with their echoes (fast tempi, dense patterns) stay round, never spike
         outs.append(s.to(o, "expr~ tanh($v1*2.5)/2.5"))
-    throws(s, outs[0], outs[1], mix=1.0, send=0.9)
+    throws_to("ac-sendm")(s, outs[0], outs[1], mix=1.0, send=0.9)
     return s
 
 
@@ -857,7 +867,7 @@ def live_voice():
     gr = v.ch(q, "-~ 0.25", "cos~", "*~ 1.414", "clip~ 0 1")
     L = mul(v, v.to(bodyL, "*~ 0.42"), gl)
     R = mul(v, v.to(bodyR, "*~ 0.42"), gr)
-    throws(v, L, R, mix=1.0, send=0.6, src=0.5)
+    throws_to("ac-sendp")(v, L, R, mix=1.0, send=0.6, src=0.5)
     return v
 
 
@@ -905,6 +915,8 @@ def inp():
     dry = s.ch(s.recv("ac-g-dry"), "line~")
     for sig, bus in ((iL, "ac-mixL"), (iR, "ac-mixR")):
         s.c(mul(s, sig, dry), 0, s.obj("throw~ " + bus), 0)
+    # the dry input into the reverb too (SENDS 2, Inp)
+    s.c(s.to(mul(s, mono, dry), "*~ 0.3"), 0, s.obj("throw~ ac-sendi"), 0)
     s.col()
     lvl = s.ch(mono, "env~ 2048 1024", "t f f f")
     s.c(lvl, 2, s.obj("v acinlvl"), 0)
@@ -949,7 +961,7 @@ def bands():
         s.c(src, 0, v, 0)
         s.c(s.ch(s.recv(f"ac-band{k}"), "line~"), 0, v, 1)
         s.c(v, 0, L if k % 2 == 0 else R, 0)
-    throws(s, mul(s, L, ln), mul(s, R, ln), mix=1.0, send=0.7, src=0.3)
+    throws_to("ac-sendi")(s, mul(s, L, ln), mul(s, R, ln), mix=1.0, send=0.7, src=0.3)
     return s
 
 
@@ -980,5 +992,5 @@ def mem_play():
         s.c(s.to(ph, f"*~ {CLOUD_LEN - 4}"), 0, rd, 0)
         win = s.ch(ph, "cos~", "*~ -0.5", "+~ 0.5")
         s.c(mul(s, rd, win), 0, dst, 0)
-    throws(s, mul(s, L, ln), mul(s, R, ln), mix=0.7, send=1.0)
+    throws_to("ac-sendi")(s, mul(s, L, ln), mul(s, R, ln), mix=0.7, send=1.0)
     return s

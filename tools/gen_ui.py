@@ -17,6 +17,8 @@ SIDE = {  # what to do after a knob changes a value (index = page*4 + knob)
     10: [SendL("ac-motion", ["acmotion"]), Call("ac-stereo")],
     11: [Send("ac-densch"), SendL("ac-pulse", ["acrpulse[int(acrole)] * (0.3 + 1.4*acrhythm)"])],
 }
+for _i in range(12, 4 * len(PAGES)):          # the SENDS pages
+    SIDE[_i] = [Call("ac-sendupd")]
 NP = len(PAGES)
 # the function keys (top octave, C..B): the manual (tools/manual.py) documents these, in this order
 FKEYS = ["COMPOSE / DRIFT", "chord change now", "next section", "drone on/off", "pads on/off", "textures on/off",
@@ -176,6 +178,11 @@ def screen():
     Line("ac-scr4p2", "list Len $1 min Weird $2", [("f", "int(5 + 25*aclen)"), ("f", "int(acweird*100)")],
          "ac-txt4")(c)
     Line("ac-scr5p2", "list Mot $1 Rhy $2", [("f", "int(acmotion*100)"), ("f", "int(acrhythm*100)")], "ac-txt5")(c)
+    # the SENDS pages: "Drone 50 Pads 50" ...
+    for pg in range(3, len(PAGES)):
+        for ln, pair in ((4, PAGES[pg][:2]), (5, PAGES[pg][2:])):
+            Line(f"ac-scr{ln}p{pg}", "list " + " ".join(f"{lab} ${i + 1}" for i, (lab, _, _) in enumerate(pair)),
+                 [("f", f"int({n}*100)") for _, n, _ in pair], f"ac-txt{ln}")(c)
     # LED: green drifting, blue composing, off when finished; white flash on a chord change
     led = c.obj("s led")
     lc = c.ch(c.recv("ac-led"), "expr if(acended || acstopped, 0, if(acmode, 5, 3))")

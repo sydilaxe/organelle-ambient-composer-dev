@@ -572,5 +572,24 @@ for vt, name in ((0.3, "Bloom 1"), (0.7, "Hall")):
     out = rms_db(a[20 * SR:40 * SR].mean(1))
     check(-10 < rv - out < -2, f"{name} at the default Mix: {rv - out:+.1f} dB against the whole output")
 
+# 28. SENDS pages: each group has its own reverb send (drone dry, pads wet...); saved after the SETUP values
+ALLM = ["acmdrone", "acmpad", "acmtex", "acmcloud", "acmbell", "acmmotion"]
+def drone_wet(send):
+    ev = [(50, "ac-setseed 7"), (310, "ac-secstop bang")] + [(320, f"{m} {1 if m == 'acmdrone' else 0}") for m in ALLM] + \
+         [(321, "acfade 10"), (322, "ac-layers bang"), (1000, f"ac-param 12 {send}")]
+    log, _ = run(ev, 20, extra=rvprobe)
+    return np.median([float(l.split()[1]) for l in log.splitlines() if l.startswith("RV:")][24:]) - 100
+dry, full = drone_wet(0), drone_wet(1)
+check(dry < -90 and full > -45, f"SENDS: Drone send 0 = dry drone ({dry:.0f} dB wet), full = {full:.0f} dB wet")
+import os
+d = build_tmp()
+run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 1"), (550, "aux 0"),
+     (700, "knob1 0.5"), (800, "knob1 0.0")], 6, d=d)
+vals = open(os.path.join(d, "settings.txt")).read().split()
+log, _ = run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 1"), (550, "aux 0"),
+              (700, "knob2 0.5"), (750, "knob2 0.52")], 3, d=d)
+check(len(vals) == 35 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
+      "SENDS: a send is saved after the SETUP values and comes back after a restart")
+
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

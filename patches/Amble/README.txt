@@ -56,6 +56,11 @@ KNOBS (aux cycles the pages; knobs pick up smoothly)
          3 Time  1.5-30 s           4 Tone  damping
   PIECE  1 Len   5-30 min           2 Weird FM, folding, key changes
          3 Mot   breathing, drift   4 Rhy   motion layer, swing, pulse
+  SENDS 1  reverb sends: 1 Drone (and sub)  2 Pads (and notes you play)
+           3 Bells  4 Motion
+  SENDS 2  reverb sends: 1 Textures  2 Cloud  3 Atmosphere  4 Input
+  Each send runs from off (dry) to full; 50 % is the designed balance.
+  Mix (SPACE) is the overall reverb return.
 
 PLAYING IT
   Standalone, the Organelle keys PLAY NOTES (4 voices in the piece's own

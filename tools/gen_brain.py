@@ -35,7 +35,7 @@ for page in PAGES:
 
 ARRAYS = dict(acscale=16, acfamt=NF * 5, acch=4, acnew=4, acplan=16, acpdur=16, acmotif=8, acmotif0=8,
               acmrhy=8, acmoves=12, acmods=12, acgrt=12, acfmrt=8, acpartt=24, acbellt=12, acdintt=5, acrhyt=5,
-              acparams=12, acraw=4, acflav=4, acroles=16, acflpick=40, acfmrpick=40, acpapick=40, acscn=50,
+              acparams=4 * len(PAGES), acraw=4, acflav=4, acroles=16, acflpick=40, acfmrpick=40, acpapick=40, acscn=50,
               acscrole=24, acatmrole=8, ackeyp=16, acprog=8, acrmask=48, acrtide=8,
               acrtempo=8, acrpulse=8, acaway=8, aceuk=10, aceun=10, acmeters=6, acmratios=6, acbreath=4, actlo=5, acthi=5)
 
@@ -492,6 +492,9 @@ def verb():
         SendL("ac-shim", ["(acvtype==4)*0.3", "3000"]),
         Call("ac-revupd"),
     ])
+    from data import SEND_BUS
+    proc(c, "ac-sendupd", [SendL("ac-sg-" + n, [f"2*{n}", "200"]) for n in SEND_BUS])
+    c.c(c.to(c.recv("ac-init"), "t b"), 0, c.obj("s ac-sendupd"), 0)
     proc(c, "ac-revupd", [
         # Bloom: loop gain exp(-4.2*size/T), as Conduit's; damping = the loop low-pass pole (0.5 = the unit)
         V("acbld", f"if(acvfreeze, 1/0.75, exp(-4.2*acrvsize/{tsec})/0.75)"),

@@ -1,7 +1,7 @@
 """More sounds: electric / synthetic pad types, drone designs, the sub, electric textures, per-piece character
 (chorus, tape, ring, crush) on the pads, and the vocoder (input speaks through a synth choir or the pads)."""
 from pdlib import Canvas
-from gen_dsp import switched, mul, add, ctl, throws, _flav_inlets, _out
+from gen_dsp import switched, mul, add, ctl, throws, throws_to, _flav_inlets, _out
 
 
 # ---------------------------------------------------------------- pad types 6..9 (inlets: freq~, bright~)
@@ -136,7 +136,7 @@ def _drone_out(s, sig, ln, sigR=None):
         sigR = add(s, s.to(sig, "*~ 0.35"), s.to(sigR, "*~ 0.8"))
     oL = mul(s, s.to(sig, "hip~ 25"), ln)
     oR = mul(s, s.to(sigR, "hip~ 25"), ln)
-    throws(s, oL, oR, mix=0.6, send=0.3, src=1, bus="bed")
+    throws_to("ac-sendd")(s, oL, oR, mix=0.6, send=0.3, src=1, bus="bed")
 
 
 def drone_analog():
@@ -205,7 +205,7 @@ def sub():
     pa = s.to(dep, "+~ 1")
     s.c(s.to((pu, 0), "expr 1-$f1"), 0, pa, 1)
     o = mul(s, mul(s, s.to(y, "lop~ 500"), pa), ln)
-    throws(s, o, o, mix=0.42, send=0.05, bus="bed")
+    throws_to("ac-sendd")(s, o, o, mix=0.42, send=0.05, bus="bed")
     return s
 
 
@@ -357,7 +357,7 @@ def vocoder():
     core = o.sub(_vocoder_core())
     o.c(o.ch(o.obj("r~ ac-in"), "lop~ 8000"), 0, core, 0)
     o.c(o.ch(o.obj("r~ ac-padsig"), "lop~ 8000"), 0, core, 1)
-    throws(o, (core, 0), (core, 1), mix=1.0, send=0.6, src=0.3)
+    throws_to("ac-sendi")(o, (core, 0), (core, 1), mix=1.0, send=0.6, src=0.3)
     return o
 
 
@@ -408,7 +408,7 @@ def atm_haze():
         gl, gr = [(1, 0.2), (0.2, 1), (0.8, 0.5), (0.5, 0.8), (1, 0.4), (0.4, 1)][k]
         s.c(s.to(b, f"*~ {gl}"), 0, L, 0)
         s.c(s.to(b, f"*~ {gr}"), 0, R, 0)
-    throws(s, mul(s, L, ln), mul(s, R, ln), mix=0.5, send=0.6)
+    throws_to("ac-senda")(s, mul(s, L, ln), mul(s, R, ln), mix=0.5, send=0.6)
     return s
 
 
@@ -422,7 +422,7 @@ def atm_deep():
         sw = s.ch(s.obj(f"osc~ {rate}"), "*~ 0.4", "+~ 0.6")
         thn = mul(s, s.ch(s.obj("noise~"), "lop~ 260", "lop~ 400", "*~ 10"), s.to(th, f"*~ {[1, 0.6][k]}"))
         outs.append(mul(s, add(s, mul(s, r, sw), thn), ln))
-    throws(s, outs[0], outs[1], mix=0.22, send=0.25)
+    throws_to("ac-senda")(s, outs[0], outs[1], mix=0.22, send=0.25)
     return s
 
 
@@ -439,7 +439,7 @@ def atm_space():
         s.c(s.ch(vd, "lop~ 2200", "*~ 0.985"), 0, a, 1)
         sw = s.ch(s.obj(f"osc~ {0.017 + 0.009 * k}"), "*~ 0.45", "+~ 0.55")
         outs.append(mul(s, mul(s, s.ch(vd, "hip~ 60", "*~ 5"), sw), ln))
-    throws(s, outs[0], outs[1], mix=0.8, send=0.8)
+    throws_to("ac-senda")(s, outs[0], outs[1], mix=0.8, send=0.8)
     return s
 
 
@@ -457,7 +457,7 @@ def atm_night():
         s.c(s.to(b, f"*~ {(1 - pos) ** 0.5:.3f}"), 0, L, 0)
         s.c(s.to(b, f"*~ {pos ** 0.5:.3f}"), 0, R, 0)
     bed = [s.ch(s.obj("noise~"), "hip~ 6000", "*~ 0.004") for _ in range(2)]
-    throws(s, mul(s, add(s, L, bed[0]), ln), mul(s, add(s, R, bed[1]), ln), mix=1, send=0.5)
+    throws_to("ac-senda")(s, mul(s, add(s, L, bed[0]), ln), mul(s, add(s, R, bed[1]), ln), mix=1, send=0.5)
     return s
 
 
@@ -475,7 +475,7 @@ def atm_tides():
         s.c(s.obj("noise~"), 0, v, 0)
         s.c(s.ch(e2, "*~ 2200", "+~ 300"), 0, v, 1)
         outs.append(mul(s, s.ch(mul(s, (v, 1), e2), "*~ 1.1"), ln))
-    throws(s, outs[0], outs[1], mix=0.9, send=0.5)
+    throws_to("ac-senda")(s, outs[0], outs[1], mix=0.9, send=0.5)
     return s
 
 

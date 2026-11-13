@@ -67,8 +67,16 @@ PAGES = [
     [("Dens", "acdens", 0.5), ("Tide", "actide", 0.45), ("Colr", "accolor", 0.5), ("In", "acinput", 0.0)],
     [("Mix", "acrvmix", 0.45), ("Verb", "acrvtype", 0.0), ("Time", "acrvtime", 0.45), ("Tone", "acrvtone", 0.5)],
     [("Len", "aclen", 0.3), ("Weird", "acweird", 0.3), ("Mot", "acmotion", 0.5), ("Rhy", "acrhythm", 0.5)],
+    # reverb sends per group, off .. full (50 % = the designed balance, 100 % = twice that)
+    [("Drone", "acsndd", 0.5), ("Pads", "acsndp", 0.5), ("Bells", "acsndb", 0.5), ("Motn", "acsndm", 0.5)],
+    [("Tex", "acsndt", 0.5), ("Cloud", "acsndc", 0.5), ("Atmo", "acsnda", 0.5), ("Inp", "acsndi", 0.5)],
 ]
-PAGE_NAMES = ["SHAPE", "SPACE", "PIECE"]
+PAGE_NAMES = ["SHAPE", "SPACE", "PIECE", "SENDS 1", "SENDS 2"]
+# the send groups: knob value name -> the reverb send bus its sources throw to (pads are sent from the master)
+#   (the notes you play use the pad synthesis types and share the Pads send)
+SEND_BUS = {"acsndd": "ac-sendd", "acsndp": "ac-sendp", "acsndb": "ac-sendb", "acsndm": "ac-sendm",
+            "acsndt": "ac-send", "acsndc": "ac-sendc", "acsnda": "ac-senda", "acsndi": "ac-sendi"}
+FILE_KNOBS = 12      # knob values at the front of settings.txt (the SENDS page is stored after the SETUP values)
 
 CLOUD_LEN = 352800        # 8 s at 44.1 kHz
 

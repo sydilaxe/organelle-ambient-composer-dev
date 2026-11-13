@@ -6,16 +6,17 @@ MIDI out base channel, breath curve. Page 3: output, width, pan motion, tempo ra
 parts go out as MIDI notes, the arp chord octave. Aux tap = the other page, hold aux 1 s = leave (and save)."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Line, Arm, Toast
 from gen_oled import Fill, OSC, FLIP, gated_text
-from data import PAGES, TEMPOS
+from data import PAGES, TEMPOS, FILE_KNOBS
 
 GLOBALS = dict(acmout=1, acsync=0, acvintage=0, acoutch=1, accurve=1.2, acsk=0, acsv=0, acextbpm=60,
                acrtb=0, acoutroot=-1, acclkon=0, acsaved=0, actrange=0,
                acmparts=0, acarpoct=48, acoutbass=-1, acload=0, acloadtest=0, acshedt=0, acldraw=0, acguard=1)
 ARRAYS = dict(acout=4, acarp=4)
 NP = len(PAGES)
-SETTINGS = [n for p in PAGES for _, n, _ in p] + ["acmout", "acsync", "acforce", "acvintage", "acfollow", "acnbr",
+KNOBS = [n for p in PAGES for _, n, _ in p]
+SETTINGS = KNOBS[:FILE_KNOBS] + ["acmout", "acsync", "acforce", "acvintage", "acfollow", "acnbr",
                                                   "acoutch", "accurve", "acmono", "acwidth", "acpanmot",
-                                                  "actrange", "acmparts", "acarpoct", "acguard"]
+                                                  "actrange", "acmparts", "acarpoct", "acguard"] + KNOBS[FILE_KNOBS:]
 IN_IDX = [n for p in PAGES for _, n, _ in p].index("acinput")     # the In knob's slot in acparams
 MOUT = ["off", "tempo only", "tempo+notes", "notes only"]
 PARTS = ["all", "harmony", "arp only"]
@@ -26,7 +27,7 @@ BENDS = [12, 24, 48, 96]
 
 def settings():
     c = Canvas("settings", w=2400)
-    c.comment("settings.txt: the 12 knob values and the 12 SETUP values, one line. Loaded at start-up, "
+    c.comment("settings.txt: the first 12 knob values, the SETUP values, then the SENDS knobs, one line. Loaded at start-up, "
               "saved 3 s after a change and when SETUP closes.")
     td = c.obj("text define acsettings")
     r = c.recv("ac-loadsettings")
@@ -38,18 +39,20 @@ def settings():
     c.c(c.ch((ln, 1), "list split 12"), 0, c.obj("array set acparams"), 0)
     sp = c.ch((ln, 0), "list split 12")
     up = c.to((sp, 1), "unpack " + " ".join(["f"] * (len(SETTINGS) - 12)))
-    for i, n in enumerate(SETTINGS[12:]):
+    for i, n in enumerate(SETTINGS[12:]):     # SETUP values, then the knobs after the first 12 (older files lack them)
         c.c(up, i, c.obj("v " + n), 0)
     c.col()
     # knob values out of the array into their values
     tb = c.to((ln, 0), "t b")
     # the In knob (external audio) always starts at 0, whatever was saved: nothing reaches the input until
     # you turn it up
-    run_steps(c, (tb, 0), [T("acparams", IN_IDX, "0"),
-                           Loop("12", "aci", [SendL("ac-pset", ["aci", "acparams[int(aci)]"])]),
+    run_steps(c, (tb, 0), [T("acparams", IN_IDX, "0")]
+              + [T("acparams", FILE_KNOBS + i, n) for i, n in enumerate(KNOBS[FILE_KNOBS:])] + [
+                           Loop(str(len(KNOBS)), "aci", [SendL("ac-pset", ["aci", "acparams[int(aci)]"])]),
+                           Call("ac-sendupd"),
                            SendL("ac-vintage", ["acvintage"]), SendL("ac-brcurve", ["accurve"])])
-    rt = c.to(c.recv("ac-pset"), "route " + " ".join(str(i) for i in range(12)))
-    for i, n in enumerate(SETTINGS[:12]):
+    rt = c.to(c.recv("ac-pset"), "route " + " ".join(str(i) for i in range(len(KNOBS))))
+    for i, n in enumerate(KNOBS):
         c.c(rt, i, c.obj("v " + n), 0)
     c.col()
     # save (3 s after the last change)
@@ -60,7 +63,7 @@ def settings():
     pk = c.obj("pack " + " ".join(["f"] * (len(SETTINGS) - 12)))
     for i in range(len(SETTINGS) - 13, -1, -1):
         c.c(ex, i, pk, i)
-    ag = c.obj("array get acparams")
+    ag = c.obj(f"array get acparams 0 {FILE_KNOBS}")
     la = c.obj("list append")
     c.c(tsv, 1, ex, 0)
     c.c(pk, 0, la, 1)

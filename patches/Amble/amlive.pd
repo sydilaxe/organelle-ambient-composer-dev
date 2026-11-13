@@ -1521,7 +1521,7 @@
 #X obj 710 716 throw~ ac-mixR;
 #X obj 710 740 +~;
 #X obj 710 764 *~ 0.3;
-#X obj 710 788 throw~ ac-send;
+#X obj 710 788 throw~ ac-sendp;
 #X obj 710 812 *~ 0.25;
 #X obj 710 836 throw~ ac-src;
 #X connect 1 0 2 0;

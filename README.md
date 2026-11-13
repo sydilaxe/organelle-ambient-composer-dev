@@ -164,6 +164,11 @@ mono-safe: a mono sum dips by at most about 5 dB, never cancels.
   - **How close it is:** the tests compare it with the C version (`tools/ref`). The swell peak is within 0.02 s, T60 within 3 %, and the envelope correlates at r ≈ 0.9.
 - **Hall:** an 8-line FDN.
 - **Shimmer:** the Hall with an octave-up shifter in its loop.
+- **Level:** the Mix knob (SPACE) sets the reverb return. At its default the reverb sits about 6 dB under the dry
+  sound, at 100 % about level with it.
+- **Sends:** two knob pages set each group's reverb send from off (dry) to full; 50 % is the designed balance.
+  SENDS 1: drone (and sub), pads (and the notes you play), bells, motion. SENDS 2: textures, cloud, atmosphere,
+  input. For example: a dry drone under reverberant pads.
 - **Auto:** the piece chooses. Each section change blooms the reverb up, the climax lengthens it, and the dissolve darkens it.
 
 CPU, measured offline: about 3 % of one x86 core with every layer, an atmosphere, the vocoder, a character effect,

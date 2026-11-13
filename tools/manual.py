@@ -48,6 +48,15 @@ KNOBS = {   # value name -> (range, what it does)
     "acweird": ("0-100 %", "Strangeness: FM depth, wavefolding, unusual scales, key changes, reversed grains."),
     "acmotion": ("0-100 %", "Movement: pad breathing, pitch drift and how far voices travel in the stereo field."),
     "acrhythm": ("0-100 %", "Rhythm: the Euclidean motion layer, swing, the drone's bar pulse, locked grains."),
+    "acsndd": ("off-full", "Reverb send of the drone and sub. 0 = dry, 50 % = the designed balance, 100 % = twice."),
+    "acsndp": ("off-full", "Reverb send of the pads (and the notes you play, which use the pad synthesis types)."),
+    "acsndb": ("off-full", "Reverb send of the bells."),
+    "acsndm": ("off-full", "Reverb send of the motion layer (the Euclidean arpeggio)."),
+    "acsndt": ("off-full", "Reverb send of the textures."),
+    "acsndc": ("off-full", "Reverb send of the granular cloud."),
+    "acsnda": ("off-full", "Reverb send of the atmosphere."),
+    "acsndi": ("off-full", "Reverb send of the audio input: its dry signal and the input modes (resonators, "
+                           "bands, tape, vocoder, memories)."),
 }
 
 FKEY_DESC = {
