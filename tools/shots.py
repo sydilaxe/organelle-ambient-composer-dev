@@ -20,7 +20,8 @@ def main():
     ev += [(40000, "knob3 0.5"), (40100, "knob3 0.8"), (40500, "h-snap knob_popup")]
     ev += [(44000, "aux 1"), (45300, "h-snap setup"), (45400, "aux 0"), (46000, "aux 1"), (46100, "aux 0"),
            (46500, "h-snap setup_page2"), (46700, "aux 1"), (46800, "aux 0"), (47200, "h-snap setup_page3"),
-           (47400, "aux 1"), (47500, "aux 0"), (47900, "h-snap setup_page4"), (48100, "aux 1"), (49400, "aux 0")]
+           (47400, "aux 1"), (47500, "aux 0"), (47900, "h-snap setup_page4"), (48100, "aux 1"), (48200, "aux 0"),
+           (48600, "h-snap setup_page5"), (48800, "aux 1"), (50100, "aux 0")]
     ev += [(52000, "notesRaw 81 100"), (52050, "notesRaw 81 0"), (52300, "h-snap toast")] if False else []
     ev += [(52000, "ac-toast list input reso"), (52300, "h-snap toast")]
     log, _ = run(ev, 60, prints=("oscOut",), extra=snap)

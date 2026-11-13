@@ -74,8 +74,14 @@ emulator, so the font only approximates the Organelle's.
 |---|---|
 | **Score** | The form strip (one bar per section, height = energy, current one inverted, a playhead). Key and scale, with the time left. The pad voices gliding on a pitch ladder, with your held notes as boxes and a breath bar. Meters for every layer, the reverb and the input. The motion layer's Euclidean pattern with a moving cursor, the tempo and the reverb type. The section role and voicing, and K/M/E tags for who is playing and the clock. |
 | **Input** | While external audio plays, the right-hand column becomes an input panel: the last 6 s of the input as a waveform with its onsets ticked above, the input mode, and what Amble hears (pitch, pluck, texture), with a dot while it records a memory. A sung or played pitch is drawn as a line across the pitch ladder, so you see it against the pad voices. The rhythm column comes back 5 s after the input stops. |
-| **Knob page** | Shown for 2 s when you turn a knob. |
-| **SETUP** | Hold aux for 1 s; aux taps turn the 4 pages. Page 1: MIDI out (off, tempo only, tempo + notes, notes only), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Page 3: output, width, pan motion, tempo range. Page 4: which MIDI notes go out, arp octave, the CPU load, the CPU guard (on or off). Saved in `settings.txt` with the knob values (except In, which always starts at 0). |
+| **Knob page** | Shown for 6 s after you turn a knob or tap aux. |
+| **SETUP** | Hold aux for 1 s; aux taps turn the 5 pages. Page 1: MIDI out (off, tempo only, tempo + notes, notes only), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Page 3: output, width, pan motion, tempo range. Page 4: which MIDI notes go out, arp octave, the CPU load, the CPU guard (on or off). Page 5, **SOUNDS**: pad type, drone, texture and character, each auto or your choice (see below). Saved in `settings.txt` with the knob values (except In, which always starts at 0). |
+
+**SOUNDS** (SETUP page 5) lets you choose the sounds yourself, mid-piece, to audition them. Each item is **auto** (the piece chooses, as before) or your choice, applied at once (crossfaded) and kept for every later section:
+- **Pads:** auto; **raw** (the dry, buzzy types of the first demos: vox, partials, fold and pulsar, with no character effect); or one type for all four pad voices (fm, vox, bow, part, fold, pulsr, saws, pwm, digi, sync, tine).
+- **Drone:** auto, pure, analog, organ, fm.
+- **Texture:** auto, rain, wind, ember, chirp, radio, data, buzz.
+- **Character:** auto, clean, chorus, tape, ring, crush.
 
 **MIDI out** (SETUP page 1): off, **tempo only** (clock), **tempo + notes**, or **notes only**.
 - **Clock:** 24 ticks a beat at the piece's tempo (following the form's tempo changes), with Start and Stop
@@ -214,6 +220,11 @@ The Organelle-M runs Amble on one core, so a few things keep it from crackling:
 - **No long ticks.** A new piece, a new section and a chord change are split into stages a few milliseconds
   apart, so no single scheduler tick runs long enough to make the audio drop out (the longest went from about
   0.9 ms to under 0.2 ms on a desktop core).
+- **A bigger audio buffer.** The Organelle OS starts Pd with a 6 ms audio buffer, so any moment where Pd needs
+  longer than that drops out as a crackle, even at a low average load. Amble's `pd-opts.txt` (which the OS appends
+  to Pd's options) asks for 25 ms instead: room for brief spikes, at the cost of about 19 ms more delay when you
+  play live. Edit the number in `patches/Amble/pd-opts.txt` (on the Organelle: `Patches/Amble/pd-opts.txt`) to
+  trade one for the other.
 - **CPU guard.** Amble measures its own load each second (CPU time over logical time). Above 78 % it gets
   lighter in steps: 1, cloud and atmosphere off; 2, textures and the pad character off; 3, the automatic
   vocoder off. Below 50 % for 20 s it steps back. The pads, drone, sub, bells, motion and reverb never change.

@@ -61,8 +61,12 @@ def build(out=OUT):
         from data import PAGES
         from data import FILE_KNOBS
         kd = [d for p in PAGES for _, _, d in p]
-        vals = kd[:FILE_KNOBS] + [1, 0, -1, 0, 0.7, 48, 1, 1.2, 0, 1, 0.8, 0, 0, 48, 1] + kd[FILE_KNOBS:]
+        vals = kd[:FILE_KNOBS] + [1, 0, -1, 0, 0.7, 48, 1, 1.2, 0, 1, 0.8, 0, 0, 48, 1] + kd[FILE_KNOBS:] + [0, 0, 0, 0]
         open(sf, "w").write(" ".join(f"{v:g}" for v in vals) + ";\n")
+    # Pd start-up options: the Organelle OS starts Pd with a 6 ms audio buffer and appends the patch folder's
+    # pd-opts.txt, so a later -audiobuf wins. 25 ms gives Pd room for brief spikes (screen, section changes,
+    # reverb crossfades) that made the audio crackle at a low average load; it adds about 19 ms to live playing.
+    open(os.path.join(out, "pd-opts.txt"), "w").write("-audiobuf 25\n")
     from readme_text import PATCH_README
     open(os.path.join(out, "README.txt"), "w").write(PATCH_README)
     return out

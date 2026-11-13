@@ -27,7 +27,7 @@ GLOBALS = dict(
     acmtr=2, acbld=1, acblp=0.5, acvauto=1, acvsec=1, acvtype=1, acrvsize=1,
     # rhythm
     acbpm0=56, acbpm=56, actpos=0.5, acmeter=4, actick=0, acstep=0, acms=0, acmk=5, acmn=8, acmei=0, acmrot=0, acmdiv=1,
-    acmarp=0, acshed=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acdtype=0, acdtype2=1, acdcur=0, acsubm=0, acchar=0, acchamt=0.5, acavoc=0, acgvoc=0, acdb=0, acgt4=0, acgt5=0, acgt6=0, acgsub=0, acatm=0, acatmT=0, acatmT2=1, acfatm=0, acatmcur=0, acgatm=0, acscene=0, acmono=0, acwidth=1, acpanmot=0.8, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
+    acmarp=0, acshed=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acdtype=0, acdtype2=1, acdcur=0, acsubm=0, acchar=0, accheff=0, acdauto=0, actex1a=0, actex2a=1, acspad=0, acsdrone=0, acstex=0, acschar=0, acsnew=0, acchamt=0.5, acavoc=0, acgvoc=0, acdb=0, acgt4=0, acgt5=0, acgt6=0, acgsub=0, acatm=0, acatmT=0, acatmT2=1, acfatm=0, acatmcur=0, acgatm=0, acscene=0, acmono=0, acwidth=1, acpanmot=0.8, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
 )
 for page in PAGES:
     for _, name, d in page:
@@ -288,18 +288,17 @@ def section():
         V("acfam", f"if(acrole==6, acfamA, if(acr3<0.55, acfamA, if(acr3<0.88, acfamB, int(acr4*{NF}))))"),
         RNG,
         V("actidef", "acrtide[int(acrole)] * (0.85 + acr1*0.3)"),
-        V("acdcur", "if(acrole == 5 && acr2 < 0.6, acdtype2, acdtype)"),
+        V("acdauto", "if(acrole == 5 && acr2 < 0.6, acdtype2, acdtype)"),
         V("acsecbright", "min(1, max(0.3, 0.55 + 0.45*acenergy + (acr2-0.5)*0.25))"),
     ]
-    for k in range(4):
-        rest += [RNG, X(f"if(acr1<0.4, acpal1, if(acr1<0.72, acpal2, if(acr1<0.9, acpal3, int(acr2*{len(FLAVOURS)}))))",
-                        lambda c, src, k=k: _flav(c, src, k))]
+    rest += [Call("ac-padpick")]
     for i, lay in enumerate(LAYERS):
         extra = {"drone": " || acdens < 0.3", "cloud": " || accapt"}.get(lay, "")
         rest += [RNG, V("acf" + lay, f"acr1 < acrmask[int(acrole)*6+{i}]{extra}")]
     rest += [
         RNG,
-        X("if(acr1<0.5, actexA, actexB); if(acr2<0.5, actexB, int(acr3*%d))" % len(TEXTURES), "v actex1", "v actex2"),
+        X("if(acr1<0.5, actexA, actexB); if(acr2<0.5, actexB, int(acr3*%d))" % len(TEXTURES), "v actex1a", "v actex2a"),
+        Call("ac-sndovr"),
         # rhythm of the motion layer: a Euclidean pattern, its rotation, 16ths or 8ths, arpeggio shape
         RNG,
         X("int(acr1*10); int(acr2*8); 1 + (acr3<0.35); int(acr4*4)", "v acmei", "v acmrot", "v acmdiv", "v acmarp"),
@@ -345,6 +344,22 @@ def section():
         Send("ac-led"),
     ]
     proc(c, "ac-section", [If("acmode==1 && acsec>=acnsec", [Call("ac-fin")], rest)])
+    # the pad types of the 4 voices: the piece's palette, or SETUP SOUNDS (raw = the first demos' dry, buzzy types:
+    # vox, partials, fold, pulsar; or one type for all four voices)
+    steps = []
+    for k in range(4):
+        steps += [RNG, X(f"if(acspad==0, if(acr1<0.4, acpal1, if(acr1<0.72, acpal2, if(acr1<0.9, acpal3, "
+                         f"int(acr2*{len(FLAVOURS)})))), if(acspad==1, {RAW_EXPR}, acspad-2))",
+                         lambda c, src, k=k: _flav(c, src, k))]
+    steps += [SendL("ac-lvtype", ["if(acspad>=2, acspad-2, if(acspad==1, 5, acpal1))"])]
+    proc(c, "ac-padpick", steps)
+    # SETUP SOUNDS overrides on what the section chose (auto = the section's own choice)
+    proc(c, "ac-sndovr", [
+        V("acdcur", "if(acsdrone > 0, acsdrone - 1, acdauto)"),
+        V("actex1", "if(acstex > 0, acstex - 1, actex1a)"),
+        V("actex2", "if(acstex > 0, acstex - 1, actex2a)"),
+        V("accheff", "if(acschar > 0, acschar - 1, if(acspad == 1, 0, acchar))"),
+    ])
     # while you play (breath, or notes held), a section waits for you, up to 3 times 30 s
     proc(c, "ac-nextsec", [If("acmode==1 && acsechold < 3 && (acnow - acbreatht < 4000 || acheld > 0)", [
         V("acsechold", "acsechold + 1"), Arm("ac-nextsec", "30000*actime"), Toast("holding - you are playing")],
@@ -419,9 +434,11 @@ def layers():
             steps += [SendL("ac-g-" + name, ["acg" + name, "acfade"])]
     steps += [V("acgatm", "(acshed < 1)*acfatm*acmtex*(1-acended)*(0.55 + 0.45*min(1, acdeff*2))")]
     steps += [SendL(f"ac-g-atm{i}", [f"acgatm*(acatmcur=={i})", "acfade*1.5"]) for i in range(len(ATMOS_NAMES))]
-    steps += [SendL(f"ac-g-ch{i}", [f"(acshed < 2)*(acchar=={i})*min(1, acchamt*if(acrole==4, 1.3, 1))*min(1, acgpad*4)", "acfade"])
+    # the pad character: SETUP SOUNDS, else none for raw pads, else the piece's
+    steps += [V("accheff", "if(acschar > 0, acschar - 1, if(acspad == 1, 0, acchar))")]
+    steps += [SendL(f"ac-g-ch{i}", [f"(acshed < 2)*(accheff=={i})*min(1, acchamt*if(acrole==4, 1.3, 1))*min(1, acgpad*4)", "acfade"])
               for i in range(1, len(CHARACTERS))]
-    steps += [SendL("ac-chdry", ["1 - (acshed < 2)*((acchar==2)*0.9*acchamt + (acchar==4)*0.6*acchamt)", "acfade"])]
+    steps += [SendL("ac-chdry", ["1 - (acshed < 2)*((accheff==2)*0.9*acchamt + (accheff==4)*0.6*acchamt)", "acfade"])]
     for i in range(len(TEXTURES)):
         steps += [V(f"acgt{i}", f"acgtex*((actex1=={i}) || (actex2=={i}))"),
                   SendL(f"ac-g-tex{i}", [f"acgt{i}", "acfade"])]

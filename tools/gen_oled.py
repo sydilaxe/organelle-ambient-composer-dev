@@ -212,9 +212,9 @@ def oled():
     c.c(d, 0, c.obj("s ac-oledrhythm"), 0)
     c.c(d, 0, c.obj("s ac-oledform"), 0)
     c.col()
-    # ---- the knob page pop-up (2 s)
+    # ---- the knob page pop-up (6 s after the last knob turn or aux tap)
     proc(c, "ac-oledpop", [If("acsetup == 0", [
-        V("acpopt", "acnow + 2000"),
+        V("acpopt", "acnow + 6000"),
         Fill(0, 9, 128, 55, 0),
         Call("ac-oledpghead"),
         Call("ac-scr4"), Call("ac-scr5"),

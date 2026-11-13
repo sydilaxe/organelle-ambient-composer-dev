@@ -104,6 +104,12 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
     "Arp octave": ("C1-C5", "Where the arp chord starts (MIDI out, base channel + 5)."),
     "CPU": ("shown only", "Amble's CPU load now, and the CPU guard's level (lite 0-3)."),
     "CPU guard": ("off, on", "When on, Amble gets lighter under overload (see CPU)."),
+    "Pads": ("auto, raw, " + ", ".join(DT.FLAVOURS), "The pad types. auto: the piece's palette, new picks each "
+             "section. raw: the dry, buzzy types of the first demos (vox, part, fold, pulsr), no character effect. "
+             "A type name: all four pad voices (and the notes you play) use it. Applies at once, crossfaded."),
+    "Drone": ("auto, " + ", ".join(DT.DRONES), "The drone's design; auto = the piece's (and its break's)."),
+    "Texture": ("auto, " + ", ".join(DT.TEXTURES), "The texture layer; auto = the section's two."),
+    "Character": ("auto, " + ", ".join(DT.CHARACTERS), "The effect on the pads; auto = the piece's."),
 }
 
 INMODE_DESC = {
@@ -263,7 +269,7 @@ def story():
                             "clock; FIN at the end."]], [1.0, 5.7]),
           Spacer(1, 6),
           Table([[shot("score", 3.1, "The score"), shot("input", 3.1, "The input panel")],
-                 [shot("knob_popup", 3.1, "Turning a knob shows its page for 2 s"),
+                 [shot("knob_popup", 3.1, "Turning a knob shows its page for 6 s"),
                   shot("toast", 3.1, "Messages take line 2 briefly")]],
                 colWidths=[3.35 * inch, 3.35 * inch]),
           PageBreak()]
@@ -311,7 +317,8 @@ def story():
           table(srows, [0.45, 0.4, 1.0, 1.75, 3.1]),
           Spacer(1, 6),
           Table([[shot("setup", 3.1, "SETUP page 1"), shot("setup_page2", 3.1, "SETUP page 2")],
-                 [shot("setup_page3", 3.1, "SETUP page 3"), shot("setup_page4", 3.1, "SETUP page 4")]],
+                 [shot("setup_page3", 3.1, "SETUP page 3"), shot("setup_page4", 3.1, "SETUP page 4")],
+                 [shot("setup_page5", 3.1, "SETUP page 5: SOUNDS"), ""]],
                 colWidths=[3.35 * inch, 3.35 * inch])]
 
     s += [PageBreak(), Paragraph("6  How a piece is composed", H1),
@@ -419,13 +426,19 @@ def story():
                "each second: above 78 % it gets lighter in steps - 1 cloud and atmosphere off, 2 textures and the "
                "pad character off, 3 the automatic vocoder off - and steps back after 20 s below 50 %. The pads, "
                "drone, sub, bells, motion and reverb are never changed. SETUP page 4 shows the load and the "
-               "guard's level and can turn the guard off.")]
+               "guard's level and can turn the guard off. The CPU reading is an average over a second; short spikes "
+               "inside it are absorbed by the audio buffer, which Amble sets to 25 ms in <b>pd-opts.txt</b> "
+               "(the Organelle starts Pd with 6 ms).")]
 
     s += [Paragraph("12  Troubleshooting", H1),
           table([["Symptom", "What to do"],
                  ["The built-in mic is heard", "Set the mic/line switch to Line and the In knob to 0. If you "
                                                "still hear it with no patch loaded, it is the Organelle's own "
                                                "mixer, not Amble."],
+                 ["Crackle, even with a low CPU reading", "The audio buffer is too small for brief spikes. Amble's "
+                                                          "pd-opts.txt asks for 25 ms (the Organelle's default is "
+                                                          "6 ms); raise the number in Patches/Amble/pd-opts.txt, "
+                                                          "e.g. to 40. Lower it for less delay when playing live."],
                  ["Crackle when a lot is playing", "Leave the CPU guard on; check the CPU reading on SETUP "
                                                    "page 4; lower Dens or choose Bloom instead of Shimmer."],
                  ["Keys run functions instead of notes", "An external controller took over: wait 2 minutes, or "
