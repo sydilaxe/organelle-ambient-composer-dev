@@ -160,7 +160,9 @@ lighter in steps ("CPU high - lighter"): 1 cloud and atmosphere off,
 2 textures and the pad character off, 3 the automatic vocoder off. Below
 50 % for 20 s it steps back. Nothing else changes: the pads, drone, sub,
 bells, motion and reverb always keep their full sound. SETUP page 4 can
-turn it off. Heavy changes (a new piece, a new section, a chord) are
+turn it off. pd-opts.txt asks the Organelle for a 25 ms audio buffer (its
+default is 6 ms), so brief spikes don't crackle; lower the number for less
+delay when playing live, raise it if you still hear crackles. Heavy changes (a new piece, a new section, a chord) are
 spread over a few milliseconds so they don't click.
 
 STEREO SCENES: each section places the voices - spread (across the

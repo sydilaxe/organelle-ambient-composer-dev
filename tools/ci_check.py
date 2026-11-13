@@ -593,5 +593,9 @@ log, _ = run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (5
 check(len(vals) == 35 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
       "SENDS: a send is saved after the SETUP values and comes back after a restart")
 
+# 29. the patch asks the Organelle OS for a larger audio buffer (pd-opts.txt is appended to Pd's options)
+po = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "patches", "Amble", "pd-opts.txt")).read()
+check("-audiobuf 25" in po, "pd-opts.txt asks for a 25 ms audio buffer (the OS default is 6 ms)")
+
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

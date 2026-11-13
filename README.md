@@ -214,6 +214,11 @@ The Organelle-M runs Amble on one core, so a few things keep it from crackling:
 - **No long ticks.** A new piece, a new section and a chord change are split into stages a few milliseconds
   apart, so no single scheduler tick runs long enough to make the audio drop out (the longest went from about
   0.9 ms to under 0.2 ms on a desktop core).
+- **A bigger audio buffer.** The Organelle OS starts Pd with a 6 ms audio buffer, so any moment where Pd needs
+  longer than that drops out as a crackle, even at a low average load. Amble's `pd-opts.txt` (which the OS appends
+  to Pd's options) asks for 25 ms instead: room for brief spikes, at the cost of about 19 ms more delay when you
+  play live. Edit the number in `patches/Amble/pd-opts.txt` (on the Organelle: `Patches/Amble/pd-opts.txt`) to
+  trade one for the other.
 - **CPU guard.** Amble measures its own load each second (CPU time over logical time). Above 78 % it gets
   lighter in steps: 1, cloud and atmosphere off; 2, textures and the pad character off; 3, the automatic
   vocoder off. Below 50 % for 20 s it steps back. The pads, drone, sub, bells, motion and reverb never change.
