@@ -313,7 +313,7 @@ for what, pat in (("form strip", "gFillArea 3 0 0 128 8 0"), ("ladder", "gFillAr
                   ("meters", "gFillArea 3 62 20 33 33 0"), ("rhythm", "gFillArea 3 96 20 32 33 0"),
                   ("tempo", "bpm"), ("knob page", "page SHAPE")):
     check(any(pat in l for l in osc), f"OLED draws the {what}")
-check("ac-sett0: list SETUP 2 of 3 - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
+check("ac-sett0: list SETUP 2 of 4 - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
 
 # 18. the wider sound world: drone designs, the sub, electric textures, character, the vocoder, variety
 from data import DRONES, TEXTURES, CHARACTERS, FLAVOURS
@@ -451,6 +451,59 @@ rows = [l.split()[1:] for l in log.splitlines() if l.startswith("PAL")][1:]
 liked = {"fm", "part", "pulsr", "saws", "pwm", "digi", "sync", "tine"}
 share = sum(FLAVOURS[int(float(x))] in liked for r in rows for x in r) / max(1, 3 * len(rows))
 check(share > 0.75, f"palettes favour the electronic and bell-like types ({share:.0%})")
+
+# 21. tempo ranges (SETUP page 3): each range keeps its pieces inside it; a change applies at once
+from data import TEMPOS, ROLE_TEMPO
+for r, (name, lo, hi) in enumerate(TEMPOS):
+    ev = [(40, f"actrange {r}")] + [(100 + i * 300, f"ac-setseed {900 + i * 53}") for i in range(10)]
+    log, _ = run(ev, 4, prints=("ac-bpm",))
+    b = [float(l.split()[1]) for l in log.splitlines() if l.startswith("ac-bpm")][1:]
+    ok = b and min(b) >= lo * min(ROLE_TEMPO) - 0.01 and max(b) <= hi * max(ROLE_TEMPO) + 0.01
+    check(ok and max(b) - min(b) > (hi - lo) * 0.25, f"tempo range {name}: {min(b):.0f}-{max(b):.0f} BPM")
+log, _ = run([(40, "ac-setseed 7"), (300, "acsetup 1"), (310, "acsetpg 2"), (400, "ac-setknob 3 0.99")], 2,
+             prints=("ac-bpm", "ac-sett4"))
+b = [float(l.split()[1]) for l in log.splitlines() if l.startswith("ac-bpm")]
+check(b and b[-1] >= 90 * min(ROLE_TEMPO) and "4 Tempo fast 90-140" in log,
+      f"SETUP Tempo fast applies at once ({b[-1] if b else 0:.0f} BPM)")
+log, a = run([(40, "actrange 4"), (45, "actime 1"), (50, "aclen 0.03"), (60, "ac-setseed 3612")], 180)
+# renders vary (noise sources, timing): normal pieces peak about 0.4-0.65; the unlimited pings reached 0.96
+check(np.abs(a).max() < 0.8, f"a fast piece stays clean: the motion pings never spike (peak {np.abs(a).max():.2f})")
+
+# 22. the OLED shows external audio: an input panel (waveform, mode, what Amble hears), the pitch on the ladder;
+#     the rhythm column comes back when the input stops
+ev = [(40, "actime 0.08"), (50, "ac-setseed 2718"), (61, "acinput 0.6"), (62, "ac-inputupd bang")]
+log, _ = run(ev, 8, inp="voice", prints=("oscOut",))
+osc = log.splitlines()
+check(any("gPrintln 3 97 35 8 1 auto" in l for l in osc) and any("gPrintln 3 97 43 8 1 pitch" in l for l in osc)
+      and any("gFillArea 3 8 " in l and l.split()[-2:] == ["1", "1"] and " 42 " in l for l in osc),
+      "OLED: an input panel (auto / pitch) and the sung pitch on the ladder")
+log, _ = run(ev + [(4000, "acinput 0"), (4001, "ac-inputupd bang")], 12, inp="voice", prints=("oscOut",))
+late = [l for l in log.splitlines()]
+check(any("bpm" in l for l in late[len(late) // 2:]), "OLED: the rhythm column returns after the input stops")
+
+# 23. MIDI notes for external synths and arpeggiators: the arp chord (close, from the Arp octave, base + 5),
+#     the bass (base + 4); Parts = arp chord only sends nothing else; SETUP page 4 sets parts and octave
+def held_notes(log):
+    held = {}
+    for p, v, ch in (l.split()[1:] for l in log.splitlines() if l.startswith("ac-noteout")):
+        h = held.setdefault(int(ch), set())
+        (h.add(int(p)) if v != "0" else h.discard(int(p)))
+    return held
+log, _ = run([(40, "acmout 2"), (45, "actime 0.1"), (50, "ac-setseed 7")], 12, prints=("ac-noteout",))
+h = held_notes(log)
+arp = sorted(h.get(6, []))
+check(len(arp) >= 3 and arp[0] >= 48 and arp[-1] < 60 + 12 and arp[-1] - arp[0] < 12
+      and {p % 12 for p in arp} <= {p % 12 for p in h.get(1, [])} and len(h.get(5, [])) == 1,
+      f"MIDI: arp chord in close position {arp} (chord {sorted(h.get(1, []))}), a bass {sorted(h.get(5, []))}")
+log, _ = run([(40, "acmout 2"), (41, "acmparts 2"), (45, "actime 0.1"), (50, "ac-setseed 7")], 12, prints=("ac-noteout",))
+chs = {int(l.split()[3]) for l in log.splitlines() if l.startswith("ac-noteout")}
+check(chs == {6}, f"MIDI parts = arp chord: only the arp chord channel ({sorted(chs)})")
+log, _ = run([(40, "acmout 2"), (50, "ac-setseed 7"), (300, "acsetup 1"), (310, "acsetpg 3"),
+              (400, "ac-setknob 0 0.99"), (500, "ac-setknob 1 0.0"), (3000, "acsetup 0")], 6,
+             prints=("ac-noteout", "ac-sett1", "ac-sett2"))
+arp = sorted(held_notes(log).get(6, []))
+check("1 MIDI notes arp\\ only" in log and "2 Arp octave C1" in log and arp
+      and 24 <= arp[0] < 36, f"SETUP page 4: MIDI parts and Arp octave (arp chord now {arp})")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

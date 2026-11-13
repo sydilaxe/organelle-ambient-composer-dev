@@ -212,10 +212,11 @@ def sub():
 # ---------------------------------------------------------------- electric textures 4..6
 def tex_radio():
     s, ln = switched("radio", "ac-g-tex4")
-    s.comment("Radio: band-limited static that comes and goes, and a heterodyne whistle drifting near a chord tone")
-    st = s.ch(s.obj("noise~"), "hip~ 1200", "lop~ 3500")
-    gate = s.ch(s.obj("noise~"), "lop~ 2", "*~ 60", "clip~ 0 1")
-    stat = mul(s, st, gate)
+    s.comment("Radio: a soft band of static that drifts in and out, and a heterodyne whistle drifting near a "
+              "chord tone (the static's gate is slow and smoothed, so it never crackles)")
+    st = s.ch(s.obj("noise~"), "hip~ 900", "lop~ 2200", "lop~ 2600")
+    gate = s.ch(s.obj("noise~"), "lop~ 0.3", "*~ 200", "-~ 0.1", "clip~ 0 1", "lop~ 1", "lop~ 1")
+    stat = s.to(mul(s, st, gate), "*~ 0.6")
     wf = s.ch(s.recv("ac-radio"), "line~")
     drift = s.ch(s.obj("osc~ 0.13"), "*~ 0.004", "+~ 1")
     wh = s.ch(mul(s, wf, drift), "osc~", "*~ 0.06")

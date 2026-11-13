@@ -171,7 +171,7 @@ def live():
         ]),
         If("acinclass != 1 && acheld == 0 && acfocus >= 0 && acnow - acfocust > 3000", [V("acfocus", "-1")]),
     ])
-    proc(c, "ac-inonset2", [V("acons", "acons + 0.3")])
+    proc(c, "ac-inonset2", [V("acons", "acons + 0.3"), V("acinon", "1")])
     return c
 
 

@@ -24,12 +24,16 @@ vanilla Pd objects only. How to play it: [`patches/Amble/README.txt`](patches/Am
 - [`demos/amble_vocoder_voice_input_seed_4139.mp3`](demos/amble_vocoder_voice_input_seed_4139.mp3): a synthetic singer on the input, vocoded through a synth choir on Amble's chords.
 - [`demos/amble_live_breath_mpe_and_input_seed_77.mp3`](demos/amble_live_breath_mpe_and_input_seed_77.mp3): a breath-controlled MPE part, sent as a DM48X would (notes on their own channels, breath swells, bends), with a plucked tone on the audio input in Auto mode.
 - [`demos/amble_drift_resonate_input_seed_808.mp3`](demos/amble_drift_resonate_input_seed_808.mp3): DRIFT mode, with a plucked test tone on the input ringing the chord-tuned strings.
+- [`demos/amble_A_slow_build_electronic_seed_12271.mp3`](demos/amble_A_slow_build_electronic_seed_12271.mp3): a 7-minute slow build: saws, sync and digi pads with ring modulation, Shimmer, a sub bass line, 7/4 rising from 66 to 79 BPM.
+- [`demos/amble_B_waves_bells_haze_seed_12189.mp3`](demos/amble_B_waves_bells_haze_seed_12189.mp3): a 7-minute "waves" form: tine, FM and digi bells over the haze atmosphere, Bloom 1, 6/4 at 40-48 BPM.
+- [`demos/amble_tempo_fast_90-140_seed_3612.mp3`](demos/amble_tempo_fast_90-140_seed_3612.mp3) and [`demos/amble_tempo_slow_24-48_seed_12189.mp3`](demos/amble_tempo_slow_24-48_seed_12189.mp3): 3-minute pieces in the fast and slow tempo ranges.
+- [`demos/amble_radio_texture_seed_312.mp3`](demos/amble_radio_texture_seed_312.mp3): the radio texture (soft static, drifting whistle) in the opening section.
 
 ## How it composes
 
 | | |
 |---|---|
-| **Piece** | A seed picks the key and scale (16, including just, harmonic-7th, slendro and pelog), voicing families, the pad synthesis palette, tempo (40 to 72 BPM), meter (3 to 7), motif, textures and reverb. A new seed is used at every start; a seed replays its piece. |
+| **Piece** | A seed picks the key and scale (16, including just, harmonic-7th, slendro and pelog), voicing families, the pad synthesis palette, tempo (40 to 72 BPM by default; SETUP can choose 24 to 140), meter (3 to 7), motif, textures and reverb. A new seed is used at every start; a seed replays its piece. |
 | **Form** | One of 5 archetypes (arch, slow build, waves, two peaks, journey) over 6 to 12 sections. Each section has a role: emerge, establish, develop, intensify, climax, break, return or dissolve. Roles set the layers, the key area (out from home and back), tempo, harmonic pace, drone pulse, motif transformation (inverted, raised, restored) and reverb. The return section replays the opening progression. |
 | **Harmony** | Voice-led chords from 8 voicing families. Each voice glides on its own delay, so chords dissolve into each other. |
 | **Rhythm** | One clock at 24 ticks a beat. Each layer has its own relation to it, so the texture has rhythm without a beat. |
@@ -70,15 +74,34 @@ emulator, so the font only approximates the Organelle's.
 
 ![screens](docs/shots/sheet.png)
 
+![input panel](docs/shots/input.png)
+
 | Screen | Contents |
 |---|---|
 | **Score** | The form strip (one bar per section, height = energy, current one inverted, a playhead). Key and scale, with the time left. The pad voices gliding on a pitch ladder, with your held notes as boxes and a breath bar. Meters for every layer, the reverb and the input. The motion layer's Euclidean pattern with a moving cursor, the tempo and the reverb type. The section role and voicing, and K/M/E tags for who is playing and the clock. |
+| **Input** | While external audio plays, the right-hand column becomes an input panel: the last 6 s of the input as a waveform with its onsets ticked above, the input mode, and what Amble hears (pitch, pluck, texture), with a dot while it records a memory. A sung or played pitch is drawn as a line across the pitch ladder, so you see it against the pad voices. The rhythm column comes back 5 s after the input stops. |
 | **Knob page** | Shown for 2 s when you turn a knob. |
-| **SETUP** | Hold aux for 1 s. Page 1: MIDI out (off, clock, clock + notes, notes), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Saved in `settings.txt` with the knob values. |
+| **SETUP** | Hold aux for 1 s; aux taps turn the 4 pages. Page 1: MIDI out (off, tempo only, tempo + notes, notes only), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Page 3: output, width, pan motion, tempo range. Page 4: which MIDI notes go out, arp octave. Saved in `settings.txt` with the knob values. |
 
-**MIDI out:**
-- **Clock:** 24 ticks a beat at the piece's tempo, with Start and Stop at the start and end of a piece.
-- **Notes:** chords, drone root, bells and motion, each on its own channel.
+**MIDI out** (SETUP page 1): off, **tempo only** (clock), **tempo + notes**, or **notes only**.
+- **Clock:** 24 ticks a beat at the piece's tempo (following the form's tempo changes), with Start and Stop
+  at the start and end of a piece.
+- **Notes**, so external synths and arpeggiators follow the composition. Each part has its own channel,
+  counted from the MIDI out channel (wrapping after 16):
+
+  | Channel | Part |
+  |---|---|
+  | base | the chord as Amble voices it (4 notes, wide), held until the next change |
+  | base + 1 | the tonic, held while the key stays |
+  | base + 2 | the bells (the motif), short notes |
+  | base + 3 | the motion layer's Euclidean arpeggio, short notes |
+  | base + 4 | the bass: the sub's note (the pedal or the chord root), held |
+  | base + 5 | the **arp chord**: the same chord in close position within an octave from its root, starting at the Arp octave (C1 to C5, default C3), held until the next change. Point an arpeggiator here. |
+
+  Chord and bass velocities follow the piece's energy. Notes are rounded to the nearest semitone (just,
+  harmonic-7th, slendro and pelog scales come out as the nearest 12-tone notes).
+- **MIDI notes** (SETUP page 4): all; harmony (the chords, tonic and bass, no bells or motion); or arp only
+  (just the arp chord).
 
 **Sync:** Amble leads, or it follows an incoming clock. Incoming ticks drive its rhythm and Start resets the bar.
 
@@ -91,7 +114,7 @@ emulator, so the font only approximates the Organelle's.
 | **Sub** | A dedicated layer: the pedal an octave under the tonic, the chord root as a bass line, or both. Softly saturated, so small speakers still hear it. |
 | **Character** | On the pads: clean, chorus, tape (wow, saturation, hiss that follows the music), ring modulation, or crush. |
 | **Atmospheres** | In about half the pieces, mostly in the emerge, break and dissolve sections: haze (air shimmering on the chord), deep (rumble with distant thunder), space (air ringing in combs tuned to the chord), night (distant insects), tides (waves washing across the field). All stereo. |
-| **Textures** | 7: rain, wind, embers, chirps, radio (static and drifting whistles), data (blip bursts), buzz (electric hum on the tonic). |
+| **Textures** | 7: rain, wind, embers, chirps, radio (soft drifting static and whistles), data (blip bursts), buzz (electric hum on the tonic). |
 | **Input** | Besides chord strings, cloud, tape, ghost and tuned bands: **vocode** (a 10-band vocoder; your sound speaks through a synth choir singing the chord) and **morph** (it speaks through the pads themselves). Auto mode vocodes pitched input in some pieces. |
 
 The four random streams are seeded through a hash, so nearby seeds don't share their sound choices. The
@@ -131,6 +154,10 @@ mono-safe: a mono sum dips by at most about 5 dB, never cancels.
 - **Output:** stereo wide, or mono for mono rigs and external effects.
 - **Width:** 50 to 150 %.
 - **Pan motion:** how far the voices travel.
+- **Tempo:** the range a piece picks its tempo from: ambient 40-72 (default), slow 24-48, wide 30-110,
+  pulse 60-100, fast 90-140. Above 84 BPM the slow layers (pad breathing, bells, the drone's bar swell) feel
+  the beat at half speed and the arpeggio counts in 8ths, so a fast piece still breathes. A change takes effect
+  at once, keeping the piece's place in the range. With Sync = follow clock any tempo comes from outside.
 
 ## Reverb
 

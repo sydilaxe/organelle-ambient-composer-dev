@@ -31,6 +31,10 @@ def main():
     log, _ = run([(40, "actime 0.02"), (50, "aclen 0"), (55, "ac-setseed 5"), (70000, "h-snap fin")], 71,
                  prints=("oscOut",), extra=snap)
     saved += oledemu.render(log, OUT)
+    # external audio: the input panel and the sung pitch on the ladder
+    log, _ = run([(40, "actime 0.08"), (50, "ac-setseed 2718"), (61, "acinput 0.6"), (62, "ac-inputupd bang"),
+                  (9000, "h-snap input")], 10, inp="voice", prints=("oscOut",), extra=snap)
+    saved += oledemu.render(log, OUT)
     print("\n".join(saved))
 
 

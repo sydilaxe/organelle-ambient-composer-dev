@@ -14,7 +14,7 @@ The return section replays the opening chord progression. At the end it
 fades out: B for a new piece.
 DRIFT: endless sections, for backing a performance.
 
-LAYERS AND THEIR RHYTHMS (one clock, 40-72 BPM, meter 3-7 per piece)
+LAYERS AND THEIR RHYTHMS (one clock, 40-72 BPM by default, meter 3-7)
   Drone    one of 4 designs per piece (the break may switch): pure (tonic,
            beating twin, interval, breath tube), analog (saws and a square
            through a slow resonant sweep), organ (drawbars, rotary shimmer),
@@ -33,7 +33,7 @@ LAYERS AND THEIR RHYTHMS (one clock, 40-72 BPM, meter 3-7 per piece)
   Motion   Euclidean patterns (e.g. 5 in 8, 7 in 16) arpeggiating the chord on
            FM pings, swing, tempo echoes
   Bells    the motif, phrased in beats with rubato
-  Textures rain, wind, embers, chirps, radio (static, whistles), data (blip
+  Textures rain, wind, embers, chirps, radio (soft drifting static, whistles), data (blip
            bursts), buzz (electric hum on the tonic)
   Cloud    grains of the recent sound or your input; locked to the beat in
            intense sections, free otherwise
@@ -113,14 +113,23 @@ THE SCREEN (a live score)
               reverb, and the input level
   right       the motion layer's Euclidean pattern with its cursor, the
               tempo, the reverb (B1 B2 HALL SHIM)
+  input       while external audio plays the right column shows it instead:
+              6 s of its level as a waveform (onsets ticked above), the
+              input mode and what Amble hears (pitch / pluck / textr), a dot
+              while it records a memory; a pitch it hears is a line across
+              the pitch ladder. The rhythm column returns 5 s after.
   bottom      section role and voicing; K = keys play, M = external MIDI,
               E = following an external clock; FIN at the end
   Turning a knob shows its page for 2 s.
 
-SETUP (hold aux 1 s; aux tap = page 2; hold aux 1 s to leave and save)
-  1 MIDI out   off / clock / clock+notes / notes
-     clock: 24 a beat at the piece's tempo, Start/Stop with the piece
-     notes: chords on the base channel, drone +1, bells +2, motion +3
+SETUP (hold aux 1 s; aux tap = next page (4); hold aux 1 s to leave, save)
+  1 MIDI out   off / tempo only / tempo+notes / notes only
+     tempo: MIDI clock, 24 a beat at the piece's tempo, Start/Stop with it
+     notes, by channel from the base channel (page 2):
+       base  the chord as voiced (held)     +1  the tonic (held)
+       +2    bells                          +3  the motion arpeggio
+       +4    the bass (the sub's note)      +5  the ARP CHORD: the chord in
+             close position from the Arp octave - for arpeggiators
   2 Sync       internal / follow clock (external clock drives the rhythm;
                Start restarts the bar, Stop pauses the pulse layers)
   3 Keys       auto / play notes / functions
@@ -128,7 +137,11 @@ SETUP (hold aux 1 s; aux tap = page 2; hold aux 1 s to leave and save)
   page 2: Follow you (how much chords follow what you play), MPE bend
   range (12/24/48/96), MIDI out base channel, breath curve.
   page 3: Output (stereo wide / mono - for mono rigs and external effects),
-  Width (50-150 %), Pan motion (how far the voices travel).
+  Width (50-150 %), Pan motion (how far the voices travel), Tempo range:
+  ambient 40-72, slow 24-48, wide 30-110, pulse 60-100, fast 90-140. Above
+  84 BPM bells, breathing and the drone swell move at half time.
+  page 4: MIDI notes (all / harmony: no bells or motion / arp only),
+  Arp octave (C1-C5, where the arp chord starts).
 
 STEREO SCENES: each section places the voices - spread (across the
 field), split (pads left, bells and motion right), center (a focused core,

@@ -26,7 +26,7 @@ GLOBALS = dict(
     acarch=0, acpk=3, acpkv=0, acrecap=-1, achome=38, acaway1=7, acaway2=5, acrole=2, acprogn=0, acprogi=0,
     acmtr=2, acbld=1, acblp=0.5, acvauto=1, acvsec=1, acvtype=1, acrvsize=1,
     # rhythm
-    acbpm0=56, acbpm=56, acmeter=4, actick=0, acstep=0, acms=0, acmk=5, acmn=8, acmei=0, acmrot=0, acmdiv=1,
+    acbpm0=56, acbpm=56, actpos=0.5, acmeter=4, actick=0, acstep=0, acms=0, acmk=5, acmn=8, acmei=0, acmrot=0, acmdiv=1,
     acmarp=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acdtype=0, acdtype2=1, acdcur=0, acsubm=0, acchar=0, acchamt=0.5, acavoc=0, acgvoc=0, acdb=0, acgt4=0, acgt5=0, acgt6=0, acgsub=0, acatm=0, acatmT=0, acatmT2=1, acfatm=0, acatmcur=0, acgatm=0, acscene=0, acmono=0, acwidth=1, acpanmot=0.8, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
 )
 for page in PAGES:
@@ -37,7 +37,12 @@ ARRAYS = dict(acscale=16, acfamt=NF * 5, acch=4, acnew=4, acplan=16, acpdur=16, 
               acmrhy=8, acmoves=12, acmods=12, acgrt=12, acfmrt=8, acpartt=24, acbellt=12, acdintt=5, acrhyt=5,
               acparams=12, acraw=4, acflav=4, acroles=16, acflpick=40, acfmrpick=40, acpapick=40, acscn=50,
               acscrole=24, acatmrole=8, ackeyp=16, acprog=8, acrmask=48, acrtide=8,
-              acrtempo=8, acrpulse=8, acaway=8, aceuk=10, aceun=10, acmeters=6, acmratios=6, acbreath=4)
+              acrtempo=8, acrpulse=8, acaway=8, aceuk=10, aceun=10, acmeters=6, acmratios=6, acbreath=4, actlo=5, acthi=5)
+
+# the piece tempo: its place (actpos) in the tempo range chosen in SETUP
+TEMPO0 = "actlo[int(actrange)] + int(actpos*(acthi[int(actrange)] - actlo[int(actrange)] + 1))"
+# the beat the slow layers feel: half speed above HALFTIME
+BPMH = f"(acbpm/(1 + (acbpm > {HALFTIME})))"
 
 import gen_live as _L
 import gen_oled as _O
@@ -54,6 +59,7 @@ DATA_TABLES = dict(
     acparams=[d for p in PAGES for _, _, d in p], acraw=[0.5] * 4, aclvn=[-1] * 4, acrmask=sum(ROLE_MASK, []),
     acrtide=ROLE_TIDE, acrtempo=ROLE_TEMPO, acrpulse=ROLE_PULSE, acaway=AWAY, aceuk=[k for k, n in EUCLID],
     aceun=[n for k, n in EUCLID], acmeters=METERS, acmratios=MOTION_RATIOS, acbreath=BREATH_PERIODS,
+    actlo=[lo for _, lo, _ in TEMPOS], acthi=[hi for _, _, hi in TEMPOS],
 )
 
 # the form archetypes: energy at x (0..1 through the piece)
@@ -187,7 +193,8 @@ def piece():
         RNG,
         X(f"acr1 < 0.55; int(acr2*{len(ATMOS_NAMES)}); int(acr3*{len(ATMOS_NAMES)})", "v acatm", "v acatmT", "v acatmT2"),
         # tempo, meter, motion timbre
-        X("40 + int(acr2*33); acmeters[int(acr3*6)]", "v acbpm0", "v acmeter"),
+        X("acr2; acmeters[int(acr3*6)]", "v actpos", "v acmeter"),
+        V("acbpm0", TEMPO0),
         SendL("ac-mtimbre", ["acmratios[int(acr4*6)]"]),
         RNG,
         SendL("ac-mtimbre2", ["1 + acr1*4", "250 + acr2*700"]),
@@ -200,7 +207,7 @@ def piece():
     ]
     for k in range(4):
         # pad breathing: cycles of 7, 9, 11, 13 half-bars, so the voices phase against each other
-        steps += [RNG, SendL(f"ac-v{k}-lfo", [f"1/(30/acbpm0*acmeter*acbreath[{k}]*(0.97+acr1*0.06))",
+        steps += [RNG, SendL(f"ac-v{k}-lfo", [f"1/(30/(acbpm0/(1 + (acbpm0 > {HALFTIME})))*acmeter*acbreath[{k}]*(0.97+acr1*0.06))",
                                               "0.03+acr2*0.15", "0.04+acr3*0.25", "0.03+acr4*0.2"])]
     steps += [
         X("0; -1; 0; 1; 0; 0; 1; 0; 0", "v acdeg", "v acpend", "v acchg", "v acfirst", "v acended", "v accapt",
@@ -292,6 +299,7 @@ def section():
         # rhythm of the motion layer: a Euclidean pattern, its rotation, 16ths or 8ths, arpeggio shape
         RNG,
         X("int(acr1*10); int(acr2*8); 1 + (acr3<0.35); int(acr4*4)", "v acmei", "v acmrot", "v acmdiv", "v acmarp"),
+        V("acmdiv", f"acmdiv * (1 + (acbpm0 > {HALFTIME}))"),
         X("aceuk[int(acmei)]; aceun[int(acmei)]", "v acmk", "v acmn"),
         RNG,
         X("12*(1 + int(acr1*2)); (0.08 + acr2*0.25)*acrhythm; (acrole==3 || acrole==4) && acr3 < 0.6",
@@ -302,8 +310,7 @@ def section():
                                      "acpend)")]),
         V("acprogi", "0"),
         # tempo and the drone's pulse on the bar
-        V("acbpm", "acbpm0 * acrtempo[int(acrole)]"),
-        SendL("ac-bpm", ["acbpm"]),
+        Call("ac-settempo"),
         SendL("ac-pulse", ["acrpulse[int(acrole)] * (0.3 + 1.4*acrhythm)"]),
         # the stereo scene: where the pads live, where bells and motion play, how far the cloud spreads
         RNG,
@@ -481,6 +488,8 @@ def rhythm():
     c.c(c.to(c.recv("ac-bpm"), "expr 60000/max(20, $f1)/24"), 0, met, 1)
     c.c(met, 0, c.obj("s ac-mtick"), 0)
     proc(c, "ac-mtick", [If("acsync == 0", [Send("ac-tick")])])
+    # the tempo of this section: the piece's place in the tempo range, x the role's tempo
+    proc(c, "ac-settempo", [V("acbpm0", TEMPO0), V("acbpm", "acbpm0 * acrtempo[int(acrole)]"), SendL("ac-bpm", ["acbpm"])])
     c.col()
     proc(c, "ac-tick", [
         V("actick", "(actick + 1) % (24*acmeter*64)"),
@@ -489,7 +498,7 @@ def rhythm():
             If("actick % 24 == 0", [Call("ac-beat"), If("actick % (24*acmeter) == 0", [Call("ac-bar")])]),
         ]),
     ])
-    proc(c, "ac-bar", [SendL("ac-dpulse", ["60000/acbpm*acmeter"]), If("acgdlock && acgcloud > 0", [Send("ac-cloud-on")])])
+    proc(c, "ac-bar", [SendL("ac-dpulse", [f"60000/{BPMH}*acmeter"]), If("acgdlock && acgcloud > 0", [Send("ac-cloud-on")])])
     proc(c, "ac-step", [If("acgmotion > 0.01 && acrun && int(acstep) % int(acmdiv) == 0", [
         V("acms", "int(acstep/acmdiv)"),
         If("((int(acms + acmrot) % int(acmn)) * int(acmk)) % int(acmn) < acmk", [
@@ -597,7 +606,7 @@ def players():
             If("acbi==0 && acr3<0.6", [RNG, T("acmotif", "int(acr1*5)", "acmotif[int(acr1*5)] + int(acr2*5) - 2")]),
         ]),
         RNG,
-        Arm("ac-btick", "(60000/acbpm) * acmrhy[int(acbi)] * (1 + int(acr4*3)) * (1.6 - 0.7*acdeff) * (0.9 + acr1*0.2)"),
+        Arm("ac-btick", f"(60000/{BPMH}) * acmrhy[int(acbi)] * (1 + int(acr4*3)) * (1.6 - 0.7*acdeff) * (0.9 + acr1*0.2)"),
     ])
     proc(c, "ac-bellnow", [If("acmbell && acrun", [RNG] + play + [V("acbi", "(acbi+1) % 5")])])
     proc(c, "ac-rtick", [

@@ -94,6 +94,10 @@ ROLE_PULSE = [0.0, 0.1, 0.15, 0.3, 0.35, 0.1, 0.15, 0.0]   # drone pulse depth o
 AWAY = [5, 7, -3, 2, 4, -4, -5, 3]                         # key areas away from home (semitones)
 EUCLID = [(3, 8), (5, 8), (5, 12), (7, 16), (5, 13), (4, 11), (7, 12), (3, 7), (5, 16), (9, 16)]
 METERS = [4, 4, 3, 5, 6, 7]
+# tempo ranges (SETUP page 3): name, lowest and highest piece tempo in BPM. Above HALFTIME the slow layers
+# (pad breathing, bells, the drone's bar swell) feel the beat at half speed and the arpeggio counts in 8ths.
+TEMPOS = [("ambient", 40, 72), ("slow", 24, 48), ("wide", 30, 110), ("pulse", 60, 100), ("fast", 90, 140)]
+HALFTIME = 84
 MOTION_RATIOS = [1, 2, 3, 4.5, 0.5, 1.5]
 BREATH_PERIODS = [7, 9, 11, 13]       # pad breathing cycles, in half-bars: they phase against each other
 
