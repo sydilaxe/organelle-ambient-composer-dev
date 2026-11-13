@@ -141,7 +141,8 @@ SETUP (hold aux 1 s; aux tap = next page (4); hold aux 1 s to leave, save)
   4 Bloom      clean / vintage (13-bit, as the unit)
   page 2: Follow you (how much chords follow what you play), MPE bend
   range (12/24/48/96), MIDI out base channel, breath curve.
-  page 3: Output (stereo wide / mono - for mono rigs and external effects),
+  page 3: Output (stereo wide / mono - for mono rigs and external effects /
+  split - pads and drone left, everything else right, as mono stems),
   Width (50-150 %), Pan motion (how far the voices travel), Tempo range:
   ambient 40-72, slow 24-48, wide 30-110, pulse 60-100, fast 90-140. Above
   84 BPM bells, breathing and the drone swell move at half time.

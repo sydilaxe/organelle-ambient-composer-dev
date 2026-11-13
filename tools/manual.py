@@ -81,7 +81,11 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
     "MPE bend": (", ".join(str(b) for b in S.BENDS), "Per-note pitch-bend range in semitones (channel 1 uses 2)."),
     "MIDI out ch": ("1-16", "Base channel for MIDI notes out; the other parts count up from it."),
     "Breath curve": ("50-200 %", "Response of breath (CC 2, CC 11, aftertouch): below 100 softer, above harder."),
-    "Output": ("stereo wide, mono", "Mono sums the output for mono rigs and external effects."),
+    "Output": (", ".join(S.OUTPUTS), "Stereo wide: the composed stereo image. Mono: both outputs the same, for "
+                                     "mono rigs and external effects. Split: two mono stems - left the harmony bed "
+                                     "(pads with their character, drone, sub), right everything else (bells, "
+                                     "motion, textures, cloud, atmosphere, live voices, input); each side carries "
+                                     "one side of the reverb."),
     "Width": ("50-150 %", "Overall stereo width."),
     "Pan motion": ("0-100 %", "How far the voices travel in the stereo field."),
     "Tempo": (", ".join(f"{n} {lo}-{hi}" for n, lo, hi in DT.TEMPOS), "The range a piece picks its tempo from. "
@@ -359,7 +363,8 @@ def story():
           para("Each section places the voices in a scene. The bass and sub stay centred; the drone's twin and "
                "interval orbit, each pad voice has its own place and orbits around it, grains and bells land "
                "anywhere, the motion arpeggio sweeps across, the reverbs are decorrelated. Width grows with the "
-               "form. Summed to mono it loses about 1 dB; SETUP <i>Output</i> can make it mono."),
+               "form. Summed to mono it loses about 1 dB; SETUP <i>Output</i> can make it mono, or split it into two "
+               "mono stems (harmony left, everything else right)."),
           table([["Scene", "Placement"]] + [[sc, SCENE_DESC[sc]] for sc in DT.SCENES], [1.2, 5.5])]
 
     s += [PageBreak(), Paragraph("8  Audio input", H1),

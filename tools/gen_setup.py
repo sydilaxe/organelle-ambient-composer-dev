@@ -19,6 +19,7 @@ SETTINGS = [n for p in PAGES for _, n, _ in p] + ["acmout", "acsync", "acforce",
 IN_IDX = [n for p in PAGES for _, n, _ in p].index("acinput")     # the In knob's slot in acparams
 MOUT = ["off", "tempo only", "tempo+notes", "notes only"]
 PARTS = ["all", "harmony", "arp only"]
+OUTPUTS = ["stereo wide", "mono", "split"]   # split: pads + drone left, everything else right (mono stems)
 NSET = 4                                   # SETUP pages
 BENDS = [12, 24, 48, 96]
 
@@ -76,7 +77,7 @@ def setup_rows():
     tools/manual.py, so the manual lists exactly these items."""
     return [
         (1, ("list 1 MIDI out $1", [("s", "acmout", MOUT)]), ("list 1 Follow you $1", [("f", "int(acfollow*100)")]),
-         ("list 1 Output $1", [("s", "acmono", ["stereo wide", "mono"])]),
+         ("list 1 Output $1", [("s", "acmono", OUTPUTS)]),
          ("list 1 MIDI notes $1", [("s", "acmparts", PARTS)])),
         (2, ("list 2 Sync $1", [("s", "acsync", ["internal", "follow clock"])]),
             ("list 2 MPE bend $1", [("f", "acnbr")]), ("list 2 Width $1", [("f", "int(acwidth*100)")]),
@@ -119,7 +120,7 @@ def setup():
         If(f"{item} == 5", [V("acnbr", f"if(acsv < 0.25, 12, if(acsv < 0.5, 24, if(acsv < 0.75, 48, 96)))")]),
         If(f"{item} == 6", [V("acoutch", "1 + int(acsv*12.99)")]),
         If(f"{item} == 7", [V("accurve", "0.5 + 1.5*acsv"), SendL("ac-brcurve", ["accurve"])]),
-        If(f"{item} == 8", [V("acmono", "acsv > 0.5"), Call("ac-stereo")]),
+        If(f"{item} == 8", [V("acmono", f"int(acsv*{len(OUTPUTS) - 0.01})"), Call("ac-stereo")]),
         If(f"{item} == 9", [V("acwidth", "0.5 + acsv"), Call("ac-stereo")]),
         If(f"{item} == 10", [V("acpanmot", "acsv"), Call("ac-stereo")]),
         If(f"{item} == 11", [V("actrange", f"int(acsv*{len(TEMPOS) - 0.01})"), Call("ac-settempo")]),

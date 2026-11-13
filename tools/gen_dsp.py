@@ -59,8 +59,10 @@ def ctl(c, dest, recv, expr=None, inlet=1, first=False):
     return src
 
 
-def throws(c, L, R, mix=1.0, send=0.0, src=0.0):
-    for sig, bus in ((L, "ac-mixL"), (R, "ac-mixR")):
+def throws(c, L, R, mix=1.0, send=0.0, src=0.0, bus="mix"):
+    """to the mix (bus "mix") or the harmony bed (bus "bed": drone and sub, kept apart for SETUP Output split),
+    plus the reverb send and the cloud source"""
+    for sig, bus in ((L, f"ac-{bus}L"), (R, f"ac-{bus}R")):
         c.c(c.to(sig, f"*~ {mix}"), 0, c.obj("throw~ " + bus), 0)
     if send or src:
         m = add(c, L, R)
@@ -350,7 +352,7 @@ def drone():
     s.c(s.to((pu, 0), "expr 1-$f1"), 0, pa, 1)
     oL = mul(s, mul(s, s.to(sL, "hip~ 25"), pa), ln)
     oR = mul(s, mul(s, s.to(sR, "hip~ 25"), pa), ln)
-    throws(s, oL, oR, mix=0.6, send=0.3, src=1)
+    throws(s, oL, oR, mix=0.6, send=0.3, src=1, bus="bed")
     return s
 
 
@@ -618,11 +620,13 @@ def master():
         sp = s.sub(fn())
         s.c(pL, 0, sp, 0)
         s.c(pR, 0, sp, 1)
-        s.c((sp, 0), 0, s.obj("throw~ ac-mixL"), 0)
-        s.c((sp, 1), 0, s.obj("throw~ ac-mixR"), 0)
+        s.c((sp, 0), 0, s.obj("throw~ ac-bedL"), 0)
+        s.c((sp, 1), 0, s.obj("throw~ ac-bedR"), 0)
     pm = add(s, pL, pR)
     s.c(s.to(pm, "*~ 0.5"), 0, s.obj("s~ ac-padsig"), 0)
-    rin = s.obj("*~ 0.35")
+    # reverb send level: with the Mix knob at its default (45 %) the reverb sits about 6 dB under the dry sound,
+    # at 100 % about level with it (measured in a playing piece; it was 17-27 dB under before)
+    rin = s.obj("*~ 1.23")
     s.c(s.obj("catch~ ac-send"), 0, rin, 0)
     s.c(s.to(pm, "*~ 0.3"), 0, rin, 0)
     rs = s.obj("s~ ac-resamp")
@@ -643,12 +647,14 @@ def master():
     s.c(s.ch(wL, "env~ 4096 2048"), 0, s.obj("v acrvlvl"), 0)
     s.col()
     mg = s.ch(s.recv("ac-master"), "line~")
+    # the buses: mix (everything else) and bed (drone, sub; the pads and their character join it below)
+    cmL, cmR = s.obj("catch~ ac-mixL"), s.obj("catch~ ac-mixR")
+    cbL, cbR = s.obj("catch~ ac-bedL"), s.obj("catch~ ac-bedR")
     outs = []
-    for bus, p, w in (("ac-mixL", pdL, wL), ("ac-mixR", pdR, wR)):
+    for cm, cb, p, w in ((cmL, cbL, pdL, wL), (cmR, cbR, pdR, wR)):
         sm = s.obj("hip~ 8")
-        s.c(s.obj("catch~ " + bus), 0, sm, 0)
-        s.c(p, 0, sm, 0)
-        s.c(w, 0, sm, 0)
+        for x in (cm, cb, p, w):
+            s.c(x, 0, sm, 0)
         outs.append(mul(s, sm, mg))
     comp = s.ch(s.m(s.ch(add(s, outs[0], outs[1]), "env~ 1024 512", "expr pow(10, -max(0, ($f1-82)*0.75)/20)"),
                     "$1 25"), "line~")
@@ -662,10 +668,24 @@ def master():
     oR = s.obj("-~")
     s.c(mid, 0, oR, 0)
     s.c(sw, 0, oR, 1)
-    for o, bus in ((add(s, mid, sw), "outL"), (oR, "outR")):
-        s.c(s.ch(o, "clip~ -0.98 0.98"), 0, s.obj("throw~ " + bus), 0)
+    s.col()
+    # SETUP Output split: two mono stems - left the harmony bed (pads with their character, drone, sub), right
+    # everything else (bells, motion, textures, cloud, atmosphere, live voices, input). One reverb serves both:
+    # each stem takes one side of it (summing its two sides to mono would partly cancel).
+    bed = s.obj("*~ 0.5")
+    for x in (cbL, cbR, pdL, pdR):
+        s.c(x, 0, bed, 0)
+    rest = s.obj("*~ 0.5")
+    for x in (cmL, cmR):
+        s.c(x, 0, rest, 0)
+    gain = mul(s, mg, comp)
+    stems = [mul(s, s.ch(add(s, st, s.to(w, "*~ 0.7")), "hip~ 8"), gain) for st, w in ((bed, wL), (rest, wR))]
+    spl = s.ch(s.recv("ac-split"), "line~")
+    nrm = s.ch(spl, "*~ -1", "+~ 1")
+    for o, stem, bus in ((add(s, mid, sw), stems[0], "outL"), (oR, stems[1], "outR")):
+        fin = add(s, mul(s, o, nrm), mul(s, stem, spl))
+        s.c(s.ch(fin, "clip~ -0.98 0.98"), 0, s.obj("throw~ " + bus), 0)
     return s
-
 
 def motion():
     s, ln = switched("motion", "ac-g-motion")

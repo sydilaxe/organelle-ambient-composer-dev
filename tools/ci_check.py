@@ -410,10 +410,15 @@ for seed, extra, name in ((2718, [], "wide"), (2718, [(40, "acmono 1")], "mono")
            for i in range(20 * SR, len(a) - SR, SR)]
     if name == "wide":
         check(-11 < sm < -1.5, f"stereo: side/mid {sm:.1f} dB (wide; hard-panned bells can push it up for a moment)")
-        check(np.std(bal) > 1.2, f"stereo: the image moves ({np.std(bal):.1f} dB balance swings)")
         check(loss > -2.5, f"stereo: not phasey - mono-compatible (mono sum {loss:.1f} dB)")
     else:
         check(np.abs(seg[:, 0] - seg[:, 1]).max() < 1e-4, "SETUP Output mono: both channels the same")
+# the voices move: measured with the reverb Mix at 0 (a full reverb is a constant wide wash that hides it)
+log, a = run([(50, "aclen 0"), (60, "ac-setseed 2718"), (500, "ac-param 4 0")], 160)
+ah = sosfilt(hp, a, axis=0)
+bal = [10 * np.log10((ah[i:i + SR, 0] ** 2).mean() / (ah[i:i + SR, 1] ** 2).mean() + 1e-12)
+       for i in range(20 * SR, len(a) - SR, SR)]
+check(np.std(bal) > 1.2, f"stereo: the image moves ({np.std(bal):.1f} dB balance swings, reverb mix 0)")
 
 # 20. atmospheres; pad types in stereo but mono-safe; scenes place the voices; preferred sounds come up more
 from data import ATMOS_NAMES
@@ -546,6 +551,26 @@ check(cases[0] == ["cloud off"] and cases[1] == ["freeze - reverb and cloud"] an
       f"F# = cloud, aux + F# = Freeze; standalone aux + F# once = cloud, twice = Freeze ({cases})")
 mt = toasts([(40, "acsync 1"), (2000, "ac-rtin 252"), (4000, "ac-rtin 250")])
 check("stopped - A# to start" in mt and "playing again" in mt, "following a clock: MIDI Stop / Start stop and start")
+
+# 26. SETUP Output split: the drone (harmony bed) on the left only; the reverb on both
+ALLM = ["acmdrone", "acmpad", "acmtex", "acmcloud", "acmbell", "acmmotion"]
+ev = [(40, "acmono 2"), (50, "ac-setseed 7"), (310, "ac-secstop bang")] + \
+     [(320, f"{m} {1 if m == 'acmdrone' else 0}") for m in ALLM] + \
+     [(321, "acfade 10"), (322, "ac-layers bang"), (323, "ac-stereo bang")] + [(t, "ac-rwet 0 10") for t in range(400, 14000, 500)]
+log, a = run(ev, 14)
+L, R = rms_db(a[6 * SR:14 * SR, 0]), rms_db(a[6 * SR:14 * SR, 1])
+check(L > -35 and R < L - 40, f"Output split: the drone only on the left (L {L:.0f} dB, R {R:.0f} dB, reverb off)")
+
+# 27. the reverb is clearly audible: at the default Mix it sits about 6 dB under the whole output (Bloom and Hall)
+def rvprobe(c):
+    m = c.obj("metro 500", 1200, 20)
+    c.c(c.obj("loadbang", 1200, 0), 0, m, 0)
+    c.c(c.to(m, "expr acrvlvl"), 0, c.obj("print RV", 1200, 80), 0)
+for vt, name in ((0.3, "Bloom 1"), (0.7, "Hall")):
+    log, a = run([(50, "ac-setseed 7"), (1000, f"ac-param 5 {vt}")], 40, extra=rvprobe)
+    rv = np.median([float(l.split()[1]) for l in log.splitlines() if l.startswith("RV:")][40:]) - 100
+    out = rms_db(a[20 * SR:40 * SR].mean(1))
+    check(-10 < rv - out < -2, f"{name} at the default Mix: {rv - out:+.1f} dB against the whole output")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

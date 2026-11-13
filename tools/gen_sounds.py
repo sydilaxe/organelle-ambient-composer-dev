@@ -136,7 +136,7 @@ def _drone_out(s, sig, ln, sigR=None):
         sigR = add(s, s.to(sig, "*~ 0.35"), s.to(sigR, "*~ 0.8"))
     oL = mul(s, s.to(sig, "hip~ 25"), ln)
     oR = mul(s, s.to(sigR, "hip~ 25"), ln)
-    throws(s, oL, oR, mix=0.6, send=0.3, src=1)
+    throws(s, oL, oR, mix=0.6, send=0.3, src=1, bus="bed")
 
 
 def drone_analog():
@@ -205,7 +205,7 @@ def sub():
     pa = s.to(dep, "+~ 1")
     s.c(s.to((pu, 0), "expr 1-$f1"), 0, pa, 1)
     o = mul(s, mul(s, s.to(y, "lop~ 500"), pa), ln)
-    throws(s, o, o, mix=0.42, send=0.05)
+    throws(s, o, o, mix=0.42, send=0.05, bus="bed")
     return s
 
 

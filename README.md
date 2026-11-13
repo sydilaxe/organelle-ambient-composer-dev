@@ -145,7 +145,9 @@ alternating left and right, offset formants, and bell partials fanned around eac
 mono-safe: a mono sum dips by at most about 5 dB, never cancels.
 
 **SETUP page 3:**
-- **Output:** stereo wide, or mono for mono rigs and external effects.
+- **Output:** stereo wide; mono for mono rigs and external effects; or split: two mono stems, the harmony bed
+  (pads with their character, drone, sub) on the left and everything else on the right. Each side carries one side
+  of the reverb.
 - **Width:** 50 to 150 %.
 - **Pan motion:** how far the voices travel.
 - **Tempo:** the range a piece picks its tempo from: ambient 40-72 (default), slow 24-48, wide 30-110,

@@ -471,7 +471,8 @@ def stereo():
     c = Canvas("stereo")
     c.comment("Width (mid/side at the master) by section role x SETUP Width, 0 in mono; pad orbit depth")
     proc(c, "ac-stereo", [
-        SendL("ac-width", [f"(1 - acmono) * acwidth * if(acrole==0, {ROLE_WIDTH[0]}, " +
+        SendL("ac-split", ["acmono == 2", "300"]),
+        SendL("ac-width", [f"(acmono != 1) * acwidth * if(acrole==0, {ROLE_WIDTH[0]}, " +
                            "".join(f"if(acrole=={i}, {w}, " for i, w in enumerate(ROLE_WIDTH[1:], 1)) + "1"
                            + ")" * 8, "3000"]),
         SendL("ac-pandepth", ["acpanmot * 0.5 * (0.5 + acmotion) * acscn[int(acscene)*10 + 9]"]),
