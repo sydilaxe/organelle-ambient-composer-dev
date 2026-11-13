@@ -362,7 +362,7 @@ def vocoder():
 
 
 def _vocoder_core():
-    s, ln = switched("vocoder-core", "ac-g-voc", block="64 1 0.5")
+    s, ln = switched("vocoder-core", "ac-g-voc", block="32 1 0.5")   # = one parent block: even load
     m = s.obj("inlet~", 20, 5)
     padsig = s.obj("inlet~", 200, 5)
     # carriers

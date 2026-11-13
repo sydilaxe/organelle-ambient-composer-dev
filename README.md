@@ -232,6 +232,9 @@ The Organelle-M runs Amble on one core, so a few things keep it from crackling:
   pitch tracker runs only while the In knob is up. In always starts at 0 when Amble loads.
 - **Half rate where it can't be heard:** the Bloom and Hall/Shimmer reverbs, the vocoder and the pitch tracker
   run at 22.05 kHz (their content stays below 11 kHz).
+- **Even load per block.** A half-rate part works in 32-sample blocks (one 64-sample audio block): in 64s, Pd
+  computes it on every other audio block only, which doubles the peak there (the Hall and Shimmer crackled that
+  way on the Organelle). The Shimmer's pitch shifter runs only when Shimmer is chosen.
 - **No long ticks.** A new piece, a new section and a chord change are split into stages a few milliseconds
   apart, so no single scheduler tick runs long enough to make the audio drop out (the longest went from about
   0.9 ms to under 0.2 ms on a desktop core).

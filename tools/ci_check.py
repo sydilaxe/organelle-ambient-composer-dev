@@ -716,5 +716,21 @@ check(len(r1) > 30 and r1 == r2 and len(set(r1)) > 20,
       f"a seed replays its piece after any other piece (random state equal for {sum(x == y for x, y in zip(r1, r2))} "
       f"of {len(r1)} s)")
 
+# 34. CPU spread evenly: a half-rate subpatch runs in blocks of at most one parent block (32 at 22.05 kHz), so
+#     its work isn't bunched onto every other audio block (the Hall in 64s crackled on the Organelle). The pitch
+#     tracker's 2048-point analysis is the one exception (it runs only while In is up). The plain Hall leaves the
+#     shimmer off.
+import glob
+sw = [m for f in glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "patches", "Amble", "*.pd"))
+      for m in re.findall(r"switch~ (\d+) (\d+) 0\.5", open(f).read())]
+bad = [b for b, o in sw if int(b) > 32 and b != "2048"]
+check(sw and not bad, f"half-rate subpatches fit one audio block ({sorted(set(b for b, _ in sw))}, too long: {bad})")
+log, _ = run([(50, "ac-setseed 7"), (300, "ac-param 5 0.7"), (5000, "h-mark bang"), (6000, "ac-param 5 0.9")], 10,
+             prints=("ac-shim", "h-mark"))
+hall_part, shim_part = log.split("h-mark: bang")
+sh0 = [l.split()[1] for l in hall_part.splitlines() if l.startswith("ac-shim")][-1:]
+sh1 = [l.split()[1] for l in shim_part.splitlines() if l.startswith("ac-shim")][-1:]
+check(sh0 == ["0"] and sh1 and sh1 != ["0"], f"the shimmer runs only for Shimmer (Hall {sh0}, Shimmer {sh1})")
+
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)
