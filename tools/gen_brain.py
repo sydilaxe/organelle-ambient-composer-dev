@@ -210,6 +210,9 @@ def piece():
         steps += [RNG, SendL(f"ac-v{k}-lfo", [f"1/(30/(acbpm0/(1 + (acbpm0 > {HALFTIME})))*acmeter*acbreath[{k}]*(0.97+acr1*0.06))",
                                               "0.03+acr2*0.15", "0.04+acr3*0.25", "0.03+acr4*0.2"])]
     steps += [
+        # the clock and the event players stop until the piece is set up, then start afresh (np3), so a seed
+        # replays its piece whatever played before
+        Send("ac-playstop"), Send("ac-clockhalt"),
         X("0; -1; 0; 1; 0; 0; 1; 0; 0; 0", "v acdeg", "v acpend", "v acchg", "v acfirst", "v acended", "v accapt",
           "v acrun", "v acsec", "v acprogn", "v acstopped"),
         Send("ac-master", "1 3000"),
@@ -226,8 +229,10 @@ def piece():
         Call("ac-change"),
         Call("ac-brightupd"), Call("ac-inputupd"),
         SendL("ac-weird", ["acweird"]), SendL("ac-motion", ["acmotion"]),
-        V("actick", "-1"), Call("ac-clockstart"),
+        V("actick", "-1"), Send("ac-clockgo"), Call("ac-clockstart"),
+        Later("ac-playgo", 60),
     ])
+    proc(c, "ac-playgo", [Send(t) for t in ("ac-ctick", "ac-rtick", "ac-btick", "ac-dtick", "ac-ttick")])
     # the form: an archetype's energy curve over 6-12 sections, then a role for each section
     arch = ARCH_EXPR.replace("X", "((aci+0.5)/acnsec)")
     proc(c, "ac-plan", [
@@ -536,6 +541,8 @@ def rhythm():
     c.c(c.to(c.recv("ac-init"), "delay 50"), 0, met, 0)
     c.c(c.to(c.recv("ac-bpm"), "expr 60000/max(20, $f1)/24"), 0, met, 1)
     c.c(met, 0, c.obj("s ac-mtick"), 0)
+    c.c(c.m(c.recv("ac-clockhalt"), "stop"), 0, met, 0)
+    c.c(c.recv("ac-clockgo"), 0, met, 0)
     proc(c, "ac-mtick", [If("acsync == 0", [Send("ac-tick")])])
     # the tempo of this section: the piece's place in the tempo range, x the role's tempo
     proc(c, "ac-settempo", [V("acbpm0", TEMPO0), V("acbpm", "acbpm0 * acrtempo[int(acrole)]"), SendL("ac-bpm", ["acbpm"])])
@@ -663,7 +670,7 @@ def players():
             If("acbi==0 && acr3<0.6", [RNG, T("acmotif", "int(acr1*5)", "acmotif[int(acr1*5)] + int(acr2*5) - 2")]),
         ]),
         RNG,
-        Arm("ac-btick", f"(60000/{BPMH}) * acmrhy[int(acbi)] * (1 + int(acr4*3)) * (1.6 - 0.7*acdeff) * (0.9 + acr1*0.2)"),
+        Arm("ac-btick", f"(60000/{BPMH}) * acmrhy[int(acbi)] * (1 + int(acr4*3)) * (1.6 - 0.7*acdeff) * (0.9 + acr1*0.2)", stop="ac-playstop"),
     ])
     proc(c, "ac-bellnow", [If("acmbell && acrun", [RNG] + play + [V("acbi", "(acbi+1) % 5")])])
     proc(c, "ac-rtick", [
@@ -673,7 +680,7 @@ def players():
             SendL("ac-drop", ["acdropi", "min(100, acch[int(acr1*4)] + 24 + 12*int(acr2*2))", "acr3"]),
         ]),
         RNG,
-        Arm("ac-rtick", "(90 + 2200*(1-acdeff)) * (0.15 + 1.7*acr4)"),
+        Arm("ac-rtick", "(90 + 2200*(1-acdeff)) * (0.15 + 1.7*acr4)", stop="ac-playstop"),
     ])
     proc(c, "ac-ctick", [
         If("acgt3 > 0.01", [
@@ -684,18 +691,18 @@ def players():
             ], [RNG, V("acbc", "2 + int(acr1*5)")]),
         ]),
         RNG,
-        Arm("ac-ctick", "if(acbc>0, 80 + acr2*240, 1500 + acr3*9000)"),
+        Arm("ac-ctick", "if(acbc>0, 80 + acr2*240, 1500 + acr3*9000)", stop="ac-playstop"),
     ])
     # ghost input mode: a played onset rings the next bell note
     # data texture: bursts of blips on chord tones
     proc(c, "ac-ttick", [RNG, If("acgatm > 0.01 && acatmcur == 1 && acr1 < 0.4", [Send("ac-thunder")]),
-                         Arm("ac-ttick", "9000 + acr2*20000")])
+                         Arm("ac-ttick", "9000 + acr2*20000", stop="ac-playstop")])
     proc(c, "ac-dtick", [
         If("acgt5 > 0.01", [If("acdb > 0", [
             RNG, SendL("ac-data", ["min(110, acnew[int(acr1*4)] + 36 + 12*int(acr2*2))", "25 + acr3*50"]),
             V("acdb", "acdb - 1")], [RNG, V("acdb", "4 + int(acr1*10)")])]),
         RNG,
-        Arm("ac-dtick", "if(acdb > 0, 45 + acr2*80, 1200 + acr3*6000)"),
+        Arm("ac-dtick", "if(acdb > 0, 45 + acr2*80, 1200 + acr3*6000)", stop="ac-playstop"),
     ])
     # input onsets: counted for the class; in ghost mode (and for plucked sounds in auto) they ring a bell
     proc(c, "ac-inonset", [Call("ac-inonset2"),

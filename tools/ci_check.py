@@ -289,8 +289,10 @@ log, _ = run([(40, "acmout 2"), (50, "ac-setseed 7")], 8, prints=("ac-noteout",)
 check(log.count("ac-noteout:") >= 5, "clock + notes: the chord and the drone go out as notes")
 ev = [(40, "acsync 1"), (50, "ac-setseed 7"), (100, "ac-rtin 250")] + \
      [(int(200 + i * 20.833), "ac-rtin 248") for i in range(24 * 16)]
-log, _ = run(ev, 9, prints=("ac-step",))
-check(log.count("ac-step: bang") == 64, f"follows an external clock (16 beats -> {log.count('ac-step: bang')} steps)")
+log, _ = run(ev, 9, prints=("ac-step", "ac-toast"))
+# (steps counted from the external Start: a new piece starts the internal clock at once, before Sync follows)
+st = log.split("clock start")[-1].count("ac-step: bang")
+check(st == 64, f"follows an external clock (16 beats -> {st} steps)")
 
 # 16. SETUP and settings survive a restart
 d = build_tmp()
@@ -697,6 +699,22 @@ ev = [(50, "ac-setseed 7"), (300, "acsetup 1"), (310, "acsetpg 7"), (400, f"ac-s
 log, _ = run(ev, 2, prints=pr)
 check("ac-param: 0 0.5039" in log and "3 Last CC 71 = 64" in log and "ac-lvtype: 10" in log,
       "CC MAP: CC 71 remapped to density moves the Dens knob; CC 11 remapped to voice type picks the type")
+
+# 33. a seed replays its piece whatever played before it (the clock and event players restart with the piece):
+#     the random generator's state, read every second, is the same
+def rngprobe(c):
+    d = c.obj("delay 3500", 1400, 0)
+    c.c(c.obj("loadbang", 1400, -20), 0, d, 0)
+    m = c.obj("metro 1000", 1400, 20)
+    c.c(d, 0, m, 0)
+    c.c(c.to(m, "expr acr1*1e6"), 0, c.obj("print RS", 1400, 80), 0)
+def rng_after(first):
+    log, _ = run([(10, f"ac-setseed {first}"), (40, "acdens 1"), (3000, "ac-setseed 2718")], 40, extra=rngprobe)
+    return [l.split()[1] for l in log.splitlines() if l.startswith("RS:")]
+r1, r2 = rng_after(140919), rng_after(137919)
+check(len(r1) > 30 and r1 == r2 and len(set(r1)) > 20,
+      f"a seed replays its piece after any other piece (random state equal for {sum(x == y for x, y in zip(r1, r2))} "
+      f"of {len(r1)} s)")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)
