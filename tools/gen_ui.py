@@ -16,7 +16,7 @@ SIDE = {  # what to do after a knob changes a value (index = page*4 + knob)
     7: [Call("ac-revupd")],
     9: [SendL("ac-weird", ["acweird"]), Call("ac-brightupd")],
     10: [SendL("ac-motion", ["acmotion"]), Call("ac-stereo")],
-    11: [Send("ac-densch"), SendL("ac-pulse", ["acrpulse[int(acrole)] * (0.3 + 1.4*acrhythm)"])],
+    11: [Send("ac-densch"), Call("ac-pulseupd")],
 }
 for _i in range(12, 4 * len(PAGES)):          # the SENDS pages
     SIDE[_i] = [Call("ac-sendupd")]

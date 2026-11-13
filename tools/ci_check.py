@@ -320,7 +320,7 @@ for what, pat in (("form strip", "gFillArea 3 0 0 128 8 0"), ("ladder", "gFillAr
                   ("meters", "gFillArea 3 62 20 33 33 0"), ("rhythm", "gFillArea 3 96 20 32 33 0"),
                   ("tempo", "bpm"), ("knob page", "page SHAPE")):
     check(any(pat in l for l in osc), f"OLED draws the {what}")
-check("ac-sett0: list SETUP 2 of 5 - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
+check("ac-sett0: list SETUP 2 of 7 - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
 
 # 18. the wider sound world: drone designs, the sub, electric textures, character, the vocoder, variety
 from data import DRONES, TEXTURES, CHARACTERS, FLAVOURS
@@ -590,7 +590,7 @@ run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 
 vals = open(os.path.join(d, "settings.txt")).read().split()
 log, _ = run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 1"), (550, "aux 0"),
               (700, "knob2 0.5"), (750, "knob2 0.52")], 3, d=d)
-check(len(vals) == 39 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
+check(len(vals) == 46 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
       "SENDS: a send is saved after the SETUP values and comes back after a restart")
 
 # 29. the patch asks the Organelle OS for a larger audio buffer (pd-opts.txt is appended to Pd's options)
@@ -625,6 +625,57 @@ log, _ = run([(50, "ac-setseed 7"), (300, "acsetup 1"), (310, "acsetpg 4"), (400
 sv = [l.split()[1:] for l in log.splitlines() if l.startswith("SV:")]
 check("2 Drone fm" in log and "3 Texture wind" in log and "4 Character tape" in log
       and sv[-1] == ["3112"], f"SOUNDS: Drone fm, Texture wind, Character tape applied and kept ({sv[-1]})")
+
+# 31. SETUP page 6, MUSIC (key, scale, chords stay as chosen; the bar pulse) and page 7, MIDI IN (where notes go,
+#     what breath does)
+import gen_setup as S
+def setk(pg, k, label, opts, t=400):
+    return [(t - 100, "acsetup 1"), (t - 90, f"acsetpg {pg}"), (t, f"ac-setknob {k} {(opts.index(label) + 0.5) / len(opts)}"),
+            (t + 100, "acsetup 0")]
+ev = [(40, "acmode 0"), (45, "actime 0.05"), (46, "acweird 1"), (50, "ac-setseed 7")] + setk(5, 0, "D", S.SKEYS) + \
+     setk(5, 1, "minpent", S.SSCALES, 700) + setk(5, 2, "quartal", S.SCHORDS, 1000) + [(1200, "h-mark bang"), (6000, "ac-setseed 99")]
+log, _ = run(ev, 14, prints=("ac-dronep", "h-mark", "ac-txt2"))
+after = log.split("h-mark")[-1]
+tonics = {int(float(l.split()[1])) % 12 for l in after.splitlines() if l.startswith("ac-dronep")}
+s2 = [l for l in after.splitlines() if l.startswith("ac-txt2")]
+check(tonics == {2} and s2 and all("minpent quartal" in l for l in s2[-3:]),
+      f"MUSIC: key D, minpent, quartal stay through changes and a new piece (tonics {sorted(tonics)}, {s2[-1:]})")
+def pulses(label):
+    log, _ = run([(50, "ac-setseed 7"), (60, "acrhythm 1")] + setk(5, 3, label, S.PULSES) +
+                 [(1000, "acrole 4"), (1001, "ac-pulseupd bang")], 2,
+                 prints=("ac-pulse",))
+    return [float(l.split()[1]) for l in log.splitlines() if l.startswith("ac-pulse")][-1]
+p0, p2, p3 = pulses("off"), pulses("normal"), pulses("strong")
+check(p0 == 0 and p3 > p2, f"MUSIC Pulse: off {p0}, normal {p2:.2f}, strong {p3:.2f}")
+def routed(label, notes, prints):
+    ev = [(50, "ac-setseed 7")] + setk(6, 0, label, S.ROUTES) + [(800, "h-mark bang")]
+    ev += [(1000 + 10 * i, f"ac-livenote 1 {n} 100") for i, n in enumerate(notes)]
+    ev += [(2900, "h-mark2 bang")] + [(3000 + 10 * i, f"ac-livenote 1 {n} 0") for i, n in enumerate(notes)]
+    log, _ = run(ev, 5, prints=prints + ("h-mark", "h-mark2", "ac-lvon"))
+    return log.split("h-mark: bang")[1].split("h-mark2")[0], log.split("h-mark2")[-1]
+held, _ = routed("bells", [72], ("ac-bell",))
+check("ac-bell: 72 " in held and "ac-lvon" not in held, "MIDI IN Notes to bells: a note strikes a bell, no live voice")
+held, _ = routed("chords", [60, 64, 67], tuple(f"ac-v{k}-pitch" for k in range(4)))
+ch = [int(float(l.split()[1])) for l in held.splitlines() if "-pitch:" in l and l.split()[2] == "300"][-4:]
+check(set(ch) == {60, 64, 67, 72}, f"MIDI IN Notes to chords: the held notes are the pad chord ({ch})")
+held, rel = routed("drone", [43], ("ac-dronep",))
+dr = [int(float(l.split()[1])) for l in held.splitlines() if l.startswith("ac-dronep")]
+back = [int(float(l.split()[1])) for l in rel.splitlines() if l.startswith("ac-dronep")]
+check(dr and dr[-1] == 43 and back and back[0] != 43, f"MIDI IN Notes to drone: the drone on your note, home after ({dr}, {back})")
+def swell(v):
+    ev = [(50, "ac-setseed 7")] + setk(6, 1, "swell", S.BRTOS) + [(t, f"ac-livebreath 1 {v}") for t in range(800, 6000, 200)]
+    _, a = run(ev, 6)
+    return rms_db(a[4 * SR:6 * SR, 0])
+lo, hi = swell(0), swell(127)
+check(lo < hi - 40, f"MIDI IN Breath to swell: breath sets the level (no breath {lo:.0f} dB, full {hi:.0f} dB)")
+check(all(eval(S.BRCC_EXPR.replace("$f1", str(cc)).replace("&&", " and ").replace("||", " or "), {"acbrcc": i})
+          == (cc in want) for i, want in enumerate([(2, 11), (2,), (11,), (1,), (74,), ()]) for cc in (1, 2, 7, 11, 74)),
+      "MIDI IN Breath CC: each choice listens to its CC only (touch only = none)")
+
+held, rel = routed("cloud", [69], tuple(f"ac-gr{i}" for i in range(4)))
+gr = [l for l in held.splitlines() if l.startswith("ac-gr")]
+check(gr and any(abs(float(l.split()[1]) - 2 ** (((69 - 37) % 12) / 12)) < 0.001 for l in gr) and
+      any(l.startswith("ac-gr") for l in rel.splitlines()), f"MIDI IN Notes to cloud: a note tunes a grain stream ({gr[-1:]})")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

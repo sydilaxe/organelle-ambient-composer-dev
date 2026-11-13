@@ -132,7 +132,7 @@ THE SCREEN (a live score)
               E = following an external clock; FIN at the end
   Turning a knob shows its page for 6 s.
 
-SETUP (hold aux 1 s; aux tap = next page (5); hold aux 1 s to leave, save)
+SETUP (hold aux 1 s; aux tap = next page (7); hold aux 1 s to leave, save)
   1 MIDI out   off / tempo only / tempo+notes / notes only
      tempo: MIDI clock, 24 a beat at the piece's tempo, Start/Stop with it
      notes, by channel from the base channel (page 2):
@@ -163,6 +163,23 @@ SETUP (hold aux 1 s; aux tap = next page (5); hold aux 1 s to leave, save)
     Drone      auto / pure / analog / organ / fm
     Texture    auto / rain / wind / ember / chirp / radio / data / buzz
     Character  auto / clean / chorus / tape / ring / crush
+  page 6, MUSIC (a fixed choice stays: no modulation, no scale change):
+    Key        auto / C .. B (applies at once, with a chord change)
+    Scale      auto / one of the 16 scales
+    Chords     auto / one voicing: spread quartal cluster fifths ninths
+               spectral mirror sus
+    Pulse      off / gentle / normal / strong - the drone and sub swell
+               on every bar
+  page 7, MIDI IN:
+    Notes to   what MIDI notes and the keys play: voice (the live voice) /
+               chords (your held notes are the pad chord) / drone (drone
+               and sub on your note) / bells (a bell per note) / cloud
+               (each note tunes a grain stream)
+    Breath to  voice+piece / voice / density / brightness / reverb /
+               swell (the whole level, like an expression pedal)
+    Breath CC  2 + 11 / 2 / 11 / 1 (mod) / 74 / touch only (pressure
+               always counts)
+    Breath in  the breath level arriving now
 
 CPU GUARD: Amble measures its own load each second. Above 78 % it gets
 lighter in steps ("CPU high - lighter"): 1 cloud and atmosphere off,

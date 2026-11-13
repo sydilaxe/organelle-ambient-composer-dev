@@ -167,8 +167,8 @@ def piece():
     c.comment("A new piece: tonic, scale, voicings, timbre palette, ratios, tempo and meter, reverb, form")
     steps = [
         RNG,
-        V("actonic", "36 + int(acr1*12)"),
-        V("acsci", "int(acr2*%d)" % NS), Call("ac-loadscale"),
+        V("actonic", "if(ackeyc > 0, 35 + ackeyc, 36 + int(acr1*12))"),
+        V("acsci", "if(acsclc > 0, acsclc - 1, int(acr2*%d))" % NS), Call("ac-loadscale"),
         V("acfamA", f"int(acr3*{NF})"), V("acfamB", f"int(acr4*{NF})"),
         RNG,
         # the palette leans to the electronic and bell-like types (weights in data.py)
@@ -285,7 +285,7 @@ def section():
         V("acrole", "if(acmode==1, acroles[int(acsec)], if(acr1<0.25, 1, if(acr1<0.55, 2, "
                     "if(acr1<0.8, 3, 5))))"),
         V("acenergy", "if(acmode==1, acplan[int(acsec)], 0.3 + acr2*0.7)"),
-        V("acfam", f"if(acrole==6, acfamA, if(acr3<0.55, acfamA, if(acr3<0.88, acfamB, int(acr4*{NF}))))"),
+        V("acfam", f"if(acchdc > 0, acchdc - 1, if(acrole==6, acfamA, if(acr3<0.55, acfamA, if(acr3<0.88, acfamB, int(acr4*{NF})))))"),
         RNG,
         V("actidef", "acrtide[int(acrole)] * (0.85 + acr1*0.3)"),
         V("acdauto", "if(acrole == 5 && acr2 < 0.6, acdtype2, acdtype)"),
@@ -308,13 +308,13 @@ def section():
         X("12*(1 + int(acr1*2)); (0.08 + acr2*0.25)*acrhythm; (acrole==3 || acrole==4) && acr3 < 0.6",
           "v acmoct", "v acmswing", "v acgdlock"),
         # key plan: move to this section's key area at the next chord change
-        If("acmode==1", [V("acpend", "if(((int(actonic)-36) % 12) != ((int(achome)-36 + int(ackeyp[int(acsec)])) "
+        If("acmode==1 && ackeyc == 0", [V("acpend", "if(((int(actonic)-36) % 12) != ((int(achome)-36 + int(ackeyp[int(acsec)])) "
                                      "% 12 + 12) % 12, ((int(achome)-36 + int(ackeyp[int(acsec)])) % 12 + 12) % 12, "
                                      "acpend)")]),
         V("acprogi", "0"),
         # tempo and the drone's pulse on the bar
         Call("ac-settempo"),
-        SendL("ac-pulse", ["acrpulse[int(acrole)] * (0.3 + 1.4*acrhythm)"]),
+        Call("ac-pulseupd"),
         # the stereo scene: where the pads live, where bells and motion play, how far the cloud spreads
         RNG,
         V("acscene", "acscrole[int(acrole)*3 + int(acr1*3)]"),
@@ -415,15 +415,16 @@ def layers():
     c.comment("Layer levels from density (knob x section energy), the section's layers, mutes, input mode")
     th = lambda t: f"min(1, max(0, (acdeff-{t})/0.15))"
     lay = [
-        ("drone", "acfdrone*acmdrone*(1-acended)*(0.55+0.45*min(1, acdeff*3))"),
+        ("drone", "acmdrone*(1-acended)*max(acfdrone*(0.55+0.45*min(1, acdeff*3)), (acroute==2)*0.9)"),
         ("pad", f"acfpad*acmpad*(1-acended)*{th(0.06)}"),
         ("tex", f"(acshed < 2)*acftex*acmtex*(1-acended)*{th(0.28)}"),
-        ("cloud", f"(acshed < 1)*acmcloud*(1-acended)*max(acfcloud*{th(0.42)}, ((acinmode==2) || (acinmode==0)*(acinclass>=1))"
-                  f"*min(1, acinput*2)*0.8)"),
-        ("bell", f"acmbell*(1-acended)*max(acfbell*{th(0.45)}, (acinmode==4)*min(1, acinput*2))"),
+        ("cloud", f"(acshed < 1)*acmcloud*(1-acended)*max(acfcloud*{th(0.42)}, max(((acinmode==2) || (acinmode==0)*(acinclass>=1))"
+                  f"*min(1, acinput*2)*0.8, (acroute==4)*0.85))"),
+        ("bell", f"acmbell*(1-acended)*max(acfbell*{th(0.45)}, max((acinmode==4)*min(1, acinput*2), (acroute==3)*0.9))"),
         ("motion", f"acfmotion*acmmotion*(1-acended)*{th(0.3)}*min(1, acrhythm*2.5)"),
     ]
-    steps = [V("acdeff", "min(1, if(acmode==1, acenergy*(0.35+1.3*acdens), acdens*(0.8+0.4*acenergy)) + 0.35*acbreath)")]
+    steps = [V("acdeff", "min(1, if(acmode==1, acenergy*(0.35+1.3*acdens), acdens*(0.8+0.4*acenergy)) + 0.35*acbreath*"
+                             "(acbrto == 0 || acbrto == 2))")]
     for name, e in lay:
         steps += [V("acg" + name, e)]
         if name == "drone":
@@ -571,10 +572,10 @@ def change():
     steps = [
         RNG,
         V("acchsec", "(6 + 84*pow(actide, 2)) * actidef * (0.75+acr3*0.5)"),
-        V("acnewt", "if(acpend>=0, 36 + acpend, if(acmode==0 && acr1 < 0.03 + acweird*0.15 && acfirst==0, "
+        V("acnewt", "if(acpend>=0, 36 + acpend, if(acmode==0 && ackeyc == 0 && acr1 < 0.03 + acweird*0.15 && acfirst==0, "
                     "36 + ((int(actonic) - 36 + int(acmods[int(acr2*12)])) % 12 + 12) % 12, actonic))"),
         X("acnewt != actonic; acnewt; -1", "v acmodflag", "v actonic", "v acpend"),
-        If("acr3 < acweird*0.12 && acfirst==0", [RNG, V("acsci", f"int(acr4*{NS})"), Call("ac-loadscale")]),
+        If("acr3 < acweird*0.12 && acfirst==0 && acsclc == 0", [RNG, V("acsci", f"int(acr4*{NS})"), Call("ac-loadscale")]),
         RNG,
         V("acdeg", "if(acmodflag || acfirst, 0, if(acrole==6 && acprogi < acprogn, acprog[int(acprogi)], "
                    "if(acr1 < 0.1 + 0.15*(1-acweird) && acdeg != 0, 0, "
@@ -611,13 +612,17 @@ def change():
                   T("acch", k, f"acnew[{k}]")]
         steps += [SendL(f"ac-res{k}", [f"1000/mtof(43 + fmod(acnew[{k}]-43, 24))", "2500"])]
     steps += [Later("ac-grains", 13), Later("ac-change2", 29, stop="ac-chgstop")]
-    proc(c, "ac-change", [If("acrun", steps)])
+    # Notes to chords: while you hold notes, they are the chord (the composer waits)
+    proc(c, "ac-change", [If("acrun && (acroute != 1 || acheld == 0)", steps,
+                             [If("acrun", [Arm("ac-change", "3000", stop="ac-chgstop")])])])
     steps = []
     steps += [SendL(f"ac-band{k}", [f"mtof(min(120, acnew[{k % 4}] + {12 * (k // 4) + 12}))", "3000"]) for k in range(8)]
     steps += [
-        SendL("ac-dronep", ["actonic", "if(acfirst, 0, if(acmodflag, 9000, 200))"]),
-        SendL("ac-subp", ["mtof(if(acsubm==0 || (acsubm==2 && int(acsec) % 2 == 0), actonic - 12, "
-                          "acnew[0] - 12*ceil((acnew[0] - 42)/12)))", "if(acfirst, 0, if(acmodflag, 9000, 1800))"]),
+        # (Notes to drone: the drone stays on your note while you hold it)
+        If("acroute != 2 || acheld == 0", [
+            SendL("ac-dronep", ["actonic", "if(acfirst, 0, if(acmodflag, 9000, 200))"]),
+            SendL("ac-subp", ["mtof(if(acsubm==0 || (acsubm==2 && int(acsec) % 2 == 0), actonic - 12, "
+                              "acnew[0] - 12*ceil((acnew[0] - 42)/12)))", "if(acfirst, 0, if(acmodflag, 9000, 1800))"])]),
         SendL("ac-ringf", ["mtof(acnew[1] + 12)", "3000"]),
         SendL("ac-radio", ["mtof(min(115, acnew[2] + 36))", "4000"]),
     ] + [SendL(f"ac-atmf{k}", [f"mtof(min(112, acnew[{k % 4}] + {24 + 12 * (k // 4)}))", "6000"]) for k in range(6)] + [
@@ -637,7 +642,9 @@ def change():
     for i in range(4):
         gs += [RNG, SendL(f"ac-gr{i}", [f"if(acharm && acinp > 0, pow(2, (acnew[{i}] + 12*floor((acinp - acnew[{i}])/12 + 0.5)"
                                         f" - acinp)/12), acgrt[int(acr1*12)] * if(acr2 < acweird*0.3, -1, 1))"])]
-    proc(c, "ac-grains", gs)
+    # Notes to cloud: held notes tune the grain streams (the chord's ratios come back when you let go)
+    proc(c, "ac-grains", [If("acroute != 4 || acheld == 0", gs)])
+    proc(c, "ac-pulseupd", [SendL("ac-pulse", ["min(0.9, acrpulse[int(acrole)] * (0.3 + 1.4*acrhythm) * " + _S.PULSE_X + ")"])])
     return c
 
 
@@ -649,7 +656,7 @@ def players():
             SendL("ac-bell", ["acbp", "0.35+0.65*acr2", "min(0.97, max(0.03, acscn[int(acscene)*10 + 4] + "
                                                      "acscn[int(acscene)*10 + 5]*(acr3 - 0.5)))"])]
     proc(c, "ac-btick", [
-        If("acgbell > 0.01 && acrun", [
+        If("acgbell > 0.01 && acrun && (acroute != 3 || acnow - aclnt > 8000)", [
             RNG,
             If("acr1 > 0.18", play),
             V("acbi", "(acbi+1) % 5"),

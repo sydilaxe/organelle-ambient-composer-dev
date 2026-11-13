@@ -110,6 +110,22 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
     "Drone": ("auto, " + ", ".join(DT.DRONES), "The drone's design; auto = the piece's (and its break's)."),
     "Texture": ("auto, " + ", ".join(DT.TEXTURES), "The texture layer; auto = the section's two."),
     "Character": ("auto, " + ", ".join(DT.CHARACTERS), "The effect on the pads; auto = the piece's."),
+    "Key": ("auto, C-B", "The home key. A fixed key stays: no modulation, no key plan, no key from you (a top-octave "
+            "key still moves it). Applies at once with a chord change."),
+    "Scale": ("auto, " + ", ".join(n for n, _ in DT.SCALES), "The scale. A fixed scale stays (no chance scale "
+              "changes). Applies at once."),
+    "Chords": ("auto, " + ", ".join(n for n, _, _ in DT.FAMILIES), "How the 4 pad voices stack the chord "
+               "(see Voicings). Applies at once."),
+    "Pulse": (", ".join(S.PULSES), "How much the drone and sub swell on every bar (normal = as designed; its "
+              "depth also follows the section and the Rhy knob)."),
+    "Notes to": (", ".join(S.ROUTES), "What MIDI notes and the Organelle keys play: voice = the live voice; chords "
+                 "= the notes you hold are the pad chord; drone = the drone and sub on your note; bells = a bell per "
+                 "note; cloud = each note tunes a grain stream. The notes still steer the harmony (Follow you)."),
+    "Breath to": (", ".join(S.BRTOS), "What breath does: voice+piece = the live voice's level and tone and the "
+                  "piece's density; voice or density alone; brightness, reverb (the sends) or swell (the whole "
+                  "level, like an expression pedal). After 10 s without breath it lets go."),
+    "Breath CC": (", ".join(S.BRCCS), "Which control change is breath. Channel and poly pressure always count."),
+    "Breath in": ("shown only", "The breath level arriving now (after the Breath curve)."),
 }
 
 INMODE_DESC = {
@@ -318,7 +334,8 @@ def story():
           Spacer(1, 6),
           Table([[shot("setup", 3.1, "SETUP page 1"), shot("setup_page2", 3.1, "SETUP page 2")],
                  [shot("setup_page3", 3.1, "SETUP page 3"), shot("setup_page4", 3.1, "SETUP page 4")],
-                 [shot("setup_page5", 3.1, "SETUP page 5: SOUNDS"), ""]],
+                 [shot("setup_page5", 3.1, "SETUP page 5: SOUNDS"), shot("setup_page6", 3.1, "SETUP page 6: MUSIC")],
+                 [shot("setup_page7", 3.1, "SETUP page 7: MIDI IN"), ""]],
                 colWidths=[3.35 * inch, 3.35 * inch])]
 
     s += [PageBreak(), Paragraph("6  How a piece is composed", H1),

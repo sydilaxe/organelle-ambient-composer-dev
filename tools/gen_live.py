@@ -2,7 +2,7 @@
 listening (focus pitch, key from a held note, breath raising the energy and holding a section),
 audio analysis into a class (quiet / pitched / plucked / textural), and memories."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Line, Arm, Toast, RNG
-from data import INMODES, NOTE_NAMES
+from data import INMODES, NOTE_NAMES, SEND_BUS
 
 NV = 4                                    # live voices
 
@@ -13,9 +13,9 @@ GLOBALS = dict(
     acgbr=2, acnbr=48, aclbv=0, aclbs=0,
     acinlvl=0, acinp=-1, acinpp=-1, acinclr=0, acpconf=0, acnoisy=0, acons=0, acact=0, acinclass=0,
     acinhf=-40, acpst=0, acharm=0, acharmp=0, acgdry=0,
-    acclt=0, aci2=40, acwi=0, acmemn=0, acmemw=0, acmemt=-1e+06, acmemr=0, acmems=0, acmemrate=1, acgmem=0, acrec=0,
+    acclt=0, aci2=40, aclnt=-1e+06, acyn=0, acbrfx=-1, acwi=0, acmemn=0, acmemw=0, acmemt=-1e+06, acmemr=0, acmems=0, acmemrate=1, acgmem=0, acrec=0,
 )
-ARRAYS = dict(acbrch=17, aclvn=NV, aclvc=NV, aclva=NV, acbendt=17, achpc=12, acmemp=4)
+ARRAYS = dict(acyh=NV, acbrch=17, aclvn=NV, aclvc=NV, aclva=NV, acbendt=17, achpc=12, acmemp=4)
 CLASSES = ["quiet", "pitched", "plucked", "texture"]
 
 
@@ -62,11 +62,17 @@ def midi_in():
     cp = c.obj("pack f f f")
     for i in (2, 1, 0):
         c.c(cc, i, cp, i)
-    rt = c.ch(c.m(cp, "$2 $3 $1"), "route 2 11 123 120")
+    rt = c.ch(c.m(cp, "$2 $3 $1"), "route 123 120")
     for o in (0, 1):
-        c.c(rt, o, br, 0)
-    for o in (2, 3):
         c.c(c.to((rt, o), "t b"), 0, c.obj("s ac-allnotesoff"), 0)
+    # breath CCs: the ones SETUP Breath CC chooses ("cc value ch")
+    import gen_setup as _S
+    tl = c.to(c.m((rt, 2), "$1 $2 $3"), "t l l")
+    sp = c.obj("spigot")
+    gate = c.ch((tl, 1), "unpack f f f")
+    c.c(c.to(gate, "expr " + _S.BRCC_EXPR), 0, sp, 1)
+    c.c(c.to((tl, 0), "list split 1"), 1, sp, 0)
+    c.c(c.m(sp, "$2 $1"), 0, br, 0)
     # breath values: "ch value127" -> "ch 0..1" (channel folded)
     return c
 
@@ -80,7 +86,9 @@ def live():
     c.c(met, 0, c.obj("s ac-now"), 0)
     c.col()
     proc(c, "ac-now", [V("acnow", "acnow + 100"), If("acrun", [V("acel", "acel + 100/actime"),
-                                                               V("acsecel", "acsecel + 100")]), If("int(acnow) % 500 == 0", [Call("ac-listen")]), Call("ac-ana")])
+                                                               V("acsecel", "acsecel + 100")]), If("int(acnow) % 500 == 0", [Call("ac-listen")]), Call("ac-ana"),
+                            # SETUP page 7 shows the breath level as it comes in
+                            If("acsetup && acsetpg == 6 && int(acnow) % 300 == 0", [Call("ac-oledsetup")])])
     # ---- notes
     up = c.to(c.recv("ac-livenote"), "unpack f f f")
     for i, n in ((2, "aclvel"), (1, "aclnote")):
@@ -96,18 +104,43 @@ def live():
         V("aclage", "aclage + 1"),
         T("aclvn", "acvi", "aclnote"), T("aclvc", "acvi", "aclch"), T("aclva", "acvi", "aclage"),
         SendL("ac-lvbr", ["acvi", "if(acbrmode, max(acbrch[int(aclch)], acbrch[1]), 1)"]),
-        SendL("ac-lvon", ["acvi", "aclnote + acbendt[int(aclch)]", "aclvel/127"]),
+        If("acroute == 0", [SendL("ac-lvon", ["acvi", "aclnote + acbendt[int(aclch)]", "aclvel/127"])]),
+        V("aclnt", "acnow"),
         T("achpc", "int(aclnote) % 12", "achpc[int(aclnote) % 12] + 1"),
         X("int(aclnote) % 12; acnow; 0", "v acfocus", "v acfocust", "v acfkdone"),
+        # SETUP Notes to: chords / drone / bells / cloud
+        If("acroute == 1", [Call("ac-youchord")]),
+        If("acroute == 2", [SendL("ac-dronep", ["36 + int(aclnote) % 12", "150"]),
+                            SendL("ac-subp", ["mtof(24 + int(aclnote) % 12)", "150"])]),
+        If("acroute == 3", [SendL("ac-bell", ["aclnote + 12*(aclnote < 60)", "0.25 + 0.75*aclvel/127", "0.5"])]),
+        If("acroute == 4", [If(f"acvi == {i}", [SendL(f"ac-gr{i}", [
+            "pow(2, (aclnote - actonic - 12*floor((aclnote - actonic)/12))/12)"])]) for i in range(NV)]),
     ]
     off = [
         V("acvi", " + ".join(f"if(aclvn[{i}]==aclnote && aclvc[{i}]==aclch, {i + 1}, 0)" for i in range(NV)) + " - 1"),
         If("acvi >= 0", [T("aclvn", "acvi", "-1"), SendL("ac-lvoff", ["acvi"]), V("acheld", "max(0, acheld - 1)"),
                          T("achpc", "int(aclnote) % 12", "max(0, achpc[int(aclnote) % 12] - 1)")]),
         If("acheld == 0", [V("acfocus", "-1")]),
+        If("acroute == 1 && acheld > 0", [Call("ac-youchord")]),
+        If("acroute == 4 && acvi >= 0", [If(f"acvi == {i}", [SendL(f"ac-gr{i}", ["1"])]) for i in range(NV)]),
+        If("acroute >= 2 && acheld == 0", [Call("ac-routehome")]),
     ]
     run_steps(c, (tb, 0), [If("aclvel > 0", on, off)])
     c.col()
+    # Notes to chords: the held notes become the pad chord (doubled an octave up when fewer than 4)
+    steps = [V("acyn", "0")] + [If(f"aclvn[{i}] >= 0", [T("acyh", "acyn", f"aclvn[{i}]"), V("acyn", "acyn + 1")])
+                                for i in range(NV)]
+    ch = []
+    for k in range(4):
+        ch += [V("acp1", f"acyh[int({k} % int(acyn))] + 12*int({k}/acyn)"),
+               V("acp1", "if(acp1<43, acp1+12, if(acp1>86, acp1-12, acp1))"),
+               V("acp1", "if(acp1<43, acp1+12, if(acp1>86, acp1-12, acp1))"),
+               T("acnew", k, "acp1"), T("acch", k, "acp1"),
+               SendL(f"ac-v{k}-pitch", [f"acnew[{k}]", "300", "0"])]
+    proc(c, "ac-youchord", steps + [If("acyn > 0", ch + [Call("ac-change2")])])
+    # back to the composer's drone and grains when the notes stop (or Notes to changes)
+    proc(c, "ac-routehome", [SendL("ac-dronep", ["actonic", "1500"]), SendL("ac-subp", ["mtof(actonic - 12)", "1500"]),
+                             Call("ac-grains")])
     proc(c, "ac-allnotesoff", [Loop(str(NV), "aci", [T("aclvn", "aci", "-1"), SendL("ac-lvoff", ["aci"])]),
                                V("acheld", "0"), V("acfocus", "-1")])
     proc(c, "ac-extnote", [If("acext == 0", [Toast("MIDI in - keys are functions")]), V("acext", "1"),
@@ -128,12 +161,21 @@ def live():
     c.c(c.to((tch, 1), "expr ($f1-1) % 16 + 1"), 0, c.obj("v aclch"), 0)
     tbr = c.to(tch, "t b")
     run_steps(c, (tbr, 0), [
-        If("acbrmode == 0", [V("acbrmode", "1"), SendL("ac-brmode", ["1"]), Toast("breath control")]),
+        If("acbrmode == 0 && acbrto <= 1", [V("acbrmode", "1"), SendL("ac-brmode", ["1"]), Toast("breath control")]),
         V("acbrt", "acnow"), T("acbrch", "aclch", "aclbv"),
         V("acbreath", "max(aclbv, acbreath*0.7)"),
         If("aclbv > 0.1", [V("acbreatht", "acnow")]),
-    ] + [If(f"(aclvc[{i}]==aclch || aclch==1) && aclvn[{i}]>=0", [SendL("ac-lvbr", [str(i), "aclbv"])])
+        # SETUP Breath to: one thing of the piece (sent when it moves)
+        If("acbrto >= 3 && abs(aclbv - acbrfx) > 0.015", [
+            V("acbrfx", "aclbv"),
+            If("acbrto == 3", [SendL("ac-bright", ["min(1, acbright*(0.25 + 1.5*aclbv))", "40"])]),
+            If("acbrto == 4", [SendL("ac-sg-" + n, [f"3.6*{n}*aclbv", "40"]) for n in SEND_BUS]),
+            If("acbrto == 5", [SendL("ac-brsw", ["aclbv", "40"])]),
+        ]),
+    ] + [If(f"acbrto <= 1 && (aclvc[{i}]==aclch || aclch==1) && aclvn[{i}]>=0", [SendL("ac-lvbr", [str(i), "aclbv"])])
          for i in range(NV)])
+    proc(c, "ac-brfxoff", [V("acbrfx", "-1"), SendL("ac-brsw", ["1", "1500"]), Call("ac-sendupd"), Call("ac-brightupd"),
+                           If("acbrmode && acbrto > 1", [V("acbrmode", "0"), SendL("ac-brmode", ["0"])])])
     c.col()
     # ---- listening, every 500 ms
     proc(c, "ac-listen", [
@@ -141,8 +183,9 @@ def live():
         # breath raises the density (and so the energy) of the piece
         If("abs(acbreath - acbrlast) > 0.08", [V("acbrlast", "acbreath"), V("acfade", "1500"), Call("ac-layers")]),
         If("acbrmode && acnow - acbrt > 10000", [V("acbrmode", "0"), SendL("ac-brmode", ["0"])]),
+        If("acbrto >= 3 && acbrfx >= 0 && acnow - acbrt > 10000", [Call("ac-brfxoff")]),
         # a held note for 6 s becomes the key centre (once per note)
-        If("acfocus >= 0 && acnow - acfocust > 6000 && acfkdone == 0 && acfollow > 0.3 && "
+        If("acfocus >= 0 && acnow - acfocust > 6000 && acfkdone == 0 && acfollow > 0.3 && ackeyc == 0 && "
            "acfocus != int(actonic) % 12 && acpend < 0", [
             V("acpend", "acfocus"), V("acfkdone", "1"), Call("ac-keyfromyou")]),
         # an external controller that went quiet for 2 minutes gives the keys back

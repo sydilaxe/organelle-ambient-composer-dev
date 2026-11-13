@@ -75,13 +75,21 @@ emulator, so the font only approximates the Organelle's.
 | **Score** | The form strip (one bar per section, height = energy, current one inverted, a playhead). Key and scale, with the time left. The pad voices gliding on a pitch ladder, with your held notes as boxes and a breath bar. Meters for every layer, the reverb and the input. The motion layer's Euclidean pattern with a moving cursor, the tempo and the reverb type. The section role and voicing, and K/M/E tags for who is playing and the clock. |
 | **Input** | While external audio plays, the right-hand column becomes an input panel: the last 6 s of the input as a waveform with its onsets ticked above, the input mode, and what Amble hears (pitch, pluck, texture), with a dot while it records a memory. A sung or played pitch is drawn as a line across the pitch ladder, so you see it against the pad voices. The rhythm column comes back 5 s after the input stops. |
 | **Knob page** | Shown for 6 s after you turn a knob or tap aux. |
-| **SETUP** | Hold aux for 1 s; aux taps turn the 5 pages. Page 1: MIDI out (off, tempo only, tempo + notes, notes only), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Page 3: output, width, pan motion, tempo range. Page 4: which MIDI notes go out, arp octave, the CPU load, the CPU guard (on or off). Page 5, **SOUNDS**: pad type, drone, texture and character, each auto or your choice (see below). Saved in `settings.txt` with the knob values (except In, which always starts at 0). |
+| **SETUP** | Hold aux for 1 s; aux taps turn the 7 pages. Page 1: MIDI out (off, tempo only, tempo + notes, notes only), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Page 3: output, width, pan motion, tempo range. Page 4: which MIDI notes go out, arp octave, the CPU load, the CPU guard (on or off). Page 5, **SOUNDS**: pad type, drone, texture and character, each auto or your choice (see below). Page 6, **MUSIC**: key, scale, chord voicing (auto or fixed) and the bar pulse. Page 7, **MIDI IN**: where notes go, what breath does, which CC is breath, the breath level. Saved in `settings.txt` with the knob values (except In, which always starts at 0). |
 
 **SOUNDS** (SETUP page 5) lets you choose the sounds yourself, mid-piece, to audition them. Each item is **auto** (the piece chooses, as before) or your choice, applied at once (crossfaded) and kept for every later section:
 - **Pads:** auto; **raw** (the dry, buzzy types of the first demos: vox, partials, fold and pulsar, with no character effect); or one type for all four pad voices (fm, vox, bow, part, fold, pulsr, saws, pwm, digi, sync, tine).
 - **Drone:** auto, pure, analog, organ, fm.
 - **Texture:** auto, rain, wind, ember, chirp, radio, data, buzz.
 - **Character:** auto, clean, chorus, tape, ring, crush.
+
+**MUSIC** (SETUP page 6): **Key** (auto or C to B), **Scale** (auto or one of the 16) and **Chords** (auto or one voicing) apply at once with a chord change; a fixed choice stays (no modulation or scale change). **Pulse** (off, gentle, normal, strong) sets how much the drone and sub swell on every bar.
+
+**MIDI IN** (SETUP page 7):
+- **Notes to:** what MIDI notes and the Organelle keys play. **voice** (the live voice, as before); **chords** (the notes you hold are the pad chord; the composer waits until you let go); **drone** (the drone and sub move to your note); **bells** (a bell per note); **cloud** (each held note tunes a grain stream). The notes still steer the harmony.
+- **Breath to:** **voice+piece** (as before: the live voice's level and tone, and the piece's density), **voice**, **density**, **brightness**, **reverb** (the reverb sends) or **swell** (the whole level, like an expression pedal). Ten seconds without breath and it lets go.
+- **Breath CC:** 2 + 11 (default), 2, 11, 1 (mod wheel), 74, or touch only. Channel and poly pressure always count.
+- **Breath in:** the breath level arriving now, to check your controller.
 
 **MIDI out** (SETUP page 1): off, **tempo only** (clock), **tempo + notes**, or **notes only**.
 - **Clock:** 24 ticks a beat at the piece's tempo (following the form's tempo changes), with Start and Stop
