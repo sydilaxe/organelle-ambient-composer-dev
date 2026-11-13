@@ -27,7 +27,7 @@ GLOBALS = dict(
     acmtr=2, acbld=1, acblp=0.5, acvauto=1, acvsec=1, acvtype=1, acrvsize=1,
     # rhythm
     acbpm0=56, acbpm=56, actpos=0.5, acmeter=4, actick=0, acstep=0, acms=0, acmk=5, acmn=8, acmei=0, acmrot=0, acmdiv=1,
-    acmarp=0, acshed=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acdtype=0, acdtype2=1, acdcur=0, acsubm=0, acchar=0, accheff=0, acdauto=0, actex1a=0, actex2a=1, acspad=0, acsdrone=0, acstex=0, acschar=0, acsnew=0, acchamt=0.5, acavoc=0, acgvoc=0, acdb=0, acgt4=0, acgt5=0, acgt6=0, acgsub=0, acatm=0, acatmT=0, acatmT2=1, acfatm=0, acatmcur=0, acgatm=0, acscene=0, acmono=0, acwidth=1, acpanmot=0.8, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
+    acmarp=0, acshed=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acdtype=0, acdtype2=1, acdcur=0, acsubm=0, acchar=0, accheff=0, acflstag=4200, acdauto=0, actex1a=0, actex2a=1, acspad=0, acsdrone=0, acstex=0, acschar=0, acsnew=0, acchamt=0.5, acavoc=0, acgvoc=0, acdb=0, acgt4=0, acgt5=0, acgt6=0, acgsub=0, acatm=0, acatmT=0, acatmT2=1, acfatm=0, acatmcur=0, acgatm=0, acscene=0, acmono=0, acwidth=1, acpanmot=0.8, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
 )
 for page in PAGES:
     for _, name, d in page:
@@ -357,7 +357,7 @@ def section():
                          f"int(acr2*{len(FLAVOURS)})))), if(acspad==1, {RAW_EXPR}, acspad-2))",
                          lambda c, src, k=k: _flav(c, src, k))]
     steps += [SendL("ac-lvtype", ["if(acvtsel >= 0, acvtsel, if(acspad>=2, acspad-2, if(acspad==1, 5, acpal1)))"])]
-    proc(c, "ac-padpick", steps)
+    proc(c, "ac-padpick", steps + [V("acflstag", "4200")])
     # SETUP SOUNDS overrides on what the section chose (auto = the section's own choice)
     proc(c, "ac-sndovr", [
         V("acdcur", "if(acsdrone > 0, acsdrone - 1, acdauto)"),
@@ -406,9 +406,14 @@ def section():
 
 
 def _flav(c, src, k):
-    t = c.obj("t f f")
+    """a voice's new type: the voices change one after another (voice k after k x acflstag ms), so at most one
+    voice crossfades two types at a time (a section change otherwise doubled the pads' CPU for 4 s)"""
+    t = c.obj("t f f f")
     c.c(*src, t, 0)
-    c.c(t, 1, c.obj(f"s ac-v{k}-flav"), 0)
+    pp = c.obj("pipe 0")
+    c.c(c.to((t, 2), f"expr {k}*acflstag*(acfirst == 0)"), 0, pp, 1)   # a new piece: all at once
+    c.c(t, 1, pp, 0)
+    c.c(pp, 0, c.obj(f"s ac-v{k}-flav"), 0)
     tw = c.obj("tabwrite acflav")
     ex = c.to(t, f"expr $f1; {k}")
     c.c(ex, 1, tw, 1)

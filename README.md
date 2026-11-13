@@ -235,6 +235,11 @@ The Organelle-M runs Amble on one core, so a few things keep it from crackling:
 - **Even load per block.** A half-rate part works in 32-sample blocks (one 64-sample audio block): in 64s, Pd
   computes it on every other audio block only, which doubles the peak there (the Hall and Shimmer crackled that
   way on the Organelle). The Shimmer's pitch shifter runs only when Shimmer is chosen.
+- **Pads without waste.** Each pad type sends to its voice's own bus (throw~ / catch~), so the 10 types that
+  are switched off cost nothing; wired to the voice they cost about as much as one sounding type. In a new
+  section the four voices change type one after another (about 4 s apart), so at most one voice crossfades two
+  types at once: the peak during a change drops from twice the pads' cost to about 1.25 times. Same sound (the
+  pads come 1.5 ms later).
 - **No long ticks.** A new piece, a new section and a chord change are split into stages a few milliseconds
   apart, so no single scheduler tick runs long enough to make the audio drop out (the longest went from about
   0.9 ms to under 0.2 ms on a desktop core).

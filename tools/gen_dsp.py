@@ -97,10 +97,14 @@ def _flav_inlets(s, n):
     return [s.obj("inlet~", 20 + i * 140, 5) for i in range(n)]
 
 
-def _out(s, sig, ln, sigR=None):
-    """a pad type's outputs: left (outlet 0) and right (outlet 1); mono types send the same to both"""
-    s.c(mul(s, sig, ln), 0, s.obj("outlet~", 20, 980), 0)
-    s.c(mul(s, sig if sigR is None else sigR, ln), 0, s.obj("outlet~", 300, 980), 0)
+def _out(s, sig, ln, sigR=None, outlets=False):
+    """a pad type's output, left and right, thrown to its voice's body bus ($0-bL / $0-bR, caught in the voice):
+    a type that is switched off adds nothing there (11 types wired to outlets cost 20 additions a block per
+    voice, sounding or not); mono types send the same to both"""
+    # (outlets=True: a type in its own block size, which throw~ can't cross - the bow, in 16s)
+    dst = ("outlet~", "outlet~") if outlets else ("throw~ $0-bL", "throw~ $0-bR")
+    s.c(mul(s, sig, ln), 0, s.obj(dst[0], 20, 980), 0)
+    s.c(mul(s, sig if sigR is None else sigR, ln), 0, s.obj(dst[1], 300, 980), 0)
 
 
 def flav_fm():
@@ -129,10 +133,14 @@ def flav_vox():
     l1 = s.ch(s.recv("$0-la"), "osc~", "*~ 0.5")
     l2 = s.ch(s.recv("$0-lb"), "osc~", "*~ 0.5")
     bm = s.ch(b, "*~ 0.8", "+~ 0.35")
+    # (shared by both sides: the low body, and the formant centres - the right side's is the mirror image)
+    body = s.ch(saw, "lop~ 600", "*~ 0.2")
+    c1 = s.ch(l1, "*~ 450", "+~ 505")              # 280 + 450*(0.5 + l1)
+    c2 = s.ch(l2, "*~ 1000", "+~ 1400")            # 900 + 1000*(0.5 + l2)
     outs = []
     for sign in (1, -1):
-        cf1 = s.ch(l1, f"*~ {sign}", "+~ 0.5", "*~ 450", "+~ 280")
-        cf2 = s.ch(l2, f"*~ {sign}", "+~ 0.5", "*~ 1000", "+~ 900")
+        cf1 = c1 if sign == 1 else s.ch(c1, "*~ -1", "+~ 1010")
+        cf2 = c2 if sign == 1 else s.ch(c2, "*~ -1", "+~ 2800")
         v1 = s.obj("vcf~ 7")
         v2 = s.obj("vcf~ 10")
         for v, cf in ((v1, cf1), (v2, cf2)):
@@ -141,7 +149,7 @@ def flav_vox():
         sm = s.obj("+~")
         s.c(v1, 0, sm, 0)
         s.c(s.to(v2, "*~ 0.7"), 0, sm, 0)
-        s.c(s.ch(saw, "lop~ 600", "*~ 0.2"), 0, sm, 0)
+        s.c(body, 0, sm, 0)
         outs.append(s.to(mul(s, sm, bm), "*~ 2.2"))
     _out(s, outs[0], ln, add(s, s.to(outs[0], "*~ 0.4"), s.to(outs[1], "*~ 0.75")))
     return s
@@ -160,7 +168,7 @@ def flav_bow():
     damp = s.to(vd, "lop~ 3000")
     ctl(s, damp, "ac-bright", "1500 + 5500*$f1", first=True)
     s.c(s.to(damp, "*~ 0.993"), 0, a, 1)
-    _out(s, s.ch(vd, "hip~ 40", "*~ 9"), ln)
+    _out(s, s.ch(vd, "hip~ 40", "*~ 9"), ln, outlets=True)
     return s
 
 
@@ -285,6 +293,8 @@ def voice():
     bodyL, bodyR = v.obj("*~"), v.obj("*~")
     v.c(amp, 0, bodyL, 1)
     v.c(amp, 0, bodyR, 1)
+    v.c(v.obj("catch~ $0-bL"), 0, bodyL, 0)
+    v.c(v.obj("catch~ $0-bR"), 0, bodyR, 0)
     for i, fl in enumerate((flav_fm(), flav_vox(), flav_bow(), flav_part(), flav_fold(), flav_pulsar())
                            + tuple(f() for f in NEW_FLAVS)):
         sp = v.sub(fl, 20 + i * 120, 700)
@@ -292,8 +302,8 @@ def voice():
         v.c(bsig, 0, sp, 1)
         if fl.name == "bow":
             v.c(dsig, 0, sp, 2)
-        v.c((sp, 0), 0, bodyL, 0)
-        v.c((sp, 1), 0, bodyR, 0)
+            v.c((sp, 0), 0, bodyL, 0)
+            v.c((sp, 1), 0, bodyR, 0)
     # stereo: the composition gives each voice a home (ac-v$1-home "pos ms", by section scene); it orbits
     # around it on its own slow cycle, as far as ac-pandepth. The voice's own stereo is kept (balance pan).
     home = v.ch(v.recv("ac-v$1-home"), "line~")
@@ -877,6 +887,8 @@ def live_voice():
     bodyL, bodyR = v.obj("*~"), v.obj("*~")
     v.c(amp, 0, bodyL, 1)
     v.c(amp, 0, bodyR, 1)
+    v.c(v.obj("catch~ $0-bL"), 0, bodyL, 0)
+    v.c(v.obj("catch~ $0-bR"), 0, bodyR, 0)
     for i, fl in enumerate((flav_fm(), flav_vox(), flav_bow(), flav_part(), flav_fold(), flav_pulsar())
                            + tuple(f() for f in NEW_FLAVS)):
         sp = v.sub(fl, 20 + i * 120, 760)
@@ -884,8 +896,8 @@ def live_voice():
         v.c(bright, 0, sp, 1)
         if fl.name == "bow":
             v.c(dsig, 0, sp, 2)
-        v.c((sp, 0), 0, bodyL, 0)
-        v.c((sp, 1), 0, bodyR, 0)
+            v.c((sp, 0), 0, bodyL, 0)
+            v.c((sp, 1), 0, bodyR, 0)
     home = v.ch(v.obj("loadbang"), "f $1", "expr 0.2 + 0.2*$f1")
     orb = v.to(v.ch(v.obj("loadbang"), "f $1", "expr 0.05 + 0.017*$f1"), "osc~")
     dep = v.to(orb, "*~ 0.06")

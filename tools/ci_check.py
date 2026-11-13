@@ -610,11 +610,17 @@ def vprobe(c):
     c.c(c.ch(m, "expr acdcur*1000 + actex1*100 + actex2*10 + accheff"), 0, c.obj("print SV", 1400, 80), 0)
 sp = lambda v: [(300, "acsetup 1"), (310, "acsetpg 4"), (390, "h-mark bang"), (400, f"ac-setknob 0 {v}"),
                (500, "acsetup 0")]
-log, _ = run([(50, "ac-setseed 7")] + sp(0.99) + [(3000, "ac-section bang")], 5, prints=tuple(FL) + ("ac-sett1", "h-mark"))
-after = log.split("h-mark")[-1]
+log, _ = run([(50, "ac-setseed 7")] + sp(0.99) + [(3000, "ac-section bang"), (3100, "h-mark2 bang")], 17,
+             prints=tuple(FL) + ("ac-sett1", "h-mark", "h-mark2"))
+after = log.split("h-mark: bang")[-1]
+at_once, later = after.split("h-mark2")
 check("ac-sett1: 1 Pads tine" in log and len(flav_vals(after)) >= 8 and set(flav_vals(after)) == {10},
       f"SOUNDS Pads tine: all 4 voices at once and in the next section ({flav_vals(after)})")
-log, _ = run([(50, "ac-setseed 7")] + sp(0.1) + [(1000 + 400 * i, "ac-section bang") for i in range(6)], 4,
+# a section changes the voices' types one after another (at most one voice crossfades two types: half the peak)
+check(len(flav_vals(at_once)) == 5 and len(flav_vals(later)) == 3,
+      f"a new section changes the pad types one voice at a time ({len(flav_vals(at_once)) - 4} at once, "
+      f"{len(flav_vals(later))} later)")
+log, _ = run([(50, "ac-setseed 7")] + sp(0.1) + [(1000 + 400 * i, "ac-section bang") for i in range(6)], 17,
              prints=tuple(FL) + ("ac-g-ch1", "ac-g-ch2", "ac-g-ch3", "ac-g-ch4", "ac-sett1", "h-mark"))
 after = log.split("h-mark")[-1]
 vs = flav_vals(after)

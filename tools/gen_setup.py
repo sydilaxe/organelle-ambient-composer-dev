@@ -184,7 +184,7 @@ def setup():
     ] + [
         # SOUNDS: act only when the choice changes, so turning the knob within one choice does not re-pick
         If(f"{item} == {16 + j}", [V("acsnew", f"int(acsv*{len(opts) - 0.01})"), If(f"acsnew != {var}", [
-            V(var, "acsnew")] + ([Call("ac-padpick")] if j == 0 else []) + [
+            V(var, "acsnew")] + ([V("acflstag", "0"), Call("ac-padpick")] if j == 0 else []) + [
             Call("ac-sndovr"), V("acfade", "1500"), Call("ac-layers")])])
         for j, (var, opts) in enumerate((("acspad", SPADS), ("acsdrone", SDRONES), ("acstex", STEXS), ("acschar", SCHARS)))
     ] + [
