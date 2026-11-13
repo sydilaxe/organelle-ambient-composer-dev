@@ -2,6 +2,7 @@
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, run_steps, Line, lookup
 from data import *
 from pdlib import Toast, Later
+from gen_setup import NSET
 
 SECNAMES = ["emerge", "haze", "drift", "bloom", "swell", "dissolve"]
 DRIFTNAMES = ["haze", "drift", "bloom", "swell", "surge"]
@@ -129,7 +130,7 @@ def keys():
     b = c.to((a, 1), "t b")
     run_steps(c, (b, 0), [X("1; 0; acnow", "v acauxheld", "v acauxused", "v acauxt")])
     run_steps(c, (a, 0), [V("acauxheld", "0"), If("acauxused == 0", [If("acsetup", [
-        V("acsetpg", "(acsetpg + 1) % 4"), Call("ac-oledsetup")], [
+        V("acsetpg", f"(acsetpg + 1) % {NSET}"), Call("ac-oledsetup")], [
         V("acpage", f"(acpage+1) % {NP}"), Call("ac-oledpop")])])])
     f = c.ch(c.recv("fs"), "sel 0")
     c.c(c.to((f, 1), "t b"), 0, c.obj("s ac-change"), 0)

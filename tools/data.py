@@ -39,6 +39,9 @@ FLAVOURS = ["fm", "vox", "bow", "part", "fold", "pulsr", "saws", "pwm", "digi", 
 TEXTURES = ["rain", "wind", "ember", "chirp", "radio", "data", "buzz"]
 DRONES = ["pure", "analog", "organ", "fm"]
 CHARACTERS = ["clean", "chorus", "tape", "ring", "crush"]
+# SETUP SOUNDS "raw": the pad types of the first demos (vox, partials, fold, pulsar), with no character effect
+RAW_FLAVOURS = [FLAVOURS.index(n) for n in ("vox", "part", "fold", "pulsr")]
+RAW_EXPR = "if(acr1<0.25, %d, if(acr1<0.5, %d, if(acr1<0.75, %d, %d)))" % tuple(RAW_FLAVOURS)
 SUBMODES = ["pedal", "bassline", "both"]
 INMODES = ["auto", "reso", "cloud", "tape", "ghost", "bands", "vocode", "morph"]
 NOTE_NAMES = "C Db D Eb E F Gb G Ab A Bb B".split()

@@ -320,7 +320,7 @@ for what, pat in (("form strip", "gFillArea 3 0 0 128 8 0"), ("ladder", "gFillAr
                   ("meters", "gFillArea 3 62 20 33 33 0"), ("rhythm", "gFillArea 3 96 20 32 33 0"),
                   ("tempo", "bpm"), ("knob page", "page SHAPE")):
     check(any(pat in l for l in osc), f"OLED draws the {what}")
-check("ac-sett0: list SETUP 2 of 4 - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
+check("ac-sett0: list SETUP 2 of 5 - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
 
 # 18. the wider sound world: drone designs, the sub, electric textures, character, the vocoder, variety
 from data import DRONES, TEXTURES, CHARACTERS, FLAVOURS
@@ -590,12 +590,41 @@ run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 
 vals = open(os.path.join(d, "settings.txt")).read().split()
 log, _ = run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 1"), (550, "aux 0"),
               (700, "knob2 0.5"), (750, "knob2 0.52")], 3, d=d)
-check(len(vals) == 35 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
+check(len(vals) == 39 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
       "SENDS: a send is saved after the SETUP values and comes back after a restart")
 
 # 29. the patch asks the Organelle OS for a larger audio buffer (pd-opts.txt is appended to Pd's options)
 po = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "patches", "Amble", "pd-opts.txt")).read()
 check("-audiobuf 25" in po, "pd-opts.txt asks for a 25 ms audio buffer (the OS default is 6 ms)")
+
+# 30. SETUP page 5, SOUNDS: one pad type for all four voices at once (and in every later section); raw = the
+#     first demos' types (vox, partials, fold, pulsar) with no character; drone, texture and character by hand
+FL = ["ac-v%d-flav" % k for k in range(4)]
+def flav_vals(text):
+    return [int(float(l.split()[1])) for l in text.splitlines() if l.split(":")[0] in FL]
+def vprobe(c):
+    m = c.obj("metro 250", 1400, 20)
+    c.c(c.obj("loadbang", 1400, 0), 0, m, 0)
+    c.c(c.ch(m, "expr acdcur*1000 + actex1*100 + actex2*10 + accheff"), 0, c.obj("print SV", 1400, 80), 0)
+sp = lambda v: [(300, "acsetup 1"), (310, "acsetpg 4"), (390, "h-mark bang"), (400, f"ac-setknob 0 {v}"),
+               (500, "acsetup 0")]
+log, _ = run([(50, "ac-setseed 7")] + sp(0.99) + [(3000, "ac-section bang")], 5, prints=tuple(FL) + ("ac-sett1", "h-mark"))
+after = log.split("h-mark")[-1]
+check("ac-sett1: 1 Pads tine" in log and len(flav_vals(after)) >= 8 and set(flav_vals(after)) == {10},
+      f"SOUNDS Pads tine: all 4 voices at once and in the next section ({flav_vals(after)})")
+log, _ = run([(50, "ac-setseed 7")] + sp(0.1) + [(1000 + 400 * i, "ac-section bang") for i in range(6)], 4,
+             prints=tuple(FL) + ("ac-g-ch1", "ac-g-ch2", "ac-g-ch3", "ac-g-ch4", "ac-sett1", "h-mark"))
+after = log.split("h-mark")[-1]
+vs = flav_vals(after)
+chs = [float(l.split()[1]) for l in after.splitlines() if l.startswith("ac-g-ch")]
+check(len(vs) >= 20 and set(vs) <= {1, 3, 4, 5} and len(set(vs)) >= 3 and chs and max(chs) == 0,
+      f"SOUNDS Pads raw: only vox / partials / fold / pulsar ({sorted(set(vs))}), no character")
+log, _ = run([(50, "ac-setseed 7"), (300, "acsetup 1"), (310, "acsetpg 4"), (400, "ac-setknob 1 0.99"),
+              (450, "ac-setknob 2 0.3"), (500, "ac-setknob 3 0.6"), (550, "acsetup 0"), (2000, "ac-section bang")], 4,
+             prints=("ac-sett2", "ac-sett3", "ac-sett4"), extra=vprobe)
+sv = [l.split()[1:] for l in log.splitlines() if l.startswith("SV:")]
+check("2 Drone fm" in log and "3 Texture wind" in log and "4 Character tape" in log
+      and sv[-1] == ["3112"], f"SOUNDS: Drone fm, Texture wind, Character tape applied and kept ({sv[-1]})")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

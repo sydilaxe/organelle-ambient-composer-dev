@@ -100,7 +100,7 @@ Working memory for this project: read it first in a new session.
 - **Only these OLED commands are used:** gFillArea, gInvertArea, gBox, gPrintln, gFlip and gShowInfoBar,
   the ones DM48 Engine already uses on the device. Checked only in `oledemu.py` so far.
 - **SETUP:** aux held 1 s (a `[delay 1000]` started by `[t b]`; a float into `[delay]` would *set its time*).
-  Knobs in SETUP are absolute (selectors). `settings.txt` holds 35 numbers: the first 12 knobs, 15 SETUP values, then the 8 SENDS knobs (older files without them load with the sends at 50 %).
+  Knobs in SETUP are absolute (selectors). `settings.txt` holds 39 numbers: the first 12 knobs, 15 SETUP values, the 8 SENDS knobs, then the 4 SOUNDS choices (older files load with the sends at 50 % and SOUNDS on auto).
   It is written 3 s after a change and when SETUP closes, and read at start-up before the first piece.
 - **MIDI out:** through `ac-midibyte` → `[midiout]` and `ac-noteout` → `[noteout]`, so the tests can print
   them. Clock 248 on every `ac-tick` while `acclkon`. Start (250) at a new piece, Stop (252) at FIN.

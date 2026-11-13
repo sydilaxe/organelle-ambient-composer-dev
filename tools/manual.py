@@ -104,6 +104,12 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
     "Arp octave": ("C1-C5", "Where the arp chord starts (MIDI out, base channel + 5)."),
     "CPU": ("shown only", "Amble's CPU load now, and the CPU guard's level (lite 0-3)."),
     "CPU guard": ("off, on", "When on, Amble gets lighter under overload (see CPU)."),
+    "Pads": ("auto, raw, " + ", ".join(DT.FLAVOURS), "The pad types. auto: the piece's palette, new picks each "
+             "section. raw: the dry, buzzy types of the first demos (vox, part, fold, pulsr), no character effect. "
+             "A type name: all four pad voices (and the notes you play) use it. Applies at once, crossfaded."),
+    "Drone": ("auto, " + ", ".join(DT.DRONES), "The drone's design; auto = the piece's (and its break's)."),
+    "Texture": ("auto, " + ", ".join(DT.TEXTURES), "The texture layer; auto = the section's two."),
+    "Character": ("auto, " + ", ".join(DT.CHARACTERS), "The effect on the pads; auto = the piece's."),
 }
 
 INMODE_DESC = {
@@ -263,7 +269,7 @@ def story():
                             "clock; FIN at the end."]], [1.0, 5.7]),
           Spacer(1, 6),
           Table([[shot("score", 3.1, "The score"), shot("input", 3.1, "The input panel")],
-                 [shot("knob_popup", 3.1, "Turning a knob shows its page for 2 s"),
+                 [shot("knob_popup", 3.1, "Turning a knob shows its page for 6 s"),
                   shot("toast", 3.1, "Messages take line 2 briefly")]],
                 colWidths=[3.35 * inch, 3.35 * inch]),
           PageBreak()]
@@ -311,7 +317,8 @@ def story():
           table(srows, [0.45, 0.4, 1.0, 1.75, 3.1]),
           Spacer(1, 6),
           Table([[shot("setup", 3.1, "SETUP page 1"), shot("setup_page2", 3.1, "SETUP page 2")],
-                 [shot("setup_page3", 3.1, "SETUP page 3"), shot("setup_page4", 3.1, "SETUP page 4")]],
+                 [shot("setup_page3", 3.1, "SETUP page 3"), shot("setup_page4", 3.1, "SETUP page 4")],
+                 [shot("setup_page5", 3.1, "SETUP page 5: SOUNDS"), ""]],
                 colWidths=[3.35 * inch, 3.35 * inch])]
 
     s += [PageBreak(), Paragraph("6  How a piece is composed", H1),

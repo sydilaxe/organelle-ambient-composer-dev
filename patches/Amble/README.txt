@@ -130,9 +130,9 @@ THE SCREEN (a live score)
               the pitch ladder. The rhythm column returns 5 s after.
   bottom      section role and voicing; K = keys play, M = external MIDI,
               E = following an external clock; FIN at the end
-  Turning a knob shows its page for 2 s.
+  Turning a knob shows its page for 6 s.
 
-SETUP (hold aux 1 s; aux tap = next page (4); hold aux 1 s to leave, save)
+SETUP (hold aux 1 s; aux tap = next page (5); hold aux 1 s to leave, save)
   1 MIDI out   off / tempo only / tempo+notes / notes only
      tempo: MIDI clock, 24 a beat at the piece's tempo, Start/Stop with it
      notes, by channel from the base channel (page 2):
@@ -154,6 +154,15 @@ SETUP (hold aux 1 s; aux tap = next page (4); hold aux 1 s to leave, save)
   page 4: MIDI notes (all / harmony: no bells or motion / arp only),
   Arp octave (C1-C5, where the arp chord starts), CPU (the load now and
   the guard's level), CPU guard on/off.
+  page 5, SOUNDS (each auto = the piece chooses; a choice applies at
+  once, crossfaded, and stays for every section - for auditioning):
+    Pads       auto / raw / one type for all four voices: fm vox bow part
+               fold pulsr saws pwm digi sync tine. raw = the dry, buzzy
+               types of the first demos (vox, part, fold, pulsr), no
+               character effect
+    Drone      auto / pure / analog / organ / fm
+    Texture    auto / rain / wind / ember / chirp / radio / data / buzz
+    Character  auto / clean / chorus / tape / ring / crush
 
 CPU GUARD: Amble measures its own load each second. Above 78 % it gets
 lighter in steps ("CPU high - lighter"): 1 cloud and atmosphere off,
