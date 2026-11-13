@@ -113,7 +113,7 @@ def oled():
     # time left (COMPOSE) or elapsed (DRIFT), "m:ss"
     proc(c, "ac-oledtime", [If(normal + " && actoastt == 0", [
         Fill(92, 9, 36, 10, 0),
-        X("int(if(acmode==1 && acrun, max(0, (5 + 25*aclen)*60000 - acel), acel)/1000)",
+        X("int(if(acmode==1 && (acrun || acstopped), max(0, (5 + 25*aclen)*60000 - acel), acel)/1000)",
           lambda c, src: _mmss(c, src)),
     ])])
     c.col()
@@ -193,7 +193,8 @@ def oled():
     c.col()
     # ---- the bottom line
     proc(c, "ac-oledbottom", [If(normal, [Fill(0, 53, 128, 11, 0), If("acrun", [Call("ac-oledbot")],
-                                                                      [Call("ac-oledfin")])])])
+                                                                      [If("acstopped", [Call("ac-oledstop")],
+                                                                          [Call("ac-oledfin")])])])])
     # bottom: role and voicing; right: who plays (K = Organelle keys, M = external MIDI) and E = external clock
     Line("ac-oledbot", "list $1 $2", [("s", "acrole", ROLES), ("s", "acfam", [n for n, _, _ in FAMILIES])],
          "ac-oledbot2")(c)
@@ -204,6 +205,7 @@ def oled():
     Line("ac-oledverb", "list $1", [("s", "acvtype", ["-", "B1", "B2", "HALL", "SHIM"])], "ac-oledverb2")(c)
     text_at(c, "ac-oledverb2", 97, 45)
     c.c(c.m(c.recv("ac-oledfin"), "/oled/gPrintln 3 0 54 8 1 FIN - B: new piece"), 0, c.obj("s " + OSC), 0)
+    c.c(c.m(c.recv("ac-oledstop"), "/oled/gPrintln 3 0 54 8 1 STOPPED - A#: start"), 0, c.obj("s " + OSC), 0)
     # redraw the pattern when it changes (each section) and on the bar
     d = c.obj("delay 5")
     c.c(c.recv("ac-section"), 0, d, 0)

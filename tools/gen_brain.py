@@ -12,7 +12,7 @@ NS = len(SCALES)
 
 GLOBALS = dict(
     acseed=1, account=0, actonic=38, acsci=0, acn=7, acfamA=0, acfamB=1, acfam=0, acdeg=0, acpend=-1,
-    acmode=1, acrun=1, acended=0, acsec=0, acnsec=8, acenergy=0.5, acdeff=0.5, acsecdur=60000, acchsec=20,
+    acmode=1, acrun=1, acended=0, acstopped=0, acsecrem=0, acftap=-1e+06, acsec=0, acnsec=8, acenergy=0.5, acdeff=0.5, acsecdur=60000, acchsec=20,
     acpage=0, acinmode=0, acfreeze=0, accapt=0, acvfreeze=0,
     acmdrone=1, acmpad=1, acmtex=1, acmcloud=1, acmbell=1, acmmotion=1,
     acfdrone=1, acfpad=1, acftex=1, acfcloud=1, acfbell=1, acfmotion=0, actex1=0, actex2=1, actexA=0, actexB=1,
@@ -35,7 +35,7 @@ for page in PAGES:
 
 ARRAYS = dict(acscale=16, acfamt=NF * 5, acch=4, acnew=4, acplan=16, acpdur=16, acmotif=8, acmotif0=8,
               acmrhy=8, acmoves=12, acmods=12, acgrt=12, acfmrt=8, acpartt=24, acbellt=12, acdintt=5, acrhyt=5,
-              acparams=12, acraw=4, acflav=4, acroles=16, acflpick=40, acfmrpick=40, acpapick=40, acscn=50,
+              acparams=4 * len(PAGES), acraw=4, acflav=4, acroles=16, acflpick=40, acfmrpick=40, acpapick=40, acscn=50,
               acscrole=24, acatmrole=8, ackeyp=16, acprog=8, acrmask=48, acrtide=8,
               acrtempo=8, acrpulse=8, acaway=8, aceuk=10, aceun=10, acmeters=6, acmratios=6, acbreath=4, actlo=5, acthi=5)
 
@@ -210,8 +210,8 @@ def piece():
         steps += [RNG, SendL(f"ac-v{k}-lfo", [f"1/(30/(acbpm0/(1 + (acbpm0 > {HALFTIME})))*acmeter*acbreath[{k}]*(0.97+acr1*0.06))",
                                               "0.03+acr2*0.15", "0.04+acr3*0.25", "0.03+acr4*0.2"])]
     steps += [
-        X("0; -1; 0; 1; 0; 0; 1; 0; 0", "v acdeg", "v acpend", "v acchg", "v acfirst", "v acended", "v accapt",
-          "v acrun", "v acsec", "v acprogn"),
+        X("0; -1; 0; 1; 0; 0; 1; 0; 0; 0", "v acdeg", "v acpend", "v acchg", "v acfirst", "v acended", "v accapt",
+          "v acrun", "v acsec", "v acprogn", "v acstopped"),
         Send("ac-master", "1 3000"),
         V("acel", "0"), Call("ac-clockstop"),
         Call("ac-motif0"),
@@ -360,6 +360,26 @@ def section():
         Call("ac-scr"),
     ])
     c.c(fin_off, 0, c.obj("s ac-finoff"), 0)
+    # Start / Stop (A#, or an incoming MIDI Start / Stop when following a clock): Stop fades out over 2.5 s and
+    # freezes the piece where it is (section, chord, time left); Start fades back in and goes on from there.
+    # After FIN, Start begins a new piece.
+    proc(c, "ac-stop", [If("acrun && acended == 0 && acstopped == 0", [
+        X("1; 0; max(1000, acsecdur*actime - acsecel)", "v acstopped", "v acrun", "v acsecrem"),
+        Send("ac-master", "0 2500"),
+        Send("ac-chgstop"), Send("ac-secstop"), Call("ac-clockstop"),
+        Toast("stopped - A# to start"), Call("ac-scr"), Send("ac-led"),
+    ])])
+    proc(c, "ac-start", [If("acstopped", [
+        X("0; 1", "v acstopped", "v acrun"),
+        SendL("ac-master", ["0.62 + 0.38*acenergy", "2500"]),
+        Arm("ac-nextsec", "acsecrem", stop="ac-secstop"),
+        Arm("ac-change", "max(2500, 0.5*acchsec*1000*actime)", stop="ac-chgstop"),
+        Call("ac-clockstart"), Call("ac-outchord"),
+        Toast("playing again"), Call("ac-scr"), Send("ac-led"),
+    ])])
+    proc(c, "ac-startstop", [If("acstopped", [Call("ac-start")],
+                                [If("acended || acrun == 0", [Call("ac-reseed"), Toast("new piece")],
+                                    [Call("ac-stop")])])])
     proc(c, "ac-finoff", [If("acrun==0", [V("acended", "1"), V("acfade", "2000"), Call("ac-layers"),
                                           Call("ac-scr"), Send("ac-led")])])
     return c
@@ -451,7 +471,8 @@ def stereo():
     c = Canvas("stereo")
     c.comment("Width (mid/side at the master) by section role x SETUP Width, 0 in mono; pad orbit depth")
     proc(c, "ac-stereo", [
-        SendL("ac-width", [f"(1 - acmono) * acwidth * if(acrole==0, {ROLE_WIDTH[0]}, " +
+        SendL("ac-split", ["acmono == 2", "300"]),
+        SendL("ac-width", [f"(acmono != 1) * acwidth * if(acrole==0, {ROLE_WIDTH[0]}, " +
                            "".join(f"if(acrole=={i}, {w}, " for i, w in enumerate(ROLE_WIDTH[1:], 1)) + "1"
                            + ")" * 8, "3000"]),
         SendL("ac-pandepth", ["acpanmot * 0.5 * (0.5 + acmotion) * acscn[int(acscene)*10 + 9]"]),
@@ -471,6 +492,9 @@ def verb():
         SendL("ac-shim", ["(acvtype==4)*0.3", "3000"]),
         Call("ac-revupd"),
     ])
+    from data import SEND_BUS
+    proc(c, "ac-sendupd", [SendL("ac-sg-" + n, [f"2*{n}", "200"]) for n in SEND_BUS])
+    c.c(c.to(c.recv("ac-init"), "t b"), 0, c.obj("s ac-sendupd"), 0)
     proc(c, "ac-revupd", [
         # Bloom: loop gain exp(-4.2*size/T), as Conduit's; damping = the loop low-pass pole (0.5 = the unit)
         V("acbld", f"if(acvfreeze, 1/0.75, exp(-4.2*acrvsize/{tsec})/0.75)"),

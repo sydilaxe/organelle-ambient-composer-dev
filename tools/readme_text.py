@@ -56,6 +56,11 @@ KNOBS (aux cycles the pages; knobs pick up smoothly)
          3 Time  1.5-30 s           4 Tone  damping
   PIECE  1 Len   5-30 min           2 Weird FM, folding, key changes
          3 Mot   breathing, drift   4 Rhy   motion layer, swing, pulse
+  SENDS 1  reverb sends: 1 Drone (and sub)  2 Pads (and notes you play)
+           3 Bells  4 Motion
+  SENDS 2  reverb sends: 1 Textures  2 Cloud  3 Atmosphere  4 Input
+  Each send runs from off (dry) to full; 50 % is the designed balance.
+  Mix (SPACE) is the overall reverb return.
 
 PLAYING IT
   Standalone, the Organelle keys PLAY NOTES (4 voices in the piece's own
@@ -81,12 +86,17 @@ FUNCTION KEYS (aux + key standalone, plain keys with external MIDI)
   G#  capture 8 s of input (cloud + a memory)
   A   input mode: auto / reso / cloud / tape / ghost / bands / vocode /
       morph
-  A#  HOLD: freeze the reverb tail and the cloud
+  A#  START / STOP: stop fades out and freezes the piece where it is
+      (section, chord, time left); start fades back in and goes on.
+      After FIN it starts a new piece. MIDI Start / Stop do the same
+      when Sync = follow clock.
   B   new piece
+  FREEZE (the reverb tail and the cloud): aux + F# with an external
+      controller; standalone, aux + F# twice quickly
   Aux alone: next knob page.  Footswitch: chord change now
 
-AUDIO INPUT (In knob = amount; samples, guitar, harmonica, voice, field
-recordings). Gate and automatic gain, then Amble listens for pitch, attacks
+AUDIO INPUT (In knob = amount, always 0 when Amble loads; samples, guitar,
+harmonica, voice, field recordings). Gate and automatic gain, then Amble listens for pitch, attacks
 and noisiness and calls it pitched, plucked or texture (screen line 5).
   auto   pitched: chord strings ring with you, grains retuned to the chord,
          your pitch steers the harmony; plucked: attacks ring bells, the
@@ -131,12 +141,13 @@ SETUP (hold aux 1 s; aux tap = next page (4); hold aux 1 s to leave, save)
        +4    the bass (the sub's note)      +5  the ARP CHORD: the chord in
              close position from the Arp octave - for arpeggiators
   2 Sync       internal / follow clock (external clock drives the rhythm;
-               Start restarts the bar, Stop pauses the pulse layers)
+               Start restarts the bar and the piece, Stop stops it)
   3 Keys       auto / play notes / functions
   4 Bloom      clean / vintage (13-bit, as the unit)
   page 2: Follow you (how much chords follow what you play), MPE bend
   range (12/24/48/96), MIDI out base channel, breath curve.
-  page 3: Output (stereo wide / mono - for mono rigs and external effects),
+  page 3: Output (stereo wide / mono - for mono rigs and external effects /
+  split - pads and drone left, everything else right, as mono stems),
   Width (50-150 %), Pan motion (how far the voices travel), Tempo range:
   ambient 40-72, slow 24-48, wide 30-110, pulse 60-100, fast 90-140. Above
   84 BPM bells, breathing and the drone swell move at half time.

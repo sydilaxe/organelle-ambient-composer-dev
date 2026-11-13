@@ -6,25 +6,28 @@ MIDI out base channel, breath curve. Page 3: output, width, pan motion, tempo ra
 parts go out as MIDI notes, the arp chord octave. Aux tap = the other page, hold aux 1 s = leave (and save)."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Line, Arm, Toast
 from gen_oled import Fill, OSC, FLIP, gated_text
-from data import PAGES, TEMPOS
+from data import PAGES, TEMPOS, FILE_KNOBS
 
 GLOBALS = dict(acmout=1, acsync=0, acvintage=0, acoutch=1, accurve=1.2, acsk=0, acsv=0, acextbpm=60,
                acrtb=0, acoutroot=-1, acclkon=0, acsaved=0, actrange=0,
                acmparts=0, acarpoct=48, acoutbass=-1, acload=0, acloadtest=0, acshedt=0, acldraw=0, acguard=1)
 ARRAYS = dict(acout=4, acarp=4)
 NP = len(PAGES)
-SETTINGS = [n for p in PAGES for _, n, _ in p] + ["acmout", "acsync", "acforce", "acvintage", "acfollow", "acnbr",
+KNOBS = [n for p in PAGES for _, n, _ in p]
+SETTINGS = KNOBS[:FILE_KNOBS] + ["acmout", "acsync", "acforce", "acvintage", "acfollow", "acnbr",
                                                   "acoutch", "accurve", "acmono", "acwidth", "acpanmot",
-                                                  "actrange", "acmparts", "acarpoct", "acguard"]
+                                                  "actrange", "acmparts", "acarpoct", "acguard"] + KNOBS[FILE_KNOBS:]
+IN_IDX = [n for p in PAGES for _, n, _ in p].index("acinput")     # the In knob's slot in acparams
 MOUT = ["off", "tempo only", "tempo+notes", "notes only"]
 PARTS = ["all", "harmony", "arp only"]
+OUTPUTS = ["stereo wide", "mono", "split"]   # split: pads + drone left, everything else right (mono stems)
 NSET = 4                                   # SETUP pages
 BENDS = [12, 24, 48, 96]
 
 
 def settings():
     c = Canvas("settings", w=2400)
-    c.comment("settings.txt: the 12 knob values and the 12 SETUP values, one line. Loaded at start-up, "
+    c.comment("settings.txt: the first 12 knob values, the SETUP values, then the SENDS knobs, one line. Loaded at start-up, "
               "saved 3 s after a change and when SETUP closes.")
     td = c.obj("text define acsettings")
     r = c.recv("ac-loadsettings")
@@ -36,15 +39,20 @@ def settings():
     c.c(c.ch((ln, 1), "list split 12"), 0, c.obj("array set acparams"), 0)
     sp = c.ch((ln, 0), "list split 12")
     up = c.to((sp, 1), "unpack " + " ".join(["f"] * (len(SETTINGS) - 12)))
-    for i, n in enumerate(SETTINGS[12:]):
+    for i, n in enumerate(SETTINGS[12:]):     # SETUP values, then the knobs after the first 12 (older files lack them)
         c.c(up, i, c.obj("v " + n), 0)
     c.col()
     # knob values out of the array into their values
     tb = c.to((ln, 0), "t b")
-    run_steps(c, (tb, 0), [Loop("12", "aci", [SendL("ac-pset", ["aci", "acparams[int(aci)]"])]),
+    # the In knob (external audio) always starts at 0, whatever was saved: nothing reaches the input until
+    # you turn it up
+    run_steps(c, (tb, 0), [T("acparams", IN_IDX, "0")]
+              + [T("acparams", FILE_KNOBS + i, n) for i, n in enumerate(KNOBS[FILE_KNOBS:])] + [
+                           Loop(str(len(KNOBS)), "aci", [SendL("ac-pset", ["aci", "acparams[int(aci)]"])]),
+                           Call("ac-sendupd"),
                            SendL("ac-vintage", ["acvintage"]), SendL("ac-brcurve", ["accurve"])])
-    rt = c.to(c.recv("ac-pset"), "route " + " ".join(str(i) for i in range(12)))
-    for i, n in enumerate(SETTINGS[:12]):
+    rt = c.to(c.recv("ac-pset"), "route " + " ".join(str(i) for i in range(len(KNOBS))))
+    for i, n in enumerate(KNOBS):
         c.c(rt, i, c.obj("v " + n), 0)
     c.col()
     # save (3 s after the last change)
@@ -55,7 +63,7 @@ def settings():
     pk = c.obj("pack " + " ".join(["f"] * (len(SETTINGS) - 12)))
     for i in range(len(SETTINGS) - 13, -1, -1):
         c.c(ex, i, pk, i)
-    ag = c.obj("array get acparams")
+    ag = c.obj(f"array get acparams 0 {FILE_KNOBS}")
     la = c.obj("list append")
     c.c(tsv, 1, ex, 0)
     c.c(pk, 0, la, 1)
@@ -66,6 +74,25 @@ def settings():
     c.c(c.m((tl, 0), "write settings.txt"), 0, td, 0)
     return c
 
+
+def setup_rows():
+    """SETUP: for each screen row 1..4, its item on pages 1..4 as (text with $n, parts). Also read by
+    tools/manual.py, so the manual lists exactly these items."""
+    return [
+        (1, ("list 1 MIDI out $1", [("s", "acmout", MOUT)]), ("list 1 Follow you $1", [("f", "int(acfollow*100)")]),
+         ("list 1 Output $1", [("s", "acmono", OUTPUTS)]),
+         ("list 1 MIDI notes $1", [("s", "acmparts", PARTS)])),
+        (2, ("list 2 Sync $1", [("s", "acsync", ["internal", "follow clock"])]),
+            ("list 2 MPE bend $1", [("f", "acnbr")]), ("list 2 Width $1", [("f", "int(acwidth*100)")]),
+            ("list 2 Arp octave C$1", [("f", "acarpoct/12 - 1")])),
+        (3, ("list 3 Keys $1", [("s", "acforce + 1", ["auto", "play notes", "functions"])]),
+            ("list 3 MIDI out ch $1", [("f", "acoutch")]), ("list 3 Pan motion $1", [("f", "int(acpanmot*100)")]),
+            ("list 3 CPU $1% lite $2", [("f", "int(acload*100)"), ("f", "acshed")])),
+        (4, ("list 4 Bloom $1", [("s", "acvintage", ["clean", "vintage"])]),
+            ("list 4 Breath curve $1", [("f", "int(accurve*100)")]), ("list 4 Tempo $1 $2-$3", [("s", "actrange", [n for n, _, _ in TEMPOS]),
+                                          ("f", "actlo[int(actrange)]"), ("f", "acthi[int(actrange)]")]),
+            ("list 4 CPU guard $1", [("s", "acguard", ["off", "on"])])),
+    ]
 
 def setup():
     c = Canvas("setup", w=2600)
@@ -96,7 +123,7 @@ def setup():
         If(f"{item} == 5", [V("acnbr", f"if(acsv < 0.25, 12, if(acsv < 0.5, 24, if(acsv < 0.75, 48, 96)))")]),
         If(f"{item} == 6", [V("acoutch", "1 + int(acsv*12.99)")]),
         If(f"{item} == 7", [V("accurve", "0.5 + 1.5*acsv"), SendL("ac-brcurve", ["accurve"])]),
-        If(f"{item} == 8", [V("acmono", "acsv > 0.5"), Call("ac-stereo")]),
+        If(f"{item} == 8", [V("acmono", f"int(acsv*{len(OUTPUTS) - 0.01})"), Call("ac-stereo")]),
         If(f"{item} == 9", [V("acwidth", "0.5 + acsv"), Call("ac-stereo")]),
         If(f"{item} == 10", [V("acpanmot", "acsv"), Call("ac-stereo")]),
         If(f"{item} == 11", [V("actrange", f"int(acsv*{len(TEMPOS) - 0.01})"), Call("ac-settempo")]),
@@ -114,21 +141,7 @@ def setup():
     ])
     Line("ac-setl0", f"list SETUP $1 of {NSET} - hold aux", [("f", "acsetpg + 1")], "ac-sett0")(c)
     # page-dependent rows: two Lines per row, chosen by the page
-    defs = [
-        (1, ("list 1 MIDI out $1", [("s", "acmout", MOUT)]), ("list 1 Follow you $1", [("f", "int(acfollow*100)")]),
-         ("list 1 Output $1", [("s", "acmono", ["stereo wide", "mono"])]),
-         ("list 1 MIDI notes $1", [("s", "acmparts", PARTS)])),
-        (2, ("list 2 Sync $1", [("s", "acsync", ["internal", "follow clock"])]),
-            ("list 2 MPE bend $1", [("f", "acnbr")]), ("list 2 Width $1", [("f", "int(acwidth*100)")]),
-            ("list 2 Arp octave C$1", [("f", "acarpoct/12 - 1")])),
-        (3, ("list 3 Keys $1", [("s", "acforce + 1", ["auto", "play notes", "functions"])]),
-            ("list 3 MIDI out ch $1", [("f", "acoutch")]), ("list 3 Pan motion $1", [("f", "int(acpanmot*100)")]),
-            ("list 3 CPU $1% lite $2", [("f", "int(acload*100)"), ("f", "acshed")])),
-        (4, ("list 4 Bloom $1", [("s", "acvintage", ["clean", "vintage"])]),
-            ("list 4 Breath curve $1", [("f", "int(accurve*100)")]), ("list 4 Tempo $1 $2-$3", [("s", "actrange", [n for n, _, _ in TEMPOS]),
-                                          ("f", "actlo[int(actrange)]"), ("f", "acthi[int(actrange)]")]),
-            ("list 4 CPU guard $1", [("s", "acguard", ["off", "on"])])),
-    ]
+    defs = setup_rows()
     for k, *rows in defs:
         s = c.ch(c.recv(f"ac-setl{k}"), "expr acsetpg", "sel " + " ".join(str(j) for j in range(NSET)))
         for j, (ln, parts) in enumerate(rows):
@@ -256,7 +269,7 @@ def cpu_guard():
 def clock_in():
     c = Canvas("clock-in", w=1800)
     c.comment("Follow an incoming MIDI clock (SETUP Sync = follow clock): its ticks drive Amble's rhythm, Start "
-              "restarts the bar, Stop pauses the rhythm layers; the tempo is measured")
+              "restarts the bar (and starts a stopped piece), Stop stops the piece; the tempo is measured")
     rti = c.obj("midirealtimein")
     c.c(rti, 0, c.obj("s ac-rtin"), 0)
     up = c.to(c.recv("ac-rtin"), "t f f")
@@ -272,6 +285,6 @@ def clock_in():
         If("int(actick) % 24 == 0", [V("acbpm", "acextbpm")]),
     ])])
     # the timer measures from one tick to the next: read (right inlet) then restart (left)
-    run_steps(c, (sel, 1), [If("acsync", [V("actick", "-1"), Toast("clock start")])])
-    run_steps(c, (sel, 3), [If("acsync", [Toast("clock stop")])])
+    run_steps(c, (sel, 1), [If("acsync", [V("actick", "-1"), Call("ac-start"), Toast("clock start")])])
+    run_steps(c, (sel, 3), [If("acsync", [Call("ac-stop"), Toast("clock stop")])])
     return c

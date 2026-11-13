@@ -89,7 +89,7 @@ log, _ = run(ev, T / 1000 + 2)
 check("ac-txt5: list Colr 50 In 60 auto" in log, "knob pickup scales towards the end (In 60)")
 check("ac-txt4: list Mix 9 Verb auto" in log, "page 2 knobs (SPACE)")
 check("ac-txt4: list Len 12 min Weird 30" in log, "page 3 (PIECE)")
-for t in ("next key E", "chord change", "next section", "drone off", "input reso", "hold - reverb and cloud", "new piece"):
+for t in ("next key E", "chord change", "next section", "drone off", "input reso", "stopped - A# to start", "new piece"):
     check(f"ac-toast: list {t}" in log, f"key toast: {t}")
 
 # 6. input processing: every mode makes sound from the input, and ghost onsets ring bells
@@ -299,6 +299,13 @@ run([(100, "knob2 0.5"), (200, "knob2 0.9"), (400, "aux 1"), (1600, "aux 0"), (1
 log, _ = run([(500, "aux 1"), (1700, "aux 0")], 3, d=d, prints=("ac-sett1",))
 check("ac-sett1: 1 MIDI out off" in log and "ac-txt4: list Dens 50 Tide 89" in log,
       "settings (a knob, MIDI out) are saved and loaded")
+d = build_tmp()
+log1, _ = run([(100, "knob4 0.5"), (200, "knob4 0.9")], 6, d=d)
+log2, _ = run([(500, "knob1 0.5"), (600, "knob1 0.51")], 3, d=d)
+in1 = re.findall(r"ac-txt5: list Colr \d+ In (\d+)", log1)
+in2 = re.findall(r"ac-txt5: list Colr \d+ In (\d+)", log2)
+check(in1 and int(in1[-1]) > 50 and in2 and int(in2[-1]) == 0,
+      f"the In knob always starts at 0 (was {in1[-1] if in1 else '?'} before the restart, {in2[-1] if in2 else '?'} after)")
 
 # 17. the OLED score draws every region, and SETUP shows its pages
 def snap(c):
@@ -403,10 +410,17 @@ for seed, extra, name in ((2718, [], "wide"), (2718, [(40, "acmono 1")], "mono")
            for i in range(20 * SR, len(a) - SR, SR)]
     if name == "wide":
         check(-11 < sm < -1.5, f"stereo: side/mid {sm:.1f} dB (wide; hard-panned bells can push it up for a moment)")
-        check(np.std(bal) > 1.2, f"stereo: the image moves ({np.std(bal):.1f} dB balance swings)")
         check(loss > -2.5, f"stereo: not phasey - mono-compatible (mono sum {loss:.1f} dB)")
     else:
         check(np.abs(seg[:, 0] - seg[:, 1]).max() < 1e-4, "SETUP Output mono: both channels the same")
+# the voices move: measured dry - every reverb send at 0 (a reverb is a constant wide wash that hides it)
+log, a = run([(50, "aclen 0"), (60, "ac-setseed 2718")] + [(500, f"ac-param {i} 0") for i in range(12, 20)], 160)
+ah = sosfilt(hp, a, axis=0)
+bal = [10 * np.log10((ah[i:i + SR, 0] ** 2).mean() / (ah[i:i + SR, 1] ** 2).mean() + 1e-12)
+       for i in range(20 * SR, len(a) - SR, SR)]
+# (dry, renders vary: 1.2-1.8 dB seen; the old 1.2 limit was set on the wet mix, which read about 2.1. The scenes
+# moving the pads between sections are checked on their own in section 20.)
+check(np.std(bal) > 1.0, f"stereo: the image moves ({np.std(bal):.1f} dB balance swings, dry)")
 
 # 20. atmospheres; pad types in stereo but mono-safe; scenes place the voices; preferred sounds come up more
 from data import ATMOS_NAMES
@@ -518,6 +532,66 @@ check(len(lv) >= 2 and lv[0] == 3 and lv[-1] == 0 and log.count("ac-toast: list 
       f"CPU guard: 3 steps lighter under overload, all back after it ({lv})")
 lv, log = lite_at([(40, "acguard 0"), (50, "ac-setseed 7"), (5000, "acloadtest 0.9")], 15, [14000])
 check(lv and lv[-1] == 0 and "CPU high" not in log, "CPU guard off: never sheds")
+
+# 25. Start / Stop (A#), Freeze (aux + F#; standalone aux + F# twice), MIDI Start / Stop when following
+log, a = run([(40, "acforce 1"), (50, "ac-setseed 7"), (8000, "notesRaw 82 100"), (8050, "notesRaw 82 0"),
+              (16000, "notesRaw 82 100"), (16050, "notesRaw 82 0")], 24)
+t1 = sorted({l for l in log.splitlines() if l.startswith("ac-txt1")})
+check(rms_db(a[12 * SR:15 * SR, 0]) < -100 and rms_db(a[19 * SR:23 * SR, 0]) > -40
+      and "ac-txt1: list STOPPED - A# start" in t1 and "ac-txt1: list COMP 1 of 6 emerge" in t1,
+      f"A# stops (silent, STOPPED) and starts again in the same section ({rms_db(a[12 * SR:15 * SR, 0]):.0f} dB "
+      f"stopped, {rms_db(a[19 * SR:23 * SR, 0]):.0f} dB playing)")
+def toasts(ev, secs=6):
+    log, _ = run([(50, "ac-setseed 7")] + ev, secs)
+    return [l.split("list ", 1)[-1] for l in log.splitlines() if l.startswith("ac-toast")]
+F = [(2100, "notesRaw 78 100"), (2150, "notesRaw 78 0")]
+F2 = [(2300, "notesRaw 78 100"), (2350, "notesRaw 78 0")]
+cases = [toasts([(40, "acforce 1")] + F), toasts([(40, "acforce 1"), (2000, "aux 1")] + F + [(2500, "aux 0")]),
+         toasts([(2000, "aux 1")] + F + [(2500, "aux 0")]), toasts([(2000, "aux 1")] + F + F2 + [(2500, "aux 0")])]
+check(cases[0] == ["cloud off"] and cases[1] == ["freeze - reverb and cloud"] and cases[2] == ["cloud off"]
+      and cases[3] == ["freeze - reverb and cloud"],
+      f"F# = cloud, aux + F# = Freeze; standalone aux + F# once = cloud, twice = Freeze ({cases})")
+mt = toasts([(40, "acsync 1"), (2000, "ac-rtin 252"), (4000, "ac-rtin 250")])
+check("stopped - A# to start" in mt and "playing again" in mt, "following a clock: MIDI Stop / Start stop and start")
+
+# 26. SETUP Output split: the drone (harmony bed) on the left only; the reverb on both
+ALLM = ["acmdrone", "acmpad", "acmtex", "acmcloud", "acmbell", "acmmotion"]
+ev = [(40, "acmono 2"), (50, "ac-setseed 7"), (310, "ac-secstop bang")] + \
+     [(320, f"{m} {1 if m == 'acmdrone' else 0}") for m in ALLM] + \
+     [(321, "acfade 10"), (322, "ac-layers bang"), (323, "ac-stereo bang")] + [(t, "ac-rwet 0 10") for t in range(400, 14000, 500)]
+log, a = run(ev, 14)
+L, R = rms_db(a[6 * SR:14 * SR, 0]), rms_db(a[6 * SR:14 * SR, 1])
+check(L > -35 and R < L - 40, f"Output split: the drone only on the left (L {L:.0f} dB, R {R:.0f} dB, reverb off)")
+
+# 27. the reverb is clearly audible: at the default Mix it sits about 6 dB under the whole output (Bloom and Hall)
+def rvprobe(c):
+    m = c.obj("metro 500", 1200, 20)
+    c.c(c.obj("loadbang", 1200, 0), 0, m, 0)
+    c.c(c.to(m, "expr acrvlvl"), 0, c.obj("print RV", 1200, 80), 0)
+for vt, name in ((0.3, "Bloom 1"), (0.7, "Hall")):
+    log, a = run([(50, "ac-setseed 7"), (1000, f"ac-param 5 {vt}")], 40, extra=rvprobe)
+    rv = np.median([float(l.split()[1]) for l in log.splitlines() if l.startswith("RV:")][40:]) - 100
+    out = rms_db(a[20 * SR:40 * SR].mean(1))
+    check(-10 < rv - out < -2, f"{name} at the default Mix: {rv - out:+.1f} dB against the whole output")
+
+# 28. SENDS pages: each group has its own reverb send (drone dry, pads wet...); saved after the SETUP values
+ALLM = ["acmdrone", "acmpad", "acmtex", "acmcloud", "acmbell", "acmmotion"]
+def drone_wet(send):
+    ev = [(50, "ac-setseed 7"), (310, "ac-secstop bang")] + [(320, f"{m} {1 if m == 'acmdrone' else 0}") for m in ALLM] + \
+         [(321, "acfade 10"), (322, "ac-layers bang"), (1000, f"ac-param 12 {send}")]
+    log, _ = run(ev, 20, extra=rvprobe)
+    return np.median([float(l.split()[1]) for l in log.splitlines() if l.startswith("RV:")][24:]) - 100
+dry, full = drone_wet(0), drone_wet(1)
+check(dry < -90 and full > -45, f"SENDS: Drone send 0 = dry drone ({dry:.0f} dB wet), full = {full:.0f} dB wet")
+import os
+d = build_tmp()
+run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 1"), (550, "aux 0"),
+     (700, "knob1 0.5"), (800, "knob1 0.0")], 6, d=d)
+vals = open(os.path.join(d, "settings.txt")).read().split()
+log, _ = run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 1"), (550, "aux 0"),
+              (700, "knob2 0.5"), (750, "knob2 0.52")], 3, d=d)
+check(len(vals) == 35 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
+      "SENDS: a send is saved after the SETUP values and comes back after a restart")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

@@ -29,7 +29,7 @@ jobs:
       - name: Install Pure Data and Python packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends puredata-core python3-numpy python3-scipy zip
+          sudo apt-get install -y --no-install-recommends puredata-core python3-numpy python3-scipy python3-reportlab python3-pil zip
           pd -version
 
       - name: Version
@@ -53,7 +53,7 @@ jobs:
         working-directory: tools
         run: python3 ci_check.py
 
-      - name: Package
+      - name: Package (patch zip and PDF manual)
         run: tools/package.sh "${{ steps.v.outputs.version }}"
 
       - name: Publish the release
@@ -62,7 +62,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           v="${{ steps.v.outputs.version }}"
-          printf '## Install\nUnzip and copy the "Amble" folder into the Organelle Patches folder.\n' > notes.md
+          printf '## Install\nUnzip and copy the "Amble" folder into the Organelle Patches folder.\nThe manual is the PDF here (also inside the folder).\n' > notes.md
           pre=""
           if [ "$v" = "dev" ]; then
             pre="--prerelease"
@@ -71,5 +71,5 @@ jobs:
             echo "::error::Release $v already exists - choose a new version"
             exit 1
           fi
-          gh release create "$v" dist/*.zip --target "$GITHUB_SHA" --title "Amble $v" --notes-file notes.md \
+          gh release create "$v" dist/*.zip dist/*.pdf --target "$GITHUB_SHA" --title "Amble $v" --notes-file notes.md \
             --generate-notes $pre

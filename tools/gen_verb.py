@@ -121,8 +121,9 @@ def hall():
         g = s.to(v[i], "*~ 0.3")
         s.c(s.to(s.recv(f"ac-rg{i}"), "* 0.353553"), 0, g, 1)
         s.c(g, 0, adds[i], 1)
-    L = s.obj("*~ 0.32")
-    R = s.obj("*~ 0.32")
+    # output level matched to Bloom's on program material (the Hall measured about 9 dB quieter)
+    L = s.obj("*~ 0.9")
+    R = s.obj("*~ 0.9")
     for i, dm in enumerate(damps):
         s.c(dm, 0, L if i % 2 == 0 else R, 0)
     # shimmer: two crossfaded taps sweeping a 125 ms window -> an octave up, back into the loop

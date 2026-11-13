@@ -47,6 +47,9 @@ The layers and their rhythms:
   voices' level and brightness.
 - **The Organelle keys** play notes when Amble is standalone. When an external controller plays, they
   become function keys; aux + key is a function at any time.
+- **Start / Stop** (A#, top octave): Stop fades out and freezes the piece where it is; Start goes on from there.
+  An incoming MIDI Start / Stop does the same when Sync is set to follow clock. **Freeze** (the reverb tail and
+  the cloud) is aux + F# with an external controller, or aux + F# twice quickly standalone.
 - **Listening:**
   - A held or sung pitch pulls the next chord to contain it.
   - A note held for 6 s becomes the key centre.
@@ -72,7 +75,7 @@ emulator, so the font only approximates the Organelle's.
 | **Score** | The form strip (one bar per section, height = energy, current one inverted, a playhead). Key and scale, with the time left. The pad voices gliding on a pitch ladder, with your held notes as boxes and a breath bar. Meters for every layer, the reverb and the input. The motion layer's Euclidean pattern with a moving cursor, the tempo and the reverb type. The section role and voicing, and K/M/E tags for who is playing and the clock. |
 | **Input** | While external audio plays, the right-hand column becomes an input panel: the last 6 s of the input as a waveform with its onsets ticked above, the input mode, and what Amble hears (pitch, pluck, texture), with a dot while it records a memory. A sung or played pitch is drawn as a line across the pitch ladder, so you see it against the pad voices. The rhythm column comes back 5 s after the input stops. |
 | **Knob page** | Shown for 2 s when you turn a knob. |
-| **SETUP** | Hold aux for 1 s; aux taps turn the 4 pages. Page 1: MIDI out (off, tempo only, tempo + notes, notes only), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Page 3: output, width, pan motion, tempo range. Page 4: which MIDI notes go out, arp octave, the CPU load, the CPU guard (on or off). Saved in `settings.txt` with the knob values. |
+| **SETUP** | Hold aux for 1 s; aux taps turn the 4 pages. Page 1: MIDI out (off, tempo only, tempo + notes, notes only), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Page 3: output, width, pan motion, tempo range. Page 4: which MIDI notes go out, arp octave, the CPU load, the CPU guard (on or off). Saved in `settings.txt` with the knob values (except In, which always starts at 0). |
 
 **MIDI out** (SETUP page 1): off, **tempo only** (clock), **tempo + notes**, or **notes only**.
 - **Clock:** 24 ticks a beat at the piece's tempo (following the form's tempo changes), with Start and Stop
@@ -142,7 +145,9 @@ alternating left and right, offset formants, and bell partials fanned around eac
 mono-safe: a mono sum dips by at most about 5 dB, never cancels.
 
 **SETUP page 3:**
-- **Output:** stereo wide, or mono for mono rigs and external effects.
+- **Output:** stereo wide; mono for mono rigs and external effects; or split: two mono stems, the harmony bed
+  (pads with their character, drone, sub) on the left and everything else on the right. Each side carries one side
+  of the reverb.
 - **Width:** 50 to 150 %.
 - **Pan motion:** how far the voices travel.
 - **Tempo:** the range a piece picks its tempo from: ambient 40-72 (default), slow 24-48, wide 30-110,
@@ -159,6 +164,11 @@ mono-safe: a mono sum dips by at most about 5 dB, never cancels.
   - **How close it is:** the tests compare it with the C version (`tools/ref`). The swell peak is within 0.02 s, T60 within 3 %, and the envelope correlates at r ≈ 0.9.
 - **Hall:** an 8-line FDN.
 - **Shimmer:** the Hall with an octave-up shifter in its loop.
+- **Level:** the Mix knob (SPACE) sets the reverb return. At its default the reverb sits about 6 dB under the dry
+  sound, at 100 % about level with it.
+- **Sends:** two knob pages set each group's reverb send from off (dry) to full; 50 % is the designed balance.
+  SENDS 1: drone (and sub), pads (and the notes you play), bells, motion. SENDS 2: textures, cloud, atmosphere,
+  input. For example: a dry drone under reverberant pads.
 - **Auto:** the piece chooses. Each section change blooms the reverb up, the climax lengthens it, and the dissolve darkens it.
 
 CPU, measured offline: about 3 % of one x86 core with every layer, an atmosphere, the vocoder, a character effect,
@@ -198,7 +208,7 @@ Requirements: Python 3 with numpy and scipy, Pure Data 0.53+, gcc, and ffmpeg fo
 The Organelle-M runs Amble on one core, so a few things keep it from crackling:
 
 - **Only what sounds runs.** Every layer, pad voice and live voice switches its DSP off when silent. The
-  pitch tracker runs only while the In knob is up.
+  pitch tracker runs only while the In knob is up. In always starts at 0 when Amble loads.
 - **Half rate where it can't be heard:** the Bloom and Hall/Shimmer reverbs, the vocoder and the pitch tracker
   run at 22.05 kHz (their content stays below 11 kHz).
 - **No long ticks.** A new piece, a new section and a chord change are split into stages a few milliseconds
@@ -216,6 +226,12 @@ packages `Amble-<version>.zip`. Push a tag `v*`, or run the workflow by hand (Ac
 Run workflow, with a version such as `v0.1`), to publish a GitHub Release with the zip attached. The
 version `dev` makes a pre-release that is replaced each time. The zip goes on a Release rather than a
 workflow artifact, so it doesn't use the Actions storage quota.
+
+**The manual** (`Amble-manual-<version>.pdf`, attached to each Release and inside the patch folder) is built by
+`tools/manual.py` at every build, from the same source as the patch: knob pages, function keys, SETUP items,
+scales, sound types, input modes, tempo ranges and MIDI channels are read from the generator. A control added
+without a description in `manual.py` stops the build. Build it locally with `python3 tools/manual.py dev out.pdf`
+(needs reportlab and Pillow).
 
 ## Licence
 

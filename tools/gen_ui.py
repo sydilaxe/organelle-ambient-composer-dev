@@ -1,7 +1,7 @@
 """Organelle controls: knobs (two pages, pickup), keys, aux, footswitch, screen lines, LED, toasts."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, run_steps, Line, lookup
 from data import *
-from pdlib import Toast
+from pdlib import Toast, Later
 
 SECNAMES = ["emerge", "haze", "drift", "bloom", "swell", "dissolve"]
 DRIFTNAMES = ["haze", "drift", "bloom", "swell", "surge"]
@@ -17,7 +17,14 @@ SIDE = {  # what to do after a knob changes a value (index = page*4 + knob)
     10: [SendL("ac-motion", ["acmotion"]), Call("ac-stereo")],
     11: [Send("ac-densch"), SendL("ac-pulse", ["acrpulse[int(acrole)] * (0.3 + 1.4*acrhythm)"])],
 }
+for _i in range(12, 4 * len(PAGES)):          # the SENDS pages
+    SIDE[_i] = [Call("ac-sendupd")]
 NP = len(PAGES)
+# the function keys (top octave, C..B): the manual (tools/manual.py) documents these, in this order
+FKEYS = ["COMPOSE / DRIFT", "chord change now", "next section", "drone on/off", "pads on/off", "textures on/off",
+         "cloud on/off | aux: Freeze", "bells on/off", "capture 8 s of input", "input mode", "start / stop",
+         "new piece"]
+TAP2_MS = 350          # standalone: aux + F# twice within this = Freeze (a single tap waits this long)
 
 
 def knobs():
@@ -84,7 +91,7 @@ def keys():
                 If(var, [Toast(label + " on")], [Toast(label + " off")])]
 
     funcs = [
-        [V("acmode", "1-acmode"), V("acended", "0"), V("acrun", "1"), Send("ac-master", "1 3000"),
+        [V("acmode", "1-acmode"), V("acended", "0"), V("acstopped", "0"), V("acrun", "1"), Send("ac-master", "1 3000"),
          If("acmode==1", [V("acsec", "0"), Call("ac-plan"), Call("ac-section"), Call("ac-change"),
                           Toast("COMPOSE new arc")],
             [Call("ac-section"), Call("ac-change"), Toast("DRIFT endless")]),
@@ -92,13 +99,24 @@ def keys():
         [Call("ac-change"), Toast("chord change")],
         [V("acsec", "acsec+1"), Call("ac-section"), Toast("next section")],
         mute("acmdrone", "drone"), mute("acmpad", "pads"), mute("acmtex", "texture"),
-        mute("acmcloud", "cloud"), mute("acmbell", "bells"),
+        # F#: cloud on/off. With an external controller (plain keys = functions) aux + F# = Freeze; standalone
+        # (functions are aux + key) aux + F# twice quickly = Freeze, once = cloud (after TAP2_MS)
+        [If("(acext || acforce == 1) && acforce != 0", [If("acauxheld", [Call("ac-freezetoggle")],
+                                                         [Call("ac-cloudtoggle")])],
+            [If("acnow - acftap < " + str(TAP2_MS + 100),
+                [Send("ac-cloudtapstop"), V("acftap", "-1e+06"), Call("ac-freezetoggle")],
+                [V("acftap", "acnow"), Later("ac-cloudtoggle", TAP2_MS, stop="ac-cloudtapstop")])])],
+        mute("acmbell", "bells"),
         [Call("ac-capture")],
         [V("acinmode", "(acinmode+1) % 8"), Call("ac-inputupd"), Call("ac-inmodetoast"), Call("ac-scr5")],
-        [V("acvfreeze", "1-acvfreeze"), V("acfreeze", "acvfreeze"), Call("ac-freezeupd"), Call("ac-revupd"),
-         If("acvfreeze", [Toast("hold - reverb and cloud")], [Toast("hold released")])],
+        [Call("ac-startstop")],
         [Call("ac-reseed"), Toast("new piece")],
     ]
+    proc(c, "ac-cloudtoggle", mute("acmcloud", "cloud"))
+    proc(c, "ac-freezetoggle", [
+        V("acvfreeze", "1-acvfreeze"), V("acfreeze", "acvfreeze"), Call("ac-freezeupd"), Call("ac-revupd"),
+        If("acvfreeze", [Toast("freeze - reverb and cloud")], [Toast("freeze released")])])
+    assert len(funcs) == len(FKEYS)
     for i, f in enumerate(funcs):
         b = c.obj("t b")
         c.c(sel, i, b, 0)
@@ -123,7 +141,8 @@ def screen():
     c.comment("Line 1 state, 2 key/scale/voicing, 3 pad timbres + texture (and toasts), 4-5 the knob page")
     proc(c, "ac-scr", [Call(f"ac-scr{i}") for i in range(1, 6)])
     # line 1
-    s1 = c.ch(c.recv("ac-scr1"), "expr if(acended || acrun==0, 2, acmode)", "sel 0 1 2")
+    s1 = c.ch(c.recv("ac-scr1"), "expr if(acstopped, 3, if(acended || acrun==0, 2, acmode))", "sel 0 1 2 3")
+    c.c(c.m((s1, 3), "list STOPPED - A# start"), 0, c.obj("s ac-txt1"), 0)
     c.c(c.to((s1, 0), "t b"), 0, c.obj("s ac-scr1d"), 0)
     c.c(c.to((s1, 1), "t b"), 0, c.obj("s ac-scr1c"), 0)
     c.c(c.m((s1, 2), "list FIN - B new piece"), 0, c.obj("s ac-txt1"), 0)
@@ -159,9 +178,14 @@ def screen():
     Line("ac-scr4p2", "list Len $1 min Weird $2", [("f", "int(5 + 25*aclen)"), ("f", "int(acweird*100)")],
          "ac-txt4")(c)
     Line("ac-scr5p2", "list Mot $1 Rhy $2", [("f", "int(acmotion*100)"), ("f", "int(acrhythm*100)")], "ac-txt5")(c)
+    # the SENDS pages: "Drone 50 Pads 50" ...
+    for pg in range(3, len(PAGES)):
+        for ln, pair in ((4, PAGES[pg][:2]), (5, PAGES[pg][2:])):
+            Line(f"ac-scr{ln}p{pg}", "list " + " ".join(f"{lab} ${i + 1}" for i, (lab, _, _) in enumerate(pair)),
+                 [("f", f"int({n}*100)") for _, n, _ in pair], f"ac-txt{ln}")(c)
     # LED: green drifting, blue composing, off when finished; white flash on a chord change
     led = c.obj("s led")
-    lc = c.ch(c.recv("ac-led"), "expr if(acended, 0, if(acmode, 5, 3))")
+    lc = c.ch(c.recv("ac-led"), "expr if(acended || acstopped, 0, if(acmode, 5, 3))")
     c.c(lc, 0, led, 0)
     fl = c.to(c.recv("ac-flash"), "t b b")
     c.c(c.to((fl, 0), "delay 150"), 0, c.obj("s ac-led"), 0)
