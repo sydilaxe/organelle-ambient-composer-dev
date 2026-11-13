@@ -67,6 +67,25 @@ def settings():
     return c
 
 
+def setup_rows():
+    """SETUP: for each screen row 1..4, its item on pages 1..4 as (text with $n, parts). Also read by
+    tools/manual.py, so the manual lists exactly these items."""
+    return [
+        (1, ("list 1 MIDI out $1", [("s", "acmout", MOUT)]), ("list 1 Follow you $1", [("f", "int(acfollow*100)")]),
+         ("list 1 Output $1", [("s", "acmono", ["stereo wide", "mono"])]),
+         ("list 1 MIDI notes $1", [("s", "acmparts", PARTS)])),
+        (2, ("list 2 Sync $1", [("s", "acsync", ["internal", "follow clock"])]),
+            ("list 2 MPE bend $1", [("f", "acnbr")]), ("list 2 Width $1", [("f", "int(acwidth*100)")]),
+            ("list 2 Arp octave C$1", [("f", "acarpoct/12 - 1")])),
+        (3, ("list 3 Keys $1", [("s", "acforce + 1", ["auto", "play notes", "functions"])]),
+            ("list 3 MIDI out ch $1", [("f", "acoutch")]), ("list 3 Pan motion $1", [("f", "int(acpanmot*100)")]),
+            ("list 3 CPU $1% lite $2", [("f", "int(acload*100)"), ("f", "acshed")])),
+        (4, ("list 4 Bloom $1", [("s", "acvintage", ["clean", "vintage"])]),
+            ("list 4 Breath curve $1", [("f", "int(accurve*100)")]), ("list 4 Tempo $1 $2-$3", [("s", "actrange", [n for n, _, _ in TEMPOS]),
+                                          ("f", "actlo[int(actrange)]"), ("f", "acthi[int(actrange)]")]),
+            ("list 4 CPU guard $1", [("s", "acguard", ["off", "on"])])),
+    ]
+
 def setup():
     c = Canvas("setup", w=2600)
     c.comment("SETUP: hold aux 1 s. Knobs set the 4 items of the page (absolute), aux tap = other page.")
@@ -114,21 +133,7 @@ def setup():
     ])
     Line("ac-setl0", f"list SETUP $1 of {NSET} - hold aux", [("f", "acsetpg + 1")], "ac-sett0")(c)
     # page-dependent rows: two Lines per row, chosen by the page
-    defs = [
-        (1, ("list 1 MIDI out $1", [("s", "acmout", MOUT)]), ("list 1 Follow you $1", [("f", "int(acfollow*100)")]),
-         ("list 1 Output $1", [("s", "acmono", ["stereo wide", "mono"])]),
-         ("list 1 MIDI notes $1", [("s", "acmparts", PARTS)])),
-        (2, ("list 2 Sync $1", [("s", "acsync", ["internal", "follow clock"])]),
-            ("list 2 MPE bend $1", [("f", "acnbr")]), ("list 2 Width $1", [("f", "int(acwidth*100)")]),
-            ("list 2 Arp octave C$1", [("f", "acarpoct/12 - 1")])),
-        (3, ("list 3 Keys $1", [("s", "acforce + 1", ["auto", "play notes", "functions"])]),
-            ("list 3 MIDI out ch $1", [("f", "acoutch")]), ("list 3 Pan motion $1", [("f", "int(acpanmot*100)")]),
-            ("list 3 CPU $1% lite $2", [("f", "int(acload*100)"), ("f", "acshed")])),
-        (4, ("list 4 Bloom $1", [("s", "acvintage", ["clean", "vintage"])]),
-            ("list 4 Breath curve $1", [("f", "int(accurve*100)")]), ("list 4 Tempo $1 $2-$3", [("s", "actrange", [n for n, _, _ in TEMPOS]),
-                                          ("f", "actlo[int(actrange)]"), ("f", "acthi[int(actrange)]")]),
-            ("list 4 CPU guard $1", [("s", "acguard", ["off", "on"])])),
-    ]
+    defs = setup_rows()
     for k, *rows in defs:
         s = c.ch(c.recv(f"ac-setl{k}"), "expr acsetpg", "sel " + " ".join(str(j) for j in range(NSET)))
         for j, (ln, parts) in enumerate(rows):

@@ -18,6 +18,9 @@ SIDE = {  # what to do after a knob changes a value (index = page*4 + knob)
     11: [Send("ac-densch"), SendL("ac-pulse", ["acrpulse[int(acrole)] * (0.3 + 1.4*acrhythm)"])],
 }
 NP = len(PAGES)
+# the function keys (top octave, C..B): the manual (tools/manual.py) documents these, in this order
+FKEYS = ["COMPOSE / DRIFT", "chord change now", "next section", "drone on/off", "pads on/off", "textures on/off",
+         "cloud on/off", "bells on/off", "capture 8 s of input", "input mode", "HOLD", "new piece"]
 
 
 def knobs():
@@ -99,6 +102,7 @@ def keys():
          If("acvfreeze", [Toast("hold - reverb and cloud")], [Toast("hold released")])],
         [Call("ac-reseed"), Toast("new piece")],
     ]
+    assert len(funcs) == len(FKEYS)
     for i, f in enumerate(funcs):
         b = c.obj("t b")
         c.c(sel, i, b, 0)

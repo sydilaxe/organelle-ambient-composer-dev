@@ -217,6 +217,12 @@ Run workflow, with a version such as `v0.1`), to publish a GitHub Release with t
 version `dev` makes a pre-release that is replaced each time. The zip goes on a Release rather than a
 workflow artifact, so it doesn't use the Actions storage quota.
 
+**The manual** (`Amble-manual-<version>.pdf`, attached to each Release and inside the patch folder) is built by
+`tools/manual.py` at every build, from the same source as the patch: knob pages, function keys, SETUP items,
+scales, sound types, input modes, tempo ranges and MIDI channels are read from the generator. A control added
+without a description in `manual.py` stops the build. Build it locally with `python3 tools/manual.py dev out.pdf`
+(needs reportlab and Pillow).
+
 ## Licence
 
 GPL-3.0 (see `LICENSE`), as is Conduit, whose Bloom reverb Amble ports.
