@@ -214,6 +214,11 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
                "to the next chord, the way through the section, the reverb, the pads' pitch, you (breath, notes)."),
     "Channel": ("1-16", "CC OUT's MIDI channel."),
     "From CC": (", ".join(str(x) for x in S.SCCBASE), "The first of the 16 CCs."),
+    "Name": ("auto, " + ", ".join(S.NAME_WORDS[1:]), "The name the slot is saved with: auto = its key and scale "
+             "(D dorian), or a word. The Slot row shows it."),
+    "Sparkle": ("0-100 % / " + ", ".join(S.SSPARKO), "GLINT (after Frasil's SPARKLE): small FM bells now and then, high "
+                "on the chord tones, while the drone or the pads sound - a few a minute at a little, about six a second "
+                "at all. The second row: how high. A CC (sparkle) plays it from a fader."),
     "Rate": (", ".join(n for n, _ in S.SCCRATE), "How often CC OUT looks for changes."),
     "Sub": (", ".join(S.SSUBS), "The sub: auto = the piece's choice; or the pedal under the tonic, the chord root "
             "as a bass line, or both."),
@@ -504,6 +509,7 @@ def story():
         ch, desc = SETUP_DESC[label]
         srows.append([str(pg), str(row), label, ch, desc])
     s += [PageBreak(), Paragraph("5  SETUP", H1),
+          para("The header names the page: " + esc(", ".join(f"{i + 1} {n}" for i, n in enumerate(S.SETUP_NAMES))) + "."),
           para(f"Hold <b>aux</b> for 1 s. A tap on aux turns the {S.NSET} pages; knobs 1-4 set the 4 rows "
                "(absolute positions). Hold aux for 1 s again to leave; settings are saved."),
           table(srows, [0.45, 0.4, 1.0, 1.75, 3.1]),
@@ -518,7 +524,7 @@ def story():
                  [shot("setup_page13", 3.1, "SETUP page 13: SAVES"), shot("setup_page14", 3.1, "SETUP page 14: LIVE")],
                  [shot("setup_page15", 3.1, "SETUP page 15: RECALL"), shot("setup_page16", 3.1, "SETUP page 16: GROOVE")],
                  [shot("setup_page17", 3.1, "SETUP page 17: MACRO A"), shot("setup_page18", 3.1, "SETUP page 18: MACRO B")],
-                 [shot("setup_page19", 3.1, "SETUP page 19: JOURNEY"), shot("setup_page20", 3.1, "SETUP page 20: REVERB")],
+                 [shot("setup_page19", 3.1, "SETUP page 19: JOURNEY"), shot("setup_page20", 3.1, "SETUP page 20: COLOUR")],
                  [shot("setup_page21", 3.1, "SETUP page 21: CC OUT"), ""]],
                 colWidths=[3.35 * inch, 3.35 * inch])]
 

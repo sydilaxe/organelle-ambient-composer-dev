@@ -60,6 +60,44 @@ def sink():
     return s
 
 
+def glint():
+    """GLINT (after Frasil's SPARKLE): four short two-operator FM bells - a bell ratio, the index falling fast -
+    struck by ac-glint "note velocity pan decay", into the bells' reverb send; on only while Sparkle is up"""
+    from gen_dsp import switched, mul, add, throws_to
+    s, ln = switched("glint", "ac-g-glint")
+    s.comment("Glint: sparse FM sparkles on the chord tones, high over the drone and pads")
+    tl = s.to(s.recv("ac-glint"), "t l b")
+    cnt = s.obj("f")
+    s.c(tl, 1, cnt, 0)
+    s.c(s.ch(cnt, "+ 1", "% 4"), 0, cnt, 1)
+    lp = s.obj("list prepend")
+    s.c(cnt, 0, lp, 1)
+    s.c(tl, 0, lp, 0)
+    rt = s.to(lp, "route 0 1 2 3")
+    L, R = s.obj("*~ 0.16"), s.obj("*~ 0.16")
+    for j in range(4):
+        up = s.to((rt, j), "unpack f f f f")
+        hz = s.ch((up, 0), "mtof", "t f f")
+        ie = s.ch(s.m(s.to((up, 1), "* 3"), "$1, 0 220"), "vline~")
+        ae = s.obj("vline~")
+        pk = s.obj("pack f f")
+        s.c(up, 3, pk, 1)
+        s.c(up, 1, pk, 0)
+        s.c(s.m(pk, "$1 3, 0 $2 3"), 0, ae, 0)
+        fs = s.to((hz, 1), "sig~")
+        mo = mul(s, mul(s, s.to(s.to((hz, 0), "* 3.5"), "osc~"), ie), fs)
+        car = s.to(add(s, fs, mo), "osc~")
+        sig = mul(s, car, mul(s, ae, ae))
+        pn = s.to((up, 2), "expr cos($f1*1.5708); sin($f1*1.5708)")
+        for side, dst in ((0, L), (1, R)):
+            m = s.to(sig, "*~ 1")
+            s.c(pn, side, m, 1)
+            s.c(m, 0, dst, 0)
+        s.col(160)
+    throws_to("ac-sendb")(s, mul(s, L, ln), mul(s, R, ln), mix=1.0, send=1.0)
+    return s
+
+
 def perform():
     c = Canvas("perform", w=3600)
     c.comment("Morph, ANCHOR, COMPARE, macros, SINK / SWELL / DUCK, PUMP, JOURNEY, CC OUT")
@@ -169,7 +207,14 @@ def perform():
     ve = "0"
     for i in range(len(vals) - 1, -1, -1):
         ve = f"if(aci == {i}, {vals[i]}, {ve})"
+    # GLINT: now and then (a few a minute at a little Sparkle, about six a second at all), a bell high on a chord
+    # tone, one in three an octave more - while the drone or the pads sound
+    proc(c, "ac-sparkupd", [SendL("ac-g-glint", ["acspark > 0.001", "300"])])
     proc(c, "ac-ptick", [
+        If("acspark > 0.001 && acrun && (acgdrone > 0.01 || acgpad > 0.01) && "
+           "random(0, 10000) < 1000*(0.05 + 5.95*acspark*acspark)", [
+            SendL("ac-glint", ["min(108, acnew[int(random(0, 4))] + 12*(acsparko + 1) + 12*(random(0, 3) == 0))",
+                               "0.35 + 0.004*random(0, 100)", "0.01*random(5, 96)", "500 + 15*random(0, 100)"])]),
         If("acmph", [Call("ac-morphstep")]),
         Call("ac-dgainupd"),
         If("acjour > 0 && acrun && acnow >= acjnext && (acjpad > 0 || acjdrone || acjstrike > 0)", [

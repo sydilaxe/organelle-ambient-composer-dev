@@ -143,6 +143,7 @@ def cc_map():
         If("actg == 18", [If("(acctlv >= 0.5) != accmp", [If("acctlv >= 0.5", [Call("ac-cmpon")], [Call("ac-cmpoff")])])]),
     ] + [If(f"actg == {19 + m}", [V("acmcn", str(m)), V("acmcin", "acctlv"), Call("ac-macro")]) for m in range(4)] + [
         If("actg == 23", [If("acctlv >= 0.5 && acjx == 0", [Call("ac-jstepall")]), V("acjx", "acctlv >= 0.5")]),
+        If("actg == 28", [V("acspark", "acctlv"), Call("ac-sparkupd")]),
     ] + [If(f"actg == {t}", [T("acparams", knobs.index(n), "acctlv"), SendL("ac-param", [str(knobs.index(n)), "acctlv"])])
          for t, n in _S.TARGET_KNOB.items()])
     # a new note takes its channel's tone and level

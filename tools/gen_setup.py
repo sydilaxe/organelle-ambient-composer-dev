@@ -18,7 +18,7 @@ GLOBALS = dict(acmout=1, acsync=0, acvintage=0, acoutch=1, accurve=1.2, acsk=0, 
                acmap0=2, acmap1=1, acmap2=1, acmap3=1, acmap4=6, acmap5=0, acmap6=3, acsbell=0, acsmot=0, acglide=5, acmodesel=0, acssub=0, acsform=0, acstempo=0, acsmeter=0, acsatm=0, acnsx=0, acchx=0, acslot=0, acslotfull=0, acsvp49=1, acsvp50=1, acsetpgl=-1, acmixcc=0, acpgm=0, aclfd=1, acsfd=2,
                acmorph=0, acrecall=0, acancg=2, accmp=0, acpump=0, acpumpd=0.5, acduck=0, acduckr=2, acmcsel=0, acmcn=0, acmcin=0,
                acmc0mode=0, acmc0ta=0, acmc0da=0.75, acmc0tb=0, acmc0db=0.75, acmc0v=0, acmc0p=0, acmc1mode=0, acmc1ta=0, acmc1da=0.75, acmc1tb=0, acmc1db=0.75, acmc1v=0, acmc1p=0, acmc2mode=0, acmc2ta=0, acmc2da=0.75, acmc2tb=0, acmc2db=0.75, acmc2v=0, acmc2p=0, acmc3mode=0, acmc3ta=0, acmc3da=0.75, acmc3tb=0, acmc3db=0.75, acmc3v=0, acmc3p=0,
-               acjour=0, acjpad=0, acjdrone=0, acjstrike=0, acrvpre=0, acrvera=3, acccout=0, acccch=1, acccbase=0, acccrate=1)
+               acsname=0, acstonic=-1, acsscale=0, acspark=0, acsparko=1, acslnm=0, acslkey=-1, acslsc=0, acjour=0, acjpad=0, acjdrone=0, acjstrike=0, acrvpre=0, acrvera=3, acccout=0, acccch=1, acccbase=0, acccrate=1)
 ARRAYS = dict(acout=4, acarp=4)
 NP = len(PAGES)
 KNOBS = [n for p in PAGES for _, n, _ in p]
@@ -31,12 +31,22 @@ SETTINGS = KNOBS[:FILE_KNOBS] + ["acmout", "acsync", "acforce", "acvintage", "ac
            ["acmixcc", "acpgm", "aclfd", "acsfd"] + KNOBS[MIX_KNOBS:] + \
            ["acmorph", "acrecall", "acancg", "acpump", "acpumpd", "acduck", "acduckr"] + \
            [f"acmc{m}{f}" for m in range(4) for f in ("mode", "ta", "da", "tb", "db")] + \
-           ["acjour", "acjpad", "acjdrone", "acjstrike", "acrvpre", "acrvera", "acccout", "acccch", "acccbase", "acccrate"]
+           ["acjour", "acjpad", "acjdrone", "acjstrike", "acrvpre", "acrvera", "acccout", "acccch", "acccbase", "acccrate"] + \
+           ["acspark", "acsparko"]
 IN_IDX = [n for p in PAGES for _, n, _ in p].index("acinput")     # the In knob's slot in acparams
 MOUT = ["off", "tempo only", "tempo+notes", "notes only"]
 PARTS = ["all", "harmony", "arp only"]
 OUTPUTS = ["stereo wide", "mono", "split"]   # split: pads + drone left, everything else right (mono stems)
 NSET = 21                                  # SETUP pages
+SETUP_NAMES = ["GENERAL", "PLAYING", "OUTPUT", "NOTES OUT", "SOUNDS", "MUSIC", "MIDI IN", "CC MAP", "VOICES", "FORM",
+               "SECTIONS", "SECTION MIX", "SAVES", "LIVE", "RECALL", "GROOVE", "MACRO A", "MACRO B", "JOURNEY",
+               "COLOUR", "CC OUT"]
+# a saved slot's name: a word, or auto (its key and scale, kept when it was saved)
+NAME_WORDS = ["auto", "Dawn", "Ember", "Tide", "Glass", "Frost", "Drift", "Hollow", "Mist", "Lantern", "Harbor", "Orbit",
+              "Moss", "Signal", "Velvet", "Ash", "Bloom", "Night", "River", "Static", "Halo", "Cinder", "Prism", "Dune",
+              "Echo", "Still", "Aurora", "Rain", "Slate", "Thaw", "Lumen", "Ochre"]
+# GLINT (SETUP COLOUR): sparse FM sparkles high over the chord tones while the drone or pads sound
+SSPARKO = ["+1 oct", "+2 oct", "+3 oct"]
 # SETUP page 5, SOUNDS: auto = the piece chooses; otherwise your choice, at once (to audition) and for every section
 SPADS = ["auto", "raw"] + FLAVOURS
 SDRONES = ["auto"] + DRONES
@@ -60,7 +70,7 @@ CC_DEFAULTS = [2, 1, 1, 1, 6, 0, 3]          # mod = vibrato, 2 / 7 / 11 = breat
 TARGETS = ["off", "breath", "vibrato", "voice tone", "voice level", "voice type", "hold", "density", "colour",
            "reverb", "swell", "motion", "resolve", "root", "next section", "chord now", "glide",
            "anchor", "compare", "macro 1", "macro 2", "macro 3", "macro 4", "journey step", "sink", "blur",
-           "swell all", "harm"]
+           "swell all", "harm", "sparkle"]
 TARGET_KNOB = {7: "acdens", 8: "accolor", 9: "acrvmix", 11: "acmotion",       # piece targets: the knob they move
                24: "acsink", 25: "acblur", 26: "acswell", 27: "acharmx"}
 CCSEL = "if(acccsel == 0, 1, " + ", ".join(f"if(acccsel == {j}, {n}" for j, n in enumerate(CCS) if j) + ", 0" + ")" * 7
@@ -118,7 +128,7 @@ SAVE_ARRAYS = [("acsroles", 12), ("acslens", 12), ("acssp", 12), ("acsst", 96), 
 # (added after the arrays, so a line saved before them still loads: they take these defaults)
 SAVE_EXTRA = [("acsink", 0), ("acblur", 0), ("acswell", 0), ("acharmx", 0), ("acpump", 0), ("acpumpd", 0.5),
               ("acduck", 0), ("acjour", 0), ("acjpad", 0), ("acjdrone", 0), ("acjstrike", 0), ("acrvpre", 0),
-              ("acrvera", 3)]
+              ("acrvera", 3), ("acsname", 0), ("acstonic", -1), ("acsscale", 0), ("acspark", 0), ("acsparko", 1)]
 SAVE_EXTRA_AT = len(SAVE_SCALARS) + sum(n for _, n in SAVE_ARRAYS)
 SAVE_LEN = SAVE_EXTRA_AT + len(SAVE_EXTRA)
 # what a recall of "sound only" brings: the knobs, the sounds, the layers - not the seed, the music or the form
@@ -140,6 +150,14 @@ FACTORY = [
     ("Frost", 6610, dict(acmodesel=1, acsdrone="frost", acspad="beat", acjour=1, acjpad=1, acblur=0.3,
                          acsclc="lydian", acchdc="triad")),
 ]
+
+
+# the SAVES page's slot: empty, a factory piece, or a saved one by its name (a word, or its key and scale)
+_NSC = len(SCALES)
+SLOT_LABELS = (["empty", "saved"] + [n for n, _, _ in FACTORY] + NAME_WORDS[1:]
+               + [f"{k} {sc}" for k in NOTE_NAMES for sc, _ in SCALES])
+SLOT_LABEL = (f"if(acslotfull == 0, if(acslot < {len(FACTORY)}, 2 + acslot, 0), if(acslnm > 0, {1 + len(FACTORY)} + acslnm, "
+              f"if(acslkey >= 0, {1 + len(FACTORY) + len(NAME_WORDS)} + acslkey*{_NSC} + acslsc, 1)))")
 
 
 def factory_rows():
@@ -209,6 +227,7 @@ CC_OUT = ["drone", "sub", "pads", "bells", "motion", "textures", "atmos", "cloud
           "brightness", "to chord", "section", "reverb", "pad drift", "swell"]
 ARRAYS["acsavebuf"] = SAVE_LEN
 ARRAYS["acsetbuf"] = len(SETTINGS) - 12
+ARRAYS["acslotbuf"] = SAVE_LEN
 GLIDE_X = "if(acglide == 0, 0, if(acglide == 1, 0.05, if(acglide == 2, 0.15, if(acglide == 3, 0.3, if(acglide == 4, 0.6, 1)))))"
 
 
@@ -239,7 +258,7 @@ def settings():
                            Call("ac-sendupd"),
                            SendL("ac-vintage", ["acvintage"]),
                            SendL("ac-lvvibr", ["acvibr"]), V("acmode", "acmodesel == 0"),
-                           Call("ac-rvcolour"), Call("ac-sinkupd"), Call("ac-pumpupd"), Later("ac-jourupd", 400)])
+                           Call("ac-rvcolour"), Call("ac-sinkupd"), Call("ac-pumpupd"), Call("ac-sparkupd"), Later("ac-jourupd", 400)])
     rt = c.to(c.recv("ac-pset"), "route " + " ".join(str(i) for i in range(len(KNOBS))))
     for i, n in enumerate(KNOBS):
         c.c(rt, i, c.obj("v " + n), 0)
@@ -276,8 +295,7 @@ def setup_rows():
             ("list 1 Section $1/$2 $3", [("f", "acsecsel + 1"), ("f", "if(acscount > 0, acscount, acnsec)"),
                                           ("s", "acsecfol", ["fixed", "now"])]),
             ("list 1 Section $1 $2", [("f", "acsecsel + 1"), ("s", "acsecfol", ["fixed", "now"])]),
-            ("list 1 Slot $1 $2", [("f", "acslot + 1"), ("s", f"if(acslotfull, 1, if(acslot < {len(FACTORY)}, 2 + acslot, 0))",
-                                                  ["empty", "saved"] + [n for n, _, _ in FACTORY])]),
+            ("list 1 Slot $1 $2", [("f", "acslot + 1"), ("s", SLOT_LABEL, SLOT_LABELS)]),
             ("list 1 Mix CCs $1", [("s", "acmixcc", SMIXCC)]),
             ("list 1 Morph $1", [("s", "acmorph", [n for n, _ in SMORPH])]),
             ("list 1 Pump $1", [("s", "acpump", SPUMP)]),
@@ -324,7 +342,7 @@ def setup_rows():
             ("list 3 A $1", [("s", msel("ta"), MTARGETS)]),
             ("list 3 B depth $1%", [("f", f"int(200*{msel('db')} - 100)")]),
             ("list 3 Drone $1", [("s", "acjdrone", SJDRONE)]),
-            ("list 3 -", None),
+            ("list 3 Sparkle $1%", [("f", "int(acspark*100)")]),
             ("list 3 From CC $1", [("f", _pick("acccbase", list(enumerate(SCCBASE))))])),
         (4, ("list 4 Bloom $1", [("s", "acvintage", ["clean", "vintage"])]),
             ("list 4 Breath curve $1", [("f", "int(accurve*100)")]), ("list 4 Tempo $1 $2-$3", [("s", "actrange", [n for n, _, _ in TEMPOS]),
@@ -338,14 +356,14 @@ def setup_rows():
             ("list 4 Atmos $1", [("s", "acsatm", SATMS)]),
             ("list 4 Pads $1", [("s", "acssp[int(acsecsel)]", SPADS)]),
             ("list 4 Level $1%", [("f", "int(acslv[int(acsecsel*8 + acslay)]*100)")]),
-            ("list 4 Seed $1", [("f", "acseed")]),
+            ("list 4 Name $1", [("s", "acsname", NAME_WORDS)]),
             ("list 4 Entry fade $1", [("s", "acsfd", [n for n, _ in SSFADE])]),
             ("list 4 Compare $1", [("s", "accmp", ["yours", "saved"])]),
             ("list 4 Duck release $1", [("s", "acduckr", [n for n, _ in SDUCKR])]),
             ("list 4 A depth $1%", [("f", f"int(200*{msel('da')} - 100)")]),
             ("list 4 Value $1%", [("f", f"int(100*{msel('v')})")]),
             ("list 4 Bells $1", [("s", "acjstrike", SJSTRIKE)]),
-            ("list 4 -", None),
+            ("list 4 Sparkle $1", [("s", "acsparko", SSPARKO)]),
             ("list 4 Rate $1", [("s", "acccrate", [n for n, _ in SCCRATE])])),
     ]
 
@@ -487,6 +505,9 @@ def setup():
         # REVERB
         If(f"{item} == 76", [V("acrvpre", f"int(acsv*{len(SPRE) - 0.01})"), Call("ac-rvcolour")]),
         If(f"{item} == 77", [V("acrvera", "int(acsv*3.99)"), Call("ac-rvcolour")]),
+        If(f"{item} == 78", [V("acspark", "acsv"), Call("ac-sparkupd")]),
+        If(f"{item} == 79", [V("acsparko", f"int(acsv*{len(SSPARKO) - 0.01})")]),
+        If(f"{item} == 51", [V("acsname", f"int(acsv*{len(NAME_WORDS) - 0.01})")]),
         # CC OUT
         If(f"{item} == 80", [V("acccout", "acsv > 0.5")]),
         If(f"{item} == 81", [V("acccch", "1 + int(acsv*15.99)")]),
@@ -501,7 +522,7 @@ def setup():
         Call("ac-setl0"), Call("ac-setl1"), Call("ac-setl2"), Call("ac-setl3"), Call("ac-setl4"),
         FLIP,
     ])
-    Line("ac-setl0", f"list SETUP $1 of {NSET} - hold aux", [("f", "acsetpg + 1")], "ac-sett0")(c)
+    Line("ac-setl0", "list SETUP $1 $2", [("f", "acsetpg + 1"), ("s", "acsetpg", SETUP_NAMES)], "ac-sett0")(c)
     # page-dependent rows: two Lines per row, chosen by the page
     defs = setup_rows()
     for k, *rows in defs:
@@ -660,8 +681,19 @@ def saves():
     c.c(c.m(c.recv("ac-loadsettings"), "read saves.txt"), 0, td, 0)
     c.c(c.ch(c.recv("ac-loadsettings"), "delay 5"), 0, c.obj("s ac-slotcheck"), 0)
     # is the slot saved?
-    sc = c.ch(c.recv("ac-slotcheck"), "expr acslot + 1", "text search acsaves 0", "expr $f1 >= 0", "t b f")
-    c.c(sc, 1, c.obj("v acslotfull"), 0)
+    # (a saved slot: its name, key and scale, read for the SAVES page)
+    ex = [n for n, _ in SAVE_EXTRA]
+    at = lambda n: SAVE_EXTRA_AT + ex.index(n)
+    sc = c.ch(c.recv("ac-slotcheck"), "expr acslot + 1", "text search acsaves 0", "t b f")
+    c.c(c.to((sc, 1), "expr $f1 >= 0"), 0, c.obj("v acslotfull"), 0)
+    mo = c.to((sc, 1), "moses 0")
+    run_steps(c, (mo, 0), [X("0; -1", "v acslnm", "v acslkey")])
+    rd = c.ch((mo, 1), "text get acsaves", "list split 1")
+    t3 = c.to((rd, 1), "t b l b")
+    run_steps(c, (t3, 2), [T("acslotbuf", at("acsname"), "0"), T("acslotbuf", at("acstonic"), "-1")])
+    c.c((t3, 1), 0, c.obj("array set acslotbuf"), 0)
+    run_steps(c, (t3, 0), [X(f"acslotbuf[{at('acsname')}]; acslotbuf[{at('acstonic')}]; acslotbuf[{at('acsscale')}]",
+                             "v acslnm", "v acslkey", "v acslsc")])
     c.c(sc, 0, c.obj("s ac-oledsetupq"), 0)
     c.col()
     # save: the values into acsavebuf, then the line (slot first) replaces the slot's line, or is added
@@ -670,6 +702,7 @@ def saves():
     for name, n in SAVE_ARRAYS:
         steps += [Loop(str(n), "aci", [T("acsavebuf", f"{off} + aci", f"{name}[int(aci)]")])]
         off += n
+    steps = [X("int(actonic) % 12; acsci", "v acstonic", "v acsscale")] + steps
     off2 = SAVE_EXTRA_AT
     steps += [T("acsavebuf", off2 + i, n) for i, (n, _) in enumerate(SAVE_EXTRA)]
     proc(c, "ac-savepiece", steps + [Send("ac-savewrite"), Call("ac-slotcheck"), Call("ac-basesetnow"),
@@ -727,7 +760,7 @@ def saves():
               Call("ac-basesetto"), V("acancs", "0"), V("acslotcur", "acslot"),
               V("acknown0", "0"), V("acknown1", "0"), V("acknown2", "0"), V("acknown3", "0"),
               Call("ac-sendupd"), Call("ac-revupd"), Call("ac-stereo"), Call("ac-rvcolour"), Call("ac-sinkupd"),
-              Call("ac-pumpupd"), Call("ac-jourupd"), Call("ac-sndovr"), Call("ac-padpick"), V("acfade", "3000"),
+              Call("ac-pumpupd"), Call("ac-sparkupd"), Call("ac-jourupd"), Call("ac-sndovr"), Call("ac-padpick"), V("acfade", "3000"),
               Call("ac-layers"),
               # a piece: from its seed, ready while stopped, playing otherwise
               If("acrecall == 0 || acstopped", [V("acmode", "acmodesel == 0"), If("acstopped", [V("acready", "1")]),

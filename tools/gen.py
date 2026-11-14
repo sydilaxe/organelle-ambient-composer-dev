@@ -44,7 +44,7 @@ def main_patch():
                              D.cloud_write(), D.bells(), D.motion(), D.motion_fm(), D.inp(), D.reso(), D.tape(), D.bands(),
                              D.mem_rec(), D.mem_play(), D.master())
                              + tuple(f() for f in SN.NEW_DRONES + SN.NEW_TEXTURES + SN.ATMOS) + (SN.sub(), SN.vocoder())
-                             + tuple(ST.engines()) + (ST.wavetables(),)):
+                             + tuple(ST.engines()) + (ST.wavetables(), P.glint())):
         m.sub(sub, 20 + (i % 4) * 110, 400 + (i // 4) * 30)
     m.obj(f"array define acbuf {D.CLOUD_LEN}", 20, 900)
     return m
@@ -69,7 +69,7 @@ def build(out=OUT):
         from data import PAGES
         from data import FILE_KNOBS
         kd = [d for p in PAGES for _, _, d in p]
-        vals = kd[:FILE_KNOBS] + [1, 0, -1, 0, 0.7, 48, 1, 1.2, 0, 1, 0.8, 0, 0, 48, 1] + kd[FILE_KNOBS:gen_setup.SEND_KNOBS] + [0, 0, 0, 0] + [0, 0, 0, 2, 0, 0, 1, 5.5] + gen_setup.CC_DEFAULTS + [0, 0, 5] + [d for _, _, d in PAGES[5] + PAGES[6]] + [0, 0, 0, 0, 0, 0] + [0, 0, 1, 2] + [d for _, _, d in PAGES[7]] + [0, 0, 2, 0, 0.5, 0, 2] + [0, 0, 0.75, 0, 0.75] * 4 + [0, 0, 0, 0, 0, 3, 0, 1, 0, 1]
+        vals = kd[:FILE_KNOBS] + [1, 0, -1, 0, 0.7, 48, 1, 1.2, 0, 1, 0.8, 0, 0, 48, 1] + kd[FILE_KNOBS:gen_setup.SEND_KNOBS] + [0, 0, 0, 0] + [0, 0, 0, 2, 0, 0, 1, 5.5] + gen_setup.CC_DEFAULTS + [0, 0, 5] + [d for _, _, d in PAGES[5] + PAGES[6]] + [0, 0, 0, 0, 0, 0] + [0, 0, 1, 2] + [d for _, _, d in PAGES[7]] + [0, 0, 2, 0, 0.5, 0, 2] + [0, 0, 0.75, 0, 0.75] * 4 + [0, 0, 0, 0, 0, 3, 0, 1, 0, 1] + [0, 1]
         assert len(vals) == len(gen_setup.SETTINGS), (len(vals), len(gen_setup.SETTINGS))
         open(sf, "w").write(" ".join(f"{v:g}" for v in vals) + ";\n")
     # Pd start-up options: the Organelle OS starts Pd with a 6 ms audio buffer and appends the patch folder's

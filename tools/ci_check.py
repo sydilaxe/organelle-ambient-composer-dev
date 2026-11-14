@@ -238,7 +238,7 @@ L_ = log.splitlines()
 check("ac-fkey: 69" in L_ and "ac-toast: list chord change" in L_ and not any(l.startswith("ac-lvon: 0 69") for l in L_),
       "an Organelle key is a function and plays no note")
 check("ac-txt4: list Mix 45 Verb auto" in L_, "aux tap: next page")
-check(f"ac-sett0: list SETUP 3 of {GS.NSET} - hold aux" in L_, "aux + low D: SETUP page 3")
+check("ac-sett0: list SETUP 3 OUTPUT" in L_, "aux + low D: SETUP page 3 (OUTPUT)")
 check("ac-toast: list key from you E" in L_, "a note held 6 s becomes the key")
 
 # 12. audio: pitch tracking and the input class
@@ -327,7 +327,7 @@ for what, pat in (("form strip", "gFillArea 3 0 0 128 8 0"), ("ladder", "gFillAr
                   ("voices", "gFillArea 3 0 41 128 10 0"), ("rhythm", "gFillArea 3 96 21 32 19 0"),
                   ("tempo", "bpm"), ("knob page", "page SHAPE")):
     check(any(pat in l for l in osc), f"OLED draws the {what}")
-check(f"ac-sett0: list SETUP 2 of {GS.NSET} - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
+check("ac-sett0: list SETUP 2 PLAYING" in log, "SETUP opens with aux held, aux tap turns its page")
 
 # 18. the wider sound world: drone designs, the sub, electric textures, character, the vocoder, variety
 from data import DRONES, TEXTURES, CHARACTERS, FLAVOURS
@@ -610,9 +610,9 @@ run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 
 vals = open(os.path.join(d, "settings.txt")).read().split()
 log, _ = run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 1"), (550, "aux 0"),
               (700, "knob2 0.5"), (750, "knob2 0.52")], 3, d=d)
-# (every SETTINGS value is saved: 116 since the PERFORM knobs and the RECALL, GROOVE, MACRO, JOURNEY, REVERB and
-#  CC OUT pages joined)
-check(len(vals) == len(GS.SETTINGS) == 116 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
+# (every SETTINGS value is saved: 118 since the PERFORM knobs and the RECALL, GROOVE, MACRO, JOURNEY, REVERB and
+#  CC OUT pages and GLINT's Sparkle joined)
+check(len(vals) == len(GS.SETTINGS) == 118 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
       "SENDS: a send is saved after the SETUP values and comes back after a restart")
 
 # 29. the patch asks the Organelle OS for a larger audio buffer (pd-opts.txt is appended to Pd's options)
@@ -1079,6 +1079,30 @@ log, _ = run([(50, "ac-setseed 7"), (100, "acccout 1"), (100, "acccch 3")], 3, p
 mb = [int(float(l.split()[1])) for l in log.splitlines() if l.startswith("ac-midibyte")]
 ccs = {mb[i + 1] for i in range(len(mb) - 2) if mb[i] == 178}
 check(len(ccs) >= 8 and ccs <= set(range(20, 36)), f"CC OUT on channel 3: CCs {sorted(ccs)}")
+
+# 67. GLINT: no sparkles at 0; a few a minute at a little Sparkle; about six a second at all, high on chord tones
+counts = []
+for sp in (0, 0.3, 1):
+    log, a = run([(50, "ac-setseed 7"), (100, f"acspark {sp}"), (101, "ac-sparkupd bang")], 20, prints=("ac-glint",))
+    g = [float(l.split()[1]) for l in log.splitlines() if l.startswith("ac-glint")]
+    counts.append(len(g))
+check(counts[0] == 0 and 5 <= counts[1] <= 40 and counts[2] >= 80 and np.abs(a).max() < 0.95 and min(g) >= 60,
+      f"GLINT: sparkles in 20 s at 0 / 30 / 100 % = {counts}, clean")
+
+# 68. a saved slot shows its name: its key and scale (auto), or the word chosen; an empty slot 1-6 its factory piece
+d = build_tmp()
+k = lambda i, n: (i + 0.5) / n
+run([(50, "ac-setseed 7"), (1000, "aux 1"), (1010, "notesRaw 83 100"), (1100, "notesRaw 62 100"), (1150, "notesRaw 62 0"),
+     (1200, "notesRaw 83 0"), (1300, "aux 0"),
+     (2000, "acsetup 1"), (2010, "acsetpg 12"), (2100, f"ac-setknob 0 {k(3, 16)}"),
+     (2200, f"ac-setknob 3 {k(GS.NAME_WORDS.index('Ember'), len(GS.NAME_WORDS))}"),
+     (2300, "ac-setknob 1 0.5"), (2400, "ac-setknob 1 1"), (2500, "acsetup 0")], 3, d=d)
+log, _ = run([(50, "ac-setseed 9"), (300, "acsetup 1"), (310, "acsetpg 12"), (400, f"ac-setknob 0 {k(2, 16)}"),
+              (600, f"ac-setknob 0 {k(3, 16)}"), (800, f"ac-setknob 0 {k(4, 16)}")], 2, d=d, prints=("ac-sett1",))
+rows = {l.split("Slot ", 1)[-1] for l in log.splitlines() if l.startswith("ac-sett1") and "Slot" in l}
+auto = [r for r in rows if r.startswith("3 ")]
+check(auto and auto[0].split(" ", 1)[1].replace("\\ ", " ").split()[1] in [n for n, _ in _SC] and "4 Ember" in rows
+      and "5 Deep" in rows, f"slot names: auto (key and scale), a chosen word, a factory piece ({sorted(rows)})")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

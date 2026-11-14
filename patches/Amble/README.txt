@@ -242,8 +242,9 @@ SETUP (hold aux 1 s, or aux + a low key; aux tap = next page (21); hold aux
                to its level) / out 1/4, 1/2, 3/4
     Level      0-200 % in this section (on top of MIX)
   page 13, SAVES (also aux + top B): 16 slots in saves.txt (an update
-  keeps them). Slot; Save - turn knob 2 fully up; Load - turn knob 3 fully
-  up (stopped: it waits ready; playing: it plays now); the Seed.
+  keeps them). Slot (its name); Save - turn knob 2 fully up; Load - turn
+  knob 3 fully up (stopped: it waits ready; playing: it plays now); Name
+  (auto = the key and scale, or a word).
   page 14, LIVE:
     Mix CCs    off / CC 20-35 / CC 102-117: 8 layer levels, then 8 in/out
                buttons, for a controller's faders and pads
@@ -259,7 +260,8 @@ SETUP (hold aux 1 s, or aux + a low key; aux tap = next page (21); hold aux
   page 19, JOURNEY: Speed, Pads (off / soft / bright / all), Drone,
   Bells (off / bells / motion / both) - they travel through their
   engines, slowly crossfaded
-  page 20, REVERB: Pre-delay (0-200 ms), Era (70s / 80s / 90s / now)
+  page 20, COLOUR: Pre-delay (0-200 ms), Era (70s / 80s / 90s / now),
+  Sparkle (GLINT: small FM bells high on the chord tones), its octave
   page 21, CC OUT: 16 CCs of what moves inside (layer levels, energy,
   density, brightness, the way to the next chord ...), Channel, From CC,
   Rate
