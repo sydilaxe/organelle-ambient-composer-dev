@@ -95,7 +95,9 @@ THE ORGANELLE KEYS (functions; aux + a low key = that SETUP page, C = 1)
   G#  RESOLVE: the tonic as open fifths, held - no modulation, no
       dissonant chords - until pressed again (a CC mapped to resolve
       holds it from a pedal)
-  A   chord change now   A#  next section
+  A   tap: chord change now (to the next chord shown); hold: pick another
+      next chord, again every 0.7 s - let go when you like it
+  A#  next section
   B   hold section (stays past its length; again: moves on)
   Top octave
   C..G  layers: drone, sub, pads, bells, motion, textures, atmosphere,
@@ -131,25 +133,26 @@ or retuned to the chord.
 THE SCREEN (a live score)
   top strip   the form: a bar per section (height = energy), the current
               one inverted, a playhead (DRIFT: energy and progress)
-  line 2      key and scale; time left (elapsed in DRIFT); messages
+  line 2      the chord now > the next chord; a bar under it shrinks to
+              the change; messages
   left        the 4 pad voices as dots on a pitch ladder (they glide),
               your held notes as boxes, tonic ticks, breath bar
-  middle      the voices (Dr Sb / Pd Bl / Mo Tx / At Cl): two letters
-              while one sounds, a dot while it rests, a dash when it's out
+  voices      a row (Dr Sb Pd Bl Mo Tx At Cl): two letters while one
+              sounds, a dot while it rests, a dash when it's out
   right       the motion layer's Euclidean pattern with its cursor, the
-              tempo, the reverb (B1 B2 HALL SHIM)
+              tempo
   input       while external audio plays the right column shows it instead:
-              6 s of its level as a waveform (onsets ticked above), the
-              input mode and what Amble hears (pitch / pluck / textr), a dot
+              its level as a waveform (onsets ticked above), the input mode
+              (in auto: what Amble hears - pitch / pluck / textr), a dot
               while it records a memory; a pitch it hears is a line across
               the pitch ladder. The rhythm column returns 5 s after.
-  bottom      section role and voicing; M = MIDI, ME = following an
-              external clock; STOPPED, or FIN at the end
+  bottom      key and scale, the section's role (or HOLD / FRZ);
+              READY / STOPPED, or FIN at the end
   Turning a knob shows its page for 6 s.
 THE MIX VIEW (while a MIX or SENDS page is open)
-  a bar per voice and Rv (reverb): the level now, the knob as a tick, two
-  letters below (the four the knobs turn inverted); a dot on top = on (a
-  layer key), a dash at the foot = out; the header shows a knob as it turns
+  a bar per voice: the level now, the knob as a tick, two letters below
+  (the four the knobs turn underlined); a dot on top = on (a layer key), a
+  dash at the foot = out; the column a knob turns is framed with its value
 
 SETUP (hold aux 1 s, or aux + a low key; aux tap = next page (14); hold aux
 1 s to leave, save)

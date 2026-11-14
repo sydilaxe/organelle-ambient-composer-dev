@@ -323,8 +323,8 @@ log, _ = run([(50, "ac-setseed 2718"), (3000, "knob3 0.4"), (3100, "knob3 0.6"),
               (9500, "aux 1"), (9600, "aux 0")], 10, prints=("oscOut", "ac-sett0"))
 osc = [l for l in log.splitlines() if l.startswith("oscOut")]
 check(sum("gFlip" in l for l in osc) >= 50, "the OLED flips about 10 times a second")
-for what, pat in (("form strip", "gFillArea 3 0 0 128 8 0"), ("ladder", "gFillArea 3 0 20 60 33 0"),
-                  ("meters", "gFillArea 3 62 20 33 33 0"), ("rhythm", "gFillArea 3 96 20 32 33 0"),
+for what, pat in (("form strip", "gFillArea 3 0 0 128 8 0"), ("ladder", "gFillArea 3 0 21 95 19 0"),
+                  ("voices", "gFillArea 3 0 41 128 10 0"), ("rhythm", "gFillArea 3 96 21 32 19 0"),
                   ("tempo", "bpm"), ("knob page", "page SHAPE")):
     check(any(pat in l for l in osc), f"OLED draws the {what}")
 check(f"ac-sett0: list SETUP 2 of {GS.NSET} - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
@@ -500,9 +500,9 @@ check(np.abs(a).max() < 0.95, f"a fast piece with its textures keeps headroom (p
 ev = [(40, "actime 0.08"), (50, "ac-setseed 2718"), (311, "acinput 0.6"), (312, "ac-inputupd bang")]
 log, _ = run(ev, 8, inp="voice", prints=("oscOut",))
 osc = log.splitlines()
-check(any("gPrintln 3 97 35 8 1 auto" in l for l in osc) and any("gPrintln 3 97 43 8 1 pitch" in l for l in osc)
-      and any("gFillArea 3 8 " in l and l.split()[-2:] == ["1", "1"] and " 42 " in l for l in osc),
-      "OLED: an input panel (auto / pitch) and the sung pitch on the ladder")
+check(any("gPrintln 3 97 31 8 1 pitch" in l for l in osc)
+      and any("gFillArea 3 8 " in l and l.split()[-2:] == ["1", "1"] and " 80 " in l for l in osc),
+      "OLED: an input panel (in auto: pitch) and the sung pitch on the ladder")
 log, _ = run(ev + [(4000, "acinput 0"), (4001, "ac-inputupd bang")], 12, inp="voice", prints=("oscOut",))
 late = [l for l in log.splitlines()]
 check(any("bpm" in l for l in late[len(late) // 2:]), "OLED: the rhythm column returns after the input stops")
@@ -914,9 +914,9 @@ check("ac-toast: list saved to slot 3" in log1 and "ac-toast: list loaded slot 3
 log, _ = run([(50, "ac-setseed 7"), (2000, "notesRaw 63 100"), (2050, "notesRaw 63 0"),
               (4000, "notesRaw 60 100"), (4050, "notesRaw 60 0")], 6, prints=("oscOut",))
 o = [l for l in log.splitlines() if l.startswith("oscOut")]
-check(any("gPrintln 3 2 55 8 1 Dr" in l for l in o) and any("gPrintln 3 114 55 8 1 Rv" in l for l in o)
-      and any("gPrintln 3 64 21 8 1 Dr" in l for l in o),
-      "OLED: the MIX view's labels (Dr .. Rv) on MIX 1, the play view's voice tags")
+check(any("gPrintln 3 2 54 8 1 Dr" in l for l in o) and any("gPrintln 3 114 54 8 1 At" in l for l in o)
+      and any("gPrintln 3 2 41 8 1 Dr" in l for l in o),
+      "OLED: the MIX view's labels (Dr .. At) on MIX 1, the play view's voice row")
 
 # 54. SETUP LIVE: the Mix CC bank (CC 20-27 levels, 28-35 in/out buttons on a press) and program change -> a slot
 log, _ = run([(50, "ac-setseed 7"), (100, "acmixcc 1"), (1000, "ac-ccin 22 127 1"), (2000, "ac-ccin 30 127 1"),
@@ -928,6 +928,24 @@ log, _ = run([(50, "ac-setseed 9"), (100, "acpgm 1"), (1000, "ac-pgmin 3")], 3, 
 check("ac-toast: list loaded slot 3" in log and log.splitlines()[-1] != "" and
       [l for l in log.splitlines() if l.startswith("ac-setseed")][-1] == "ac-setseed: 777",
       "Prog change 3 loads save slot 3")
+
+# 55. the play screen: line 2 is the chord now > the next one, and the next one is the one that comes; holding
+#     low A picks another next chord (every 0.7 s) without a change; a tap changes to the shown one
+log, _ = run([(50, "actime 0.1"), (60, "ac-setseed 2026")], 40, prints=("ac-oledtop",))
+L = [l.split("list ", 1)[1] for l in log.splitlines() if l.startswith("ac-oledtop")]
+D = [x for i, x in enumerate(L) if i == 0 or x != L[i - 1]]
+# (at a real change the new chord is the one shown as next; between changes the next one may be picked again,
+#  e.g. when the key plan moves the key at a section)
+bad = [(a, b) for a, b in zip(D[1:], D[2:]) if a.split(" > ")[0] != b.split(" > ")[0] and a.split(" > ")[1] != b.split(" > ")[0]]
+check(len(D) > 8 and not bad, f"chord line: each next chord is the one that plays ({len(D)} lines, {bad[:2]})")
+log, _ = run([(50, "ac-setseed 7"), (2900, "h-mark bang"), (3000, "notesRaw 69 100"), (4400, "notesRaw 69 0"),
+              (6000, "notesRaw 69 100"), (6050, "notesRaw 69 0")], 8, prints=("ac-oledtop", "h-mark"))
+part = [l.split("list ", 1)[1] for l in log.split("h-mark: bang")[1].splitlines() if l.startswith("ac-oledtop")]
+cut = next((i for i, x in enumerate(part) if x.split(" > ")[0] != part[0].split(" > ")[0]), len(part))
+held, after = part[:cut], part[cut:]
+check(len({h.split(" > ")[0] for h in held}) == 1 and len({h.split(" > ")[1] for h in held}) >= 2 and after
+      and after[0].split(" > ")[0] == held[-1].split(" > ")[1],
+      f"low A held picks other next chords ({held}), a tap plays the shown one ({after[:1]})")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

@@ -74,7 +74,9 @@ FKEY_DESC = {
                    "(it arrives with the next chord change). While it is not held, MIDI notes play as usual.",
     "Resolve": "The harmony moves to the tonic as open fifths (root, 5th, octave, 12th) and stays there - no "
                "modulation, no dissonant chords - until you press it again. A CC mapped to resolve does it too.",
-    "chord change now": "Move to the next chord at once (the footswitch does the same).",
+    "chord change now": "Tap: move to the next chord (the one the screen shows) at once - the footswitch does the "
+                        "same. Hold: after half a second another next chord is picked, and again every 0.7 s while "
+                        "you hold; let go when line 2 shows one you like.",
     "next section": "Jump to the next section of the form.",
     "hold section": "Keep the section playing past its length; press again and the piece moves on within 2 s. "
                     "HOLD shows on the screen.",
@@ -356,24 +358,24 @@ def story():
           table([["Region", "What it shows"],
                  ["Top strip", "The form: one bar per section (height = energy), the current one inverted, a "
                                "playhead. In DRIFT: the energy and the section's progress."],
-                 ["Line 2", "Key and scale; the time left (elapsed in DRIFT); short messages."],
+                 ["Line 2", "The chord now > the next chord (picked ahead, so you see what is coming; hold low A "
+                            "for another). Under it a bar shrinks to the change. Messages take the line briefly."],
                  ["Left", "The 4 pad voices as dots on a pitch ladder (they glide between chords); your held notes "
                           "as boxes; tonic ticks; a breath bar. A pitch heard on the input is a line across it."],
-                 ["Middle", "The voices, in the layer keys' order (Dr Sb / Pd Bl / Mo Tx / At Cl): two letters while "
-                            "the voice sounds, a dot while it rests, a dash when it is out."],
-                 ["Right", "The motion layer's Euclidean pattern with its cursor, the tempo, the reverb (B1 B2 HALL "
-                           "SHIM). While audio comes in: the input panel - 6 s of its level as a waveform with "
-                           "onsets ticked, the input mode and what Amble hears (pitch, pluck, textr), a dot while "
-                           "a memory records."],
-                 ["Bottom", "Section role and voicing; M = MIDI, ME = following an external clock; STOPPED, or FIN "
-                            "at the end."]], [1.0, 5.7]),
+                 ["Right", "The motion layer's Euclidean pattern with its cursor, and the tempo. While audio comes in: "
+                           "the input panel - its level as a waveform with onsets ticked, the input mode (in auto: "
+                           "what Amble hears - pitch, pluck, textr), a dot while a memory records."],
+                 ["Voices", "One row in the layer keys' order (Dr Sb Pd Bl Mo Tx At Cl): two letters while the voice "
+                            "sounds, a dot while it rests, a dash when it is out."],
+                 ["Bottom", "Key and scale, then the section's role - or HOLD / FRZ while a section is held or Freeze "
+                            "is on; READY or STOPPED (A# starts), FIN at the end."]], [1.0, 5.7]),
           Spacer(1, 6),
           table([["MIX view", "What it shows"],
                  ["Header", "The page, the section and its role; a knob's name and value while you turn it."],
-                 ["Bars", "One per voice and Rv (the reverb mix); on SENDS, In (the input) in place of Sb. The bar "
-                          "is the level now, the tick the knob's setting. A dot on top: the voice is on (a layer "
-                          "key); a dash at the foot: it is out."],
-                 ["Labels", "Two letters per voice; the four the knobs turn are inverted."]], [1.0, 5.7]),
+                 ["Bars", "One per voice; on SENDS, In (the input) in place of Sb. The bar is the level now, the "
+                          "tick the knob's setting. A dot on top: the voice is on (a layer key); a dash at the foot: "
+                          "it is out. The column a knob is turning is framed, with its value on top."],
+                 ["Labels", "Two letters per voice; the four the knobs turn are underlined."]], [1.0, 5.7]),
           Spacer(1, 6),
           Table([[shot("score", 3.1, "The score"), shot("input", 3.1, "The input panel")],
                  [shot("knob_popup", 3.1, "Turning a knob shows its page for 6 s"),

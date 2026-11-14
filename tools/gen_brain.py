@@ -11,6 +11,8 @@ NF = len(FAMILIES)
 NS = len(SCALES)
 
 GLOBALS = dict(
+    acxt=48, acxscf=0, acxsci=0, acxdeg=0, acqt=0, acqd=0, acqr=0, acqn=0, acqi=0, acq3=0, acq4=0, acq6=0, acq7=0,
+    acq8=0, acchn=0, acnxn=0, acchgt=0,
     acseed=1, account=0, actonic=38, acsci=0, acn=7, acfamA=0, acfamB=1, acfam=0, acdeg=0, acpend=-1,
     acmode=1, acrun=1, acended=0, acstopped=0, acready=0, acsecrem=0, acftap=-1e+06, acctap=-1e+06, acsec=0, acnsec=8, acenergy=0.5, acdeff=0.5, acsecdur=60000, acchsec=20,
     acpage=0, acinmode=0, acfreeze=0, accapt=0, acvfreeze=0,
@@ -385,7 +387,7 @@ def section():
         # key plan: move to this section's key area at the next chord change
         If("acmode==1 && ackeyc == 0", [V("acpend", "if(((int(actonic)-36) % 12) != ((int(achome)-36 + int(ackeyp[int(acsec)])) "
                                      "% 12 + 12) % 12, ((int(achome)-36 + int(ackeyp[int(acsec)])) % 12 + 12) % 12, "
-                                     "acpend)")]),
+                                     "acpend)"), If("acpend >= 0", [Call("ac-chordnext")])]),
         V("acprogi", "0"),
         # tempo and the drone's pulse on the bar
         Call("ac-settempo"),
@@ -679,15 +681,14 @@ def change():
     steps = [
         RNG,
         V("acchsec", "(6 + 84*pow(actide, 2)) * actidef * (0.75+acr3*0.5)"),
-        V("acnewt", "if(acres, actonic, if(acpend>=0, 36 + acpend, if(acmode==0 && ackeyc == 0 && acr1 < 0.03 + acweird*0.15 && acfirst==0, "
-                    "36 + ((int(actonic) - 36 + int(acmods[int(acr2*12)])) % 12 + 12) % 12, actonic)))"),
-        # (while resolved, a pending key move waits)
-        X("acnewt != actonic; acnewt; if(acres, acpend, -1)", "v acmodflag", "v actonic", "v acpend"),
-        If("acr3 < acweird*0.12 && acfirst==0 && acsclc == 0", [RNG, V("acsci", f"int(acr4*{NS})"), Call("ac-loadscale")]),
-        RNG,
-        V("acdeg", "if(acmodflag || acfirst || acres, 0, if(acrole==6 && acprogi < acprogn, acprog[int(acprogi)], "
-                   "if(acr1 < 0.1 + 0.15*(1-acweird) && acdeg != 0, 0, "
-                   "((int(acdeg) + int(acmoves[int(acr2*12)])) % int(acn) + int(acn)) % int(acn))))"),
+        # the chord was picked at the last change (ac-chordnext), so the screen shows it coming; a piece's first
+        # chord is picked now
+        If("acfirst", [Call("ac-chordnext")]),
+        # a key move asked for since (Root, SETUP Key, the key plan, a note held) wins; while resolved it waits
+        V("acxt", "if(acres, actonic, if(acpend >= 0, 36 + acpend, acxt))"),
+        X("acxt != actonic; acxt; if(acres, acpend, -1)", "v acmodflag", "v actonic", "v acpend"),
+        If("acxscf && acfirst==0", [V("acsci", "acxsci"), Call("ac-loadscale")]),
+        V("acdeg", "if(acmodflag || acfirst || acres, 0, int(acxdeg) % int(acn))"),
         V("acprogi", "acprogi + (acrole==6)"),
         # listening: what you hold (or sing) pulls the chord - pick a root whose triad contains it
         If("acfocus >= 0 && acr3 < acfollow && acfirst == 0 && acmodflag == 0 && acres == 0", [
@@ -723,7 +724,36 @@ def change():
                                            "if(acfirst || acglide == 0, 0, acr2*0.35*acchsec*1000*actime)"]),
                   T("acch", k, f"acnew[{k}]")]
         steps += [SendL(f"ac-res{k}", [f"1000/mtof(43 + fmod(acnew[{k}]-43, 24))", "2500"])]
+    # the chord's name now, and the next chord picked and named (the screen shows both)
+    steps += [V("acchgt", "acnow"), X("actonic; acdeg; acres", "v acqt", "v acqd", "v acqr"), Call("ac-chordname"),
+              V("acchn", "acqn"), Call("ac-chordnext")]
     steps += [Later("ac-grains", 13), Later("ac-change2", 29, stop="ac-chgstop")]
+    # the next chord: a key move (pending root, or by chance in DRIFT), a chance scale change, the next degree
+    # (or the opening progression in a return section); then its name for the screen. aux + low A picks again.
+    proc(c, "ac-chordnext", [
+        RNG,
+        V("acxt", "if(acres, actonic, if(acpend>=0, 36 + acpend, if(acmode==0 && ackeyc == 0 && acr1 < 0.03 + acweird*0.15 && acfirst==0, "
+                  "36 + ((int(actonic) - 36 + int(acmods[int(acr2*12)])) % 12 + 12) % 12, actonic)))"),
+        V("acxscf", "acr3 < acweird*0.12 && acfirst==0 && acsclc == 0"),
+        RNG, V("acxsci", f"int(acr4*{NS})"),
+        RNG,
+        V("acxdeg", "if(acxt != actonic || acfirst || acres, 0, if(acrole==6 && acprogi < acprogn, acprog[int(acprogi)], "
+                    "if(acr1 < 0.1 + 0.15*(1-acweird) && acdeg != 0, 0, "
+                    "((int(acdeg) + int(acmoves[int(acr2*12)])) % int(acn) + int(acn)) % int(acn))))"),
+        X("acxt; acxdeg; acres", "v acqt", "v acqd", "v acqr"), Call("ac-chordname"), V("acnxn", "acqn"),
+        Send("ac-scr2"),
+    ])
+    # a chord's name (an index into CHORD_NAMES): its root, and its 3rd and 5th found in the scale
+    proc(c, "ac-chordname", [
+        X("0; 0; 0; 0; 0", "v acq3", "v acq4", "v acq6", "v acq7", "v acq8"),
+        Loop("acn", "aci", [
+            V("acqi", "fmod(acscale[int(aci)] - acscale[int(acqd)] + 1200, 12)"),
+            X("acq3 || abs(acqi - 3) < 0.5; acq4 || abs(acqi - 4) < 0.5; acq6 || abs(acqi - 6) < 0.5; "
+              "acq7 || abs(acqi - 7) < 0.5; acq8 || abs(acqi - 8) < 0.5", "v acq3", "v acq4", "v acq6", "v acq7", "v acq8"),
+        ]),
+        V("acqn", f"int(fmod(acqt + acscale[int(acqd)] + 0.5, 12))*{len(CHORD_SUFFIXES)} + "
+                  "if(acqr, 5, if(acq4, if(acq7 == 0 && acq8, 3, 0), if(acq3, if(acq7 == 0 && acq6, 2, 1), 4)))"),
+    ])
     # Notes to chords: while you hold notes, they are the chord (the composer waits)
     proc(c, "ac-change", [If("acrun && (acroute != 1 || acheld == 0)", steps,
                              [If("acrun", [Arm("ac-change", "3000", stop="ac-chgstop")])])])

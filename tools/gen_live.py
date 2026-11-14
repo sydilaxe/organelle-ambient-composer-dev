@@ -8,7 +8,7 @@ NV = 4                                    # live voices
 
 GLOBALS = dict(
     acmcix=-1, acmck=0, acmcb=0, acpgn=0,
-    acnow=0, acext=0, acextt=-1e+06, acforce=-1, acroothold=0, acrootn=0, acsecfz=0, acauxheld=0, acauxused=0, acauxt=0,
+    acnow=0, acext=0, acextt=-1e+06, acforce=-1, acroothold=0, acrr=-1, acrootn=0, acsecfz=0, acauxheld=0, acauxused=0, acauxt=0,
     aclch=0, aclnote=0, aclvel=0, aclage=0, acvi=0, acheld=0, acfocus=-1, acfocust=0, acfkdone=0,
     acbreath=0, acbreatht=-1e+06, acbrmode=0, acbrt=-1e+06, acbrlast=0, acsechold=0, acfollow=0.7,
     acgbr=2, acnbr=48, aclbv=0, aclbs=0,
@@ -272,7 +272,7 @@ def live():
         # a held note for 6 s becomes the key centre (once per note)
         If("acfocus >= 0 && acnow - acfocust > 6000 && acfkdone == 0 && acfollow > 0.3 && ackeyc == 0 && "
            "acfocus != int(actonic) % 12 && acpend < 0", [
-            V("acpend", "acfocus"), V("acfkdone", "1"), Call("ac-keyfromyou")]),
+            V("acpend", "acfocus"), V("acfkdone", "1"), Call("ac-keyfromyou"), Call("ac-chordnext")]),
         # memories: capture what you play now and then, while the piece develops
         If("acrec == 0 && acact > 0.6 && (acpconf > 0.4 || acons > 0.6) && acnow - acmemt > 45000 && "
            "acrole >= 1 && acrole <= 4 && acinput > 0.05", [Call("ac-memrec")]),

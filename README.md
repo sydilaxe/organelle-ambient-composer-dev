@@ -51,7 +51,8 @@ The layers and their rhythms:
 - **The Organelle keys are functions**, one press each, so a hand can leave your instrument for a moment:
   - low C to F#: the knob pages SHAPE, SPACE, PIECE, MIX 1, MIX 2, SENDS 1, SENDS 2;
   - low G: hold for **Root** and press a key, play a MIDI note or turn knob 1;
-  - low G# **Resolve** (the tonic as open fifths, held), A chord change now, A# next section, B hold section;
+  - low G# **Resolve** (the tonic as open fifths, held), A chord change now (hold it to pick another next chord),
+    A# next section, B hold section;
   - top C to G: the layers in or out (aux: back to auto); G# input mode (aux: capture), A **Freeze**,
     A# start / stop (aux: COMPOSE / DRIFT), B new piece (aux: SAVES);
   - aux + a low key opens that SETUP page.
@@ -59,8 +60,9 @@ The layers and their rhythms:
   types, and per layer auto / off / on or coming in or going out at 1/4, 1/2, 3/4 of a section. With Section at
   *now* they edit the section that plays. **SAVES** keeps 16 pieces; a program change can load one (SETUP LIVE),
   and a bank of 16 CCs can drive the layer levels and in/out buttons from a controller.
-- **Two screens:** the play view (a live score with the voices that sound) and the MIX view (levels and sends),
-  which takes over while a MIX or SENDS page is open.
+- **Two screens:** the play view (the chord now and the next one coming, a live score, the voices that sound) and
+  the MIX view (levels and sends, the column you turn framed with its value), which takes over while a MIX or
+  SENDS page is open.
 - **Listening:**
   - A held or sung pitch pulls the next chord to contain it.
   - A note held for 6 s becomes the key centre.

@@ -1,7 +1,7 @@
 """Organelle controls: knobs (two pages, pickup), keys, aux, footswitch, screen lines, LED, toasts."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, run_steps, Line, lookup
 from data import *
-from pdlib import Toast, Later
+from pdlib import Toast, Later, Arm
 from gen_setup import NSET
 import gen_setup as _S
 
@@ -37,6 +37,7 @@ TOP_KEYS = [f"{n} in/out | aux: auto" for _, n, _ in LAYER_KEYS] + [
     "input mode | aux: capture", "Freeze", "start / stop | aux: COMPOSE / DRIFT", "new piece | aux: SAVES"]
 FKEYS = LOW_KEYS + TOP_KEYS
 ROOT_KEY = 60 + LOW_KEYS.index("Root (hold)")
+CHORD_KEY = 60 + LOW_KEYS.index("chord change now")
 
 
 def knobs():
@@ -103,7 +104,9 @@ def keys():
         V("acauxused", "acauxheld || acauxused"),
         If(f"acroothold && ackn != {ROOT_KEY}", [V("acrootn", "int(ackn) % 12"), Call("ac-rootset")],
            [SendL("ac-fkey", ["ackn"])])],
-        [If(f"ackn == {ROOT_KEY}", [V("acroothold", "0")])])])
+        [If(f"ackn == {ROOT_KEY}", [V("acroothold", "0")]),
+         # low A let go: a tap changes to the next chord now; a hold already picked others (ac-reroll)
+         If(f"ackn == {CHORD_KEY}", [Send("ac-rrstop"), If("acrr == 0", [Call("ac-chordnow")]), V("acrr", "-1")])])])
     mo = c.ch(c.recv("ac-fkey"), "- 60", "moses 12")
     lsel = c.to((mo, 0), "sel " + " ".join(str(i) for i in range(12)))
     tsel = c.ch((mo, 1), "- 12", "sel " + " ".join(str(i) for i in range(12)))
@@ -122,9 +125,10 @@ def keys():
     low = [page(p) for p in PAGE_KEYS] + [
         [V("acroothold", "1"), Toast("root: play a note or turn knob 1")],
         [Call("ac-resolvetoggle")],
-        [Call("ac-chordnow")],
+        [V("acrr", "0"), Arm("ac-reroll", "500", stop="ac-rrstop")],
         [V("acsec", "acsec+1"), Call("ac-section"), Toast("next section")],
-        [V("acsecfz", "1 - acsecfz"), If("acsecfz", [Toast("section held")], [Toast("section moves on")])],
+        [V("acsecfz", "1 - acsecfz"), If("acsecfz", [Toast("section held")], [Toast("section moves on")]),
+         Call("ac-oledbottom")],
     ]
     for i, lk in enumerate(LAYER_KEYS):
         proc(c, f"ac-laykey{i}", layer(*lk))
@@ -148,14 +152,16 @@ def keys():
         c.c(tsel, i, b, 0)
         run_steps(c, (b, 0), f)
         c.col(170)
-    proc(c, "ac-rootset", [V("acpend", "acrootn"), Send("ac-keytoast")])
+    proc(c, "ac-rootset", [V("acpend", "acrootn"), Send("ac-keytoast"), Call("ac-chordnext")])
+    # low A held: another next chord now, and again every 0.7 s while it is held
+    proc(c, "ac-reroll", [V("acrr", "1"), Call("ac-chordnext"), Arm("ac-reroll", "700", stop="ac-rrstop")])
     proc(c, "ac-chordnow", [Call("ac-change"), Toast("chord change")])
     proc(c, "ac-resolvetoggle", [V("acres", "1 - acres"), Call("ac-resolveupd")])
     proc(c, "ac-resolveupd", [Call("ac-change"),
                               If("acres", [Toast("resolve - open fifths")], [Toast("resolve released")])])
     proc(c, "ac-freezetoggle", [
         V("acvfreeze", "1-acvfreeze"), V("acfreeze", "acvfreeze"), Call("ac-freezeupd"), Call("ac-revupd"),
-        If("acvfreeze", [Toast("freeze - reverb and cloud")], [Toast("freeze released")])])
+        If("acvfreeze", [Toast("freeze - reverb and cloud")], [Toast("freeze released")]), Call("ac-oledbottom")])
     Line("ac-keytoast", "list next key $1", [("s", "acpend", NOTE_NAMES)], "ac-toast")(c)
     Line("ac-inmodetoast", "list input $1", [("s", "acinmode", INMODES)], "ac-toast")(c)
     # aux: knob page
@@ -192,9 +198,8 @@ def screen():
     Line("ac-scr2", "list $1 $2 $3",
          [("s", "int(actonic) % 12", NOTE_NAMES), ("s", "acsci", [n for n, _ in SCALES]),
           ("s", "acfam", [n for n, _, _ in FAMILIES])], "ac-txt2")(c)
-    # the OLED's top line: key and scale only (the voicing is on the bottom line)
-    Line("ac-scr2", "list $1 $2", [("s", "int(actonic) % 12", NOTE_NAMES), ("s", "acsci", [n for n, _ in SCALES])],
-         "ac-oledtop")(c)
+    # the OLED's line 2: the chord now and the next one (key and scale are on the bottom line)
+    Line("ac-scr2", "list $1 > $2", [("s", "acchn", CHORD_NAMES), ("s", "acnxn", CHORD_NAMES)], "ac-oledtop")(c)
     Line("ac-scr3", "list $1 $2 $3 $4 $5",
          [("s", f"acflav[{k}]", FLAVOURS) for k in range(4)] + [("s", "actex1", TEXTURES)], "ac-txt3")(c)
     for ln in (4, 5):

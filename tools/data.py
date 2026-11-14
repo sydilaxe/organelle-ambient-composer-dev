@@ -49,6 +49,9 @@ RAW_EXPR = "if(acr1<0.25, %d, if(acr1<0.5, %d, if(acr1<0.75, %d, %d)))" % tuple(
 SUBMODES = ["pedal", "bassline", "both"]
 INMODES = ["auto", "reso", "cloud", "tape", "ghost", "bands", "vocode", "morph"]
 NOTE_NAMES = "C Db D Eb E F Gb G Ab A Bb B".split()
+# chord names on the screen: the root and the triad the scale gives it (+ = augmented, 5 = Resolve's open fifths)
+CHORD_SUFFIXES = ["", "m", "dim", "+", "sus", "5"]
+CHORD_NAMES = [r + q for r in NOTE_NAMES for q in CHORD_SUFFIXES]
 
 # chord-root moves in scale degrees (weighted by repetition): 4ths/5ths, steps, 3rds
 MOVES = [3, -3, 1, -1, 2, 4, -2, 5, 3, -3, -4, 1]
