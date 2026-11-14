@@ -148,16 +148,17 @@ def oled():
         Box(52, f"{ypitch('aclvn[int(aci)] + acbendt[int(aclvc[int(aci)])]')} - 2", 6, 5)])])]
     mid += [If("acbreath > 0.02", [Fill(0, "52 - int(acbreath*32)", 2, "max(1, int(acbreath*32))")])]
     proc(c, "ac-oledmid", mid)
-    # the voices playing: two letters each (Dr Sb Pd Bl / Mo Tx At Cl), lit while it sounds, struck through when it's out
-    tags = []
+    # the voices: two letters each (Dr Sb / Pd Bl / Mo Tx / At Cl, the layer keys' order) while it sounds, a dot
+    # while it rests (auto), a dash when it's out
+    tags = [Fill(62, 20, 33, 33, 0)]
     for i, n in enumerate(TAG_LAYERS):
         x, y = 64 + 16 * (i % 2), 21 + 8 * (i // 2)
-        tags += [If(f"acg{n}*acsl{n} > 0.02", [Inv(x - 1, y - 1, 14, 9)]),
-                 If(f"ace{n} == 0", [Fill(x - 1, y + 3, 14, 1)])]
-    proc(c, "ac-oledtags", [If(normal, [Fill(62, 20, 33, 33, 0), Send("ac-oledtagl")] + tags)])
-    tl = c.recv("ac-oledtagl")
+        tags += [If(f"acg{n}*acsl{n} > 0.02", [Send(f"ac-oledtag{i}")],
+                    [If(f"ace{n} == 0", [Fill(x + 1, y + 3, 10, 1)], [Fill(x + 5, y + 3, 2, 2)])])]
+    proc(c, "ac-oledtags", [If(normal, tags)])
     for i, n in enumerate(TAG_LAYERS):
-        c.c(c.m(tl, f"/oled/gPrintln 3 {64 + 16 * (i % 2)} {21 + 8 * (i // 2)} 8 1 {TAG_LETTERS[n]}"), 0, c.obj("s " + OSC), 0)
+        c.c(c.m(c.recv(f"ac-oledtag{i}"), f"/oled/gPrintln 3 {64 + 16 * (i % 2)} {21 + 8 * (i // 2)} 8 1 {TAG_LETTERS[n]}"),
+            0, c.obj("s " + OSC), 0)
     c.col()
     # ---- the rhythm: the Euclidean pattern (redrawn when it changes), a cursor on each step
     cell = lambda j: (f"97 + (int({j}) % 8)*4", f"22 + int(int({j})/8)*5")
@@ -226,7 +227,7 @@ def oled():
     c.c(d, 0, c.obj("s ac-oledform"), 0)
     c.col()
     # ---- the knob page pop-up (6 s after the last knob turn or aux tap)
-    proc(c, "ac-oledknob", [If(mixv, [Send("ac-mixknob")], [Call("ac-oledpop")])])
+    proc(c, "ac-oledknob", [If(mixv, [Send("ac-mixknob"), Call("ac-scr4"), Call("ac-scr5")], [Call("ac-oledpop")])])
     Line("ac-mixknob", "list $1 $2", [("s", "aclastk", [lab for p in PAGES for lab, _, _ in p]),
                                        ("f", f"int(acparams[int(aclastk)]*100)")], "ac-toast")(c)
     proc(c, "ac-oledpop", [If(mixv, [V("acpopt", "0"), Call("ac-oledmix")]), If(normal.replace(" && acpopt == 0", ""), [
@@ -262,7 +263,7 @@ def mixview(c, mixv):
         knob = f"if(acpage >= 5, {mk}, {sk})"
         lv = f"if(acpage >= 5, {live(mk, mn)}, {live(sk, sn)})"
         cols += [T("acdg", str(i), f"acdg[{i}] + ({lv} - acdg[{i}])*0.3"),
-                 Fill(x + 2, f"52 - int(acdg[{i}]*40)", 6, f"max(1, int(acdg[{i}]*40))"),
+                 If(f"acdg[{i}] > 0.02", [Fill(x + 2, f"52 - int(acdg[{i}]*40)", 6, f"int(acdg[{i}]*40)")]),
                  Fill(x, f"52 - int(min(1, {knob})*40)", 10, 1)]
         for n, cond in ((mn, "acpage >= 5"), (sn, "acpage < 5")):
             if n not in (None, "verb"):
