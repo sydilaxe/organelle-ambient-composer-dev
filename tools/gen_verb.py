@@ -123,10 +123,11 @@ def hall():
         g = s.to(v[i], "*~ 0.3")
         s.c(s.to(s.recv(f"ac-rg{i}"), "* 0.353553"), 0, g, 1)
         s.c(g, 0, adds[i], 1)
-    # output level matched to Bloom's on program material (the Hall measured about 9 dB quieter). 1.27: in
-    # 64-sample blocks the modulated lines read about 3 dB hot; in 32s the Hall measures as it does at full rate
-    L = s.obj("*~ 1.27")
-    R = s.obj("*~ 1.27")
+    # output level matched to Bloom's on program material, averaged over several pieces (0.64; 1.27 matched one
+    # piece only, and most others came out about 7 dB hotter than Bloom). In 64-sample blocks the modulated lines
+    # read about 3 dB hot; in 32s the Hall measures as it does at full rate
+    L = s.obj("*~ 0.64")
+    R = s.obj("*~ 0.64")
     for i, dm in enumerate(damps):
         s.c(dm, 0, L if i % 2 == 0 else R, 0)
     # shimmer: its own subpatch, computed only while Shimmer is chosen (ac-shim > 0)

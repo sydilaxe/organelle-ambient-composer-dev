@@ -8,7 +8,7 @@ NV = 4                                    # live voices
 
 GLOBALS = dict(
     acmcix=-1, acmck=0, acmcb=0, acpgn=0,
-    acnow=0, acforce=-1, acroothold=0, acrr=-1, acrootn=0, acsecfz=0, acauxheld=0, acauxused=0, acauxt=0,
+    acnow=0, acforce=-1, acroothold=0, acrr=-1, acanx=0, acjx=0, acbdown=0, acbused=0, acbcmp=0, acanp=0, acanheld=0, acrootn=0, acsecfz=0, acauxheld=0, acauxused=0, acauxt=0,
     aclch=0, aclnote=0, aclvel=0, aclage=0, acvi=0, acheld=0, acfocus=-1, acfocust=0, acfkdone=0,
     acbreath=0, acbreatht=-1e+06, acbrmode=0, acbrt=-1e+06, acbrlast=0, acsechold=0, acfollow=0.7,
     acgbr=2, acnbr=48, aclbv=0, aclbs=0,
@@ -138,6 +138,11 @@ def cc_map():
                                                              Toast("next section")]), V("acnsx", "acctlv >= 0.5")]),
         If("actg == 15", [If("acctlv >= 0.5 && acchx == 0", [Call("ac-chordnow")]), V("acchx", "acctlv >= 0.5")]),
         If("actg == 16", [V("acglide", "int(acctlv*5.99)")]),
+        # anchor and journey step: on a press (64 and up); compare: while held; macros: their value
+        If("actg == 17", [If("acctlv >= 0.5 && acanx == 0", [Call("ac-anchortap")]), V("acanx", "acctlv >= 0.5")]),
+        If("actg == 18", [If("(acctlv >= 0.5) != accmp", [If("acctlv >= 0.5", [Call("ac-cmpon")], [Call("ac-cmpoff")])])]),
+    ] + [If(f"actg == {19 + m}", [V("acmcn", str(m)), V("acmcin", "acctlv"), Call("ac-macro")]) for m in range(4)] + [
+        If("actg == 23", [If("acctlv >= 0.5 && acjx == 0", [Call("ac-jstepall")]), V("acjx", "acctlv >= 0.5")]),
     ] + [If(f"actg == {t}", [T("acparams", knobs.index(n), "acctlv"), SendL("ac-param", [str(knobs.index(n)), "acctlv"])])
          for t, n in _S.TARGET_KNOB.items()])
     # a new note takes its channel's tone and level
@@ -154,7 +159,7 @@ def live():
     c.c(c.to(c.recv("ac-init"), "delay 60"), 0, met, 0)
     c.c(met, 0, c.obj("s ac-now"), 0)
     c.col()
-    proc(c, "ac-now", [V("acnow", "acnow + 100"), If("acrun", [V("acel", "acel + 100/actime"),
+    proc(c, "ac-now", [V("acnow", "acnow + 100"), Call("ac-ptick"), If("acrun", [V("acel", "acel + 100/actime"),
                                                                V("acsecel", "acsecel + 100")]), If("int(acnow) % 500 == 0", [Call("ac-listen")]), Call("ac-ana"),
                             # a custom section's layers coming in or going out at 1/4, 1/2, 3/4 of it
                             If("acrun && acsecc", [V("acsecqn", "min(3, int(4*acsecel/max(1, acsecdur*actime)))"),

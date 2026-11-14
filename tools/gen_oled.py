@@ -16,9 +16,9 @@ from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps,
 from data import ROLES, PAGE_NAMES, PAGES, NOTE_NAMES, SCALES
 
 OSC = "oscOut"
-GLOBALS = dict(acpopt=0, actoastt=0, acfr=0, acel=0, acsecel=0, acox=0, acoxs=0, acmcur=-1, acrvlvl=0, acsetup=0, acsetpg=0, acinv=0, acinlast=-1e+06, acinon=0, acinhi=0, aclastk=0, acmixc=-1)
+GLOBALS = dict(acpopt=0, actoastt=0, acfr=0, acel=0, acsecel=0, acox=0, acoxs=0, acmcur=-1, acrvlvl=0, acsetup=0, acsetpg=0, acinv=0, acinlast=-1e+06, acinon=0, acinhi=0, aclastk=0, acmixc=-1, acfx=0)
 ARRAYS = dict(acdisp=4, acdg=8, acinh=32, acino=32)
-MIX_FROM = 3       # the knob pages from here on (SENDS, MIX) show the MIX view
+MIXV = "(acpage >= 3 && acpage <= 6)"     # the knob pages that show the MIX view: SENDS, MIX
 # the play view's voice tags (2 x 4) and the MIX view's columns: (letter, knob, layer); the reverb last
 TAG_LAYERS = ["drone", "sub", "pad", "bell", "motion", "tex", "atm", "cloud"]
 TAG_LETTERS = dict(drone="Dr", sub="Sb", pad="Pd", bell="Bl", motion="Mo", tex="Tx", atm="At", cloud="Cl", verb="Rv")
@@ -77,14 +77,17 @@ def oled():
     c.c(lb, 0, met, 0)
     c.c(met, 0, c.obj("s ac-frame"), 0)
     c.col()
-    normal = f"acsetup == 0 && acpopt == 0 && acpage < {MIX_FROM}"
-    mixv = f"acsetup == 0 && acpage >= {MIX_FROM}"
+    normal = f"acsetup == 0 && acpopt == 0 && {MIXV} == 0"
+    mixv = f"acsetup == 0 && {MIXV}"
     proc(c, "ac-frame", [
         V("acfr", "acfr + 1"),
         If("acpopt > 0 && acnow >= acpopt", [V("acpopt", "0"), Call("ac-oledall")]),
         If("actoastt > 0 && acnow >= actoastt", [V("actoastt", "0"), Call("ac-scr2"), Call("ac-oledtime"),
                                                   If(mixv, [Call("ac-oledmixhead")])]),
         If(mixv, [If("int(acfr) % 2 == 0", [Call("ac-oledmixbars")])]),
+        # a morph (a load, ANCHOR): a line along the foot, as far as it has come
+        If(normal + " && (acmph || acmtt < 1.1)", [Fill(0, 63, 128, 1, 0), If("acmph", [Fill(0, 63, "max(1, int(128*acmtt))", 1)]),
+                                                 V("acmtt", "if(acmph, acmtt, 2)")]),
         If(normal, [
             Call("ac-oledmid"),
             If("int(acfr) % 2 == 0", [Call("ac-oledinput")]),
@@ -119,12 +122,14 @@ def oled():
     # ---- line 2: key / scale / voicing (ac-txt2), and the time; toasts take the line for 2.5 s
     gated_text(c, "ac-oledtop", normal + " && actoastt == 0", 0, 9, clear=(0, 9, 128, 10))
     proc(c, "ac-toast", [V("actoastt", "acnow + 2500")])
-    gated_text(c, "ac-toast", f"acsetup == 0 && acpage < {MIX_FROM}", 0, 9, clear=(0, 9, 128, 10))
+    gated_text(c, "ac-toast", f"acsetup == 0 && {MIXV} == 0", 0, 9, clear=(0, 9, 128, 10))
     gated_text(c, "ac-toast", mixv, 0, 0, clear=(0, 0, 128, 9))
     c.col()
     # under the chords: a bar that shrinks to the next chord change
     proc(c, "ac-oledtime", [If(normal, [
         Fill(0, 19, 128, 1, 0),
+        # the dot: the piece differs from the slot it came from (or was saved to)
+        Fill(124, 11, 3, 3, "acchanged && acslotcur >= 0"),
         If("acrun", [Fill(0, 19, "max(1, int(128*min(1, max(0, 1 - (acnow - acchgt)/max(1, acchsec*1000*actime)))))", 1)]),
     ])])
     c.col()
@@ -207,12 +212,17 @@ def oled():
     Line("ac-oledbot", "list $1 $2", [("s", "int(actonic) % 12", NOTE_NAMES), ("s", "acsci", [n for n, _ in SCALES])],
          "ac-oledbot2")(c)
     text_at(c, "ac-oledbot2", 0, 54)
-    run_steps(c, (c.recv("ac-oledbot"), 0), [If("acsecfz || acvfreeze", [
-        If("acsecfz", [Send("ac-oledhold")]), If("acvfreeze", [Send("ac-oledfrz")])], [Send("ac-oledrole")])])
+    # (what is latched packs from the left of the right half: HLD held section, FRZ Freeze, ANC an anchor set,
+    #  LTE the CPU guard lightening the sound; at most three)
+    flags = [("acsecfz", "HLD"), ("acvfreeze", "FRZ"), ("acancs", "ANC"), ("acshed > 0", "LTE")]
+    fl = [V("acfx", "68")]
+    for cond, word in flags:
+        fl += [If(f"({cond}) && acfx < 120", [SendL(OSC, ["acfx"], f"/oled/gPrintln 3 $1 54 8 1 {word}"),
+                                             V("acfx", "acfx + 20")])]
+    run_steps(c, (c.recv("ac-oledbot"), 0), [If(" || ".join(f"({cond})" for cond, _ in flags), fl,
+                                                [Send("ac-oledrole")])])
     Line("ac-oledrole", "list $1", [("s", "acrole", ROLES)], "ac-oledrole2")(c)
     text_at(c, "ac-oledrole2", 72, 54)
-    c.c(c.m(c.recv("ac-oledhold"), "/oled/gPrintln 3 74 54 8 1 HOLD"), 0, c.obj("s " + OSC), 0)
-    c.c(c.m(c.recv("ac-oledfrz"), "/oled/gPrintln 3 106 54 8 1 FRZ"), 0, c.obj("s " + OSC), 0)
     c.c(c.m(c.recv("ac-oledfin"), "/oled/gPrintln 3 0 54 8 1 FIN - B: new piece"), 0, c.obj("s " + OSC), 0)
     c.c(c.m(c.recv("ac-oledstop"), "/oled/gPrintln 3 0 54 8 1 STOPPED - A#: start"), 0, c.obj("s " + OSC), 0)
     c.c(c.m(c.recv("ac-oledready"), "/oled/gPrintln 3 0 54 8 1 READY - A#: start"), 0, c.obj("s " + OSC), 0)

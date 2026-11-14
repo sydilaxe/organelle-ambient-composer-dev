@@ -70,6 +70,9 @@ KNOBS (low C..F# open the pages, aux cycles them; knobs pick up smoothly)
   MIX 1  levels: 1 Drone  2 Sub  3 Pads  4 Bells
   MIX 2  levels: 1 Motion  2 Textures  3 Cloud  4 Atmosphere
   Each level runs from silent to +6 dB; 50 % is the designed balance.
+  PERFORM  1 Sink (everything under a low-pass)  2 Blur (into the reverb)
+           3 Swell (fuller, brighter)  4 Harm (0 = pleasing harmony only;
+           up = other relationships drift in)
 
 PLAYING IT
   Amble starts READY and silent: choose COMPOSE or DRIFT (aux + top A#),
@@ -89,7 +92,7 @@ THE COMPOSER LISTENS
 THE ORGANELLE KEYS (functions; aux + a low key = that SETUP page, C = 1)
   Low octave
   C   SHAPE page   C#  SPACE page   D  PIECE page
-  D#  MIX 1 page   E   MIX 2 page   F  SENDS 1 page   F#  SENDS 2 page
+  D#  MIX 1 page   E   MIX 2 page   F  SENDS (again: SENDS 2)   F#  PERFORM
   G   ROOT: hold it and press a key, play a MIDI note or turn knob 1 -
       that note is the next key (while G is up, MIDI notes play)
   G#  RESOLVE: the tonic as open fifths, held - no modulation, no
@@ -104,12 +107,16 @@ THE ORGANELLE KEYS (functions; aux + a low key = that SETUP page, C = 1)
         cloud - tap: in (if silent) / out (if playing); aux + tap: auto
   G#  input mode: auto / reso / cloud / tape / ghost / bands / vocode /
       morph; aux: capture 8 s of input (cloud + a memory)
-  A   FREEZE: the reverb tail and the cloud hold still; again to release
+  A   FREEZE: the reverb tail and the cloud hold still; again to release.
+      Aux + A: ANCHOR - first sets it, then glides everything back to it
+      (held: anchors here anew)
   A#  START / STOP: stop fades out (8 s) and freezes the piece where it is
       (section, chord, time left); start goes on. After FIN it starts a
       new piece. MIDI Start / Stop do the same when Sync = follow clock.
       Aux: COMPOSE / DRIFT
-  B   new piece; aux: the SAVES page
+  B   tap: new piece; hold: COMPARE (the slot as saved); hold + a key: load
+      that slot (low C..B = 1-12, top C..D# = 13-16), with aux: save there;
+      aux + tap: the SAVES page. Empty slots 1-6: factory pieces
   Aux alone: next knob page.  Footswitch: chord change now
 
 AUDIO INPUT (In knob = amount, always 0 when Amble loads; samples, guitar,
@@ -154,7 +161,7 @@ THE MIX VIEW (while a MIX or SENDS page is open)
   (the four the knobs turn underlined); a dot on top = on (a layer key), a
   dash at the foot = out; the column a knob turns is framed with its value
 
-SETUP (hold aux 1 s, or aux + a low key; aux tap = next page (14); hold aux
+SETUP (hold aux 1 s, or aux + a low key; aux tap = next page (21); hold aux
 1 s to leave, save)
   1 MIDI out   off / tempo only / tempo+notes / notes only
      tempo: MIDI clock, 24 a beat at the piece's tempo, Start/Stop with it
@@ -243,6 +250,19 @@ SETUP (hold aux 1 s, or aux + a low key; aux tap = next page (14); hold aux
     Prog change  off / loads a slot (program 1-16)
     Key fade   0.5-20 s: a layer key bringing a layer in or out
     Entry fade 2-40 s: a section's layer coming in or going out
+  page 15, RECALL: Morph (cut .. 2 min: how a load glides in), Recall
+  (piece / sound only), Anchor glide (2-30 s), Compare (yours / saved)
+  page 16, GROOVE: Pump (off / 4 bars .. beat), Pump depth, Duck (the
+  piece dips while you play), Duck release
+  pages 17-18, MACRO A / B: four macros (CC targets macro 1-4), each
+  moving two knobs with a depth (-100..+100 %), offset or latch
+  page 19, JOURNEY: Speed, Pads (off / soft / bright / all), Drone,
+  Bells (off / bells / motion / both) - they travel through their
+  engines, slowly crossfaded
+  page 20, REVERB: Pre-delay (0-200 ms), Era (70s / 80s / 90s / now)
+  page 21, CC OUT: 16 CCs of what moves inside (layer levels, energy,
+  density, brightness, the way to the next chord ...), Channel, From CC,
+  Rate
 
 CPU GUARD: Amble measures its own load each second. Above 78 % it gets
 lighter in steps ("CPU high - lighter"): 1 cloud and atmosphere off,

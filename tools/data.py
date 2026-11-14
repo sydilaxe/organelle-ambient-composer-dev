@@ -33,15 +33,28 @@ FAMILIES = [
     ("spectral", 1, [0, 19.02, 27.86, 33.69]),  # partials 1, 3, 5, 7 of the root
     ("mirror",   0, [-3, 0, 3, 6]),       # 4ths around the root
     ("sus",      0, [0, 3, 4, 8]),        # root, 4th, 5th, 9th
+    # after Frasil's chords in the scale (in scale steps) and its voicings: plain tertian shapes, warm and open
+    ("triad",    0, [0, 2, 4, 7]),        # close triad and the root's octave
+    ("open",     0, [0, 4, 9, 11]),       # root, 5th, 10th, 12th: the second note an octave up
+    ("wide",     0, [-7, 0, 2, 4]),       # the root an octave under a close triad
+    ("seventh",  0, [0, 2, 4, 6]),        # the scale's own seventh chord
+    ("add9",     0, [0, 4, 8, 9]),        # root, 5th, 9th, 10th
+    ("sus2",     0, [0, 1, 4, 7]),        # root, 2nd, 5th, octave
 ]
+# Harm (PERFORM page) at 0: the pleasing palette only - these voicings, diatonic and pentatonic scales, roots by
+# 4ths / 5ths and 3rds (shared tones), keys moving by 5ths; turned up, more and more from the whole palette
+PLEASING_FAMS = ["spread", "fifths", "sus", "triad", "open", "wide", "seventh", "add9", "sus2"]
+PLEASING_SCALES = ["lydian", "dorian", "aeolian", "mixolyd", "ionian", "majpent", "minpent"]
+MOVES_P = [3, -3, 4, -4, 3, -4, 2, -2, 2, -2, 5, -1]
+MODS_P = [7, -7, 5, -5, 7, -5, 7, -7, 5, -5, 7, -7]
 
-FLAVOURS = ["fm", "vox", "bow", "part", "fold", "pulsr", "saws", "pwm", "digi", "sync", "tine", "sine", "glass"]          # pad synthesis types
+FLAVOURS = ["fm", "vox", "bow", "part", "fold", "pulsr", "saws", "pwm", "digi", "sync", "tine", "sine", "glass", "beat"]          # pad synthesis types
 # texture output gains (calibrated so each texture sits near the others, see tools/ci_check.py)
 TEXG = dict(RAIN_PAT=1.4, RAIN_PLOP=30.0, RAIN_G=1.0, MURMUR_G=1.5, MURMUR_X=0.3, ECHO_G=1.1, WHISPER_G=0.26,
             LEAVES_G=0.2, BROOK_G=0.5)
 TEXTURES = ["rain", "wind", "ember", "chirp", "radio", "data", "buzz", "murmur", "echoes", "whisper",
             "leaves", "brook"]
-DRONES = ["pure", "analog", "organ", "fm"]
+DRONES = ["pure", "analog", "organ", "fm", "frost"]
 CHARACTERS = ["clean", "chorus", "tape", "ring", "crush"]
 # SETUP SOUNDS "raw": the pad types of the first demos (vox, partials, fold, pulsar), with no character effect
 RAW_FLAVOURS = [FLAVOURS.index(n) for n in ("vox", "part", "fold", "pulsr")]
@@ -83,8 +96,13 @@ PAGES = [
     # layer levels, off .. +6 dB (50 % = the designed balance)
     [("Drone", "acmxd", 0.5), ("Sub", "acmxs", 0.5), ("Pads", "acmxp", 0.5), ("Bells", "acmxb", 0.5)],
     [("Motn", "acmxm", 0.5), ("Tex", "acmxt", 0.5), ("Cloud", "acmxc", 0.5), ("Atmo", "acmxa", 0.5)],
+    # PERFORM: the whole sound at once - Sink (a low-pass over everything), Blur (into the reverb), Swell (fuller,
+    # brighter, a little louder), Harm (0 = the pleasing harmony only; up = more adventurous relationships)
+    [("Sink", "acsink", 0.0), ("Blur", "acblur", 0.0), ("Swell", "acswell", 0.0), ("Harm", "acharmx", 0.0)],
 ]
-PAGE_NAMES = ["SHAPE", "SPACE", "PIECE", "SENDS 1", "SENDS 2", "MIX 1", "MIX 2"]
+PAGE_NAMES = ["SHAPE", "SPACE", "PIECE", "SENDS 1", "SENDS 2", "MIX 1", "MIX 2", "PERFORM"]
+MIX_KNOBS = 28       # knobs up to the end of the MIX pages (the PERFORM page is saved after the newer SETUP values)
+NK = 32              # all the knobs (acparams)
 SEND_KNOBS = 20      # knobs up to the end of the SENDS pages (the MIX pages are saved at the end of settings.txt)
 # the send groups: knob value name -> the reverb send bus its sources throw to (pads are sent from the master)
 #   (the notes you play use the pad synthesis types and share the Pads send)

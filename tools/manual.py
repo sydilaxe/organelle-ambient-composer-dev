@@ -58,12 +58,33 @@ KNOBS = {   # value name -> (range, what it does)
     "acsndi": ("off-full", "Reverb send of the audio input: its dry signal and the input modes (resonators, "
                            "bands, tape, vocoder, memories)."),
 }
+KNOBS.update({
+    "acsink": ("0-100 %", "SINK: takes the whole sound under a gently resonant low-pass, from 12 kHz down to 120 Hz."),
+    "acblur": ("0-100 %", "BLUR: dissolves the piece into the reverb - wetter (toward 95 %) and a longer tail - the reverb "
+                          "knobs left where they are."),
+    "acswell": ("0-100 %", "SWELL: fuller (more layers), brighter and a little louder, held where you leave it."),
+    "acharmx": ("0-100 %", "Harm: 0 = the pleasing harmony only (diatonic and pentatonic scales, triads, sevenths, "
+                           "add9, sus and open voicings, roots by 4ths, 5ths and 3rds, keys by 5ths). Turned up, more "
+                           "and more of the whole palette: modes like phrygian, whole-tone, just and gamelan scales, "
+                           "quartal, cluster and spectral voicings, wider root moves, key changes - for the next "
+                           "choices (a chord's voicing now and then, a section's, a piece's scale)."),
+})
 for _n, _lab in (("acmxd", "drone"), ("acmxs", "sub"), ("acmxp", "pads"), ("acmxb", "bells"), ("acmxm", "motion"),
                  ("acmxt", "textures"), ("acmxc", "cloud"), ("acmxa", "atmosphere")):
     KNOBS[_n] = ("off-+6 dB", f"Level of the {_lab}. 0 = silent, 50 % = the designed balance, 100 % = twice.")
 
 FKEY_DESC = {
     "SHAPE page": "Knobs: Dens, Tide, Colr, In.",
+    "SENDS page (again: 1 / 2)": "Knobs: the reverb sends - SENDS 1 (drone, pads, bells, motion); pressed again, "
+                                 "SENDS 2 (textures, cloud, atmosphere, input). The screen shows the MIX view.",
+    "PERFORM page": "Knobs: Sink, Blur, Swell, Harm - the whole sound at once.",
+    "Freeze | aux: ANCHOR": "Freeze: the reverb tail and the cloud hold still; again to release. Aux + A: ANCHOR - the "
+                            "first time it keeps the sound as it is now (ANC shows); then each aux + A glides every "
+                            "knob and the layer keys back there over Anchor glide (SETUP RECALL), while the piece plays "
+                            "on. Aux + A held 0.8 s anchors here anew. A knob you turn during the glide leaves it.",
+    "new piece | hold: COMPARE | + key: load | aux: SAVES": "A tap (on its release): a new piece. Held 0.6 s: COMPARE - "
+        "the slot as loaded or saved, while you hold it. Held, then a key: that slot loads (low C-B = slots 1-12, top "
+        "C-D# = 13-16); with aux held too, the piece is saved to that slot. Aux + a tap: the SAVES page.",
     "SPACE page": "Knobs: reverb Mix, Verb, Time, Tone.",
     "PIECE page": "Knobs: Len, Weird, Mot, Rhy.",
     "MIX 1 page": "Knobs: the levels of drone, sub, pads, bells. The screen shows the MIX view.",
@@ -125,11 +146,15 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
     "Pads": ("auto, raw, " + ", ".join(DT.FLAVOURS), "The pad types. auto: the piece's palette, new picks each "
              "section. raw: the dry, buzzy types of the first demos (vox, part, fold, pulsr), no character effect. "
              "A type name: all four pad voices (and the notes you play) use it. Applies at once, crossfaded. "
-             "On SECTIONS (page 11): the pad type of that section only (auto = the SOUNDS choice)."),
-    "Drone": ("auto, " + ", ".join(DT.DRONES), "The drone's design; auto = the piece's (and its break's)."),
+             "On SECTIONS (page 11): the pad type of that section only (auto = the SOUNDS choice). On JOURNEY (page "
+             "19): off, or the set of types the pad voices travel through - soft, bright or all - each voice on its "
+             "own schedule."),
+    "Drone": ("auto, " + ", ".join(DT.DRONES) + " / off, on", "SOUNDS: the drone's design; auto = the piece's (and its "
+              "break's). JOURNEY: on, the drone travels through its designs, crossfaded."),
     "Texture": ("auto, " + ", ".join(DT.TEXTURES), "The texture layer; auto = the section's two."),
     "Character": ("auto, " + ", ".join(DT.CHARACTERS), "The effect on the pads; auto = the piece's."),
-    "Bells": ("auto, " + ", ".join(DT.STRIKES), "The engine that plays the bells (the motif, and your notes when "
+    "Bells": ("auto, " + ", ".join(DT.STRIKES) + " / off, bells, motion, both", "JOURNEY (page 19): the bells' and the "
+              "motion's engines travel. VOICES: the engine that plays the bells (the motif, and your notes when "
               "Notes to = bells); auto = the piece's (mostly bars or metal). Applies at once, crossfaded."),
     "Motion": ("auto, " + ", ".join(DT.STRIKES), "The engine of the motion arpeggio, through its tempo echoes; "
                "auto = the piece's (mostly fm or blip). Applies at once, crossfaded."),
@@ -157,6 +182,39 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
     "Last CC": ("shown only", "The last CC that arrived and its value (0-127), to find what your controller sends."),
     "Vib rate": ("3-8 Hz", "The speed of the live voices' vibrato (its depth comes from a CC mapped to vibrato)."),
     "Breath in": ("shown only", "The breath level arriving now (after the Breath curve)."),
+    "Morph": (", ".join(n for n, _ in S.SMORPH), "How a load comes in while a piece plays: the knobs glide there over "
+              "this time (cut: at once); the choices (sounds, layers, reverb type) switch at the start. A knob you "
+              "turn during the glide leaves it. A line along the screen's foot shows how far it has come."),
+    "Recall": (", ".join(S.SRECALL), "What a load brings: the piece (its seed, music, form and sections, and its sound), "
+               "or the sound only - knobs, sounds, voices, layers, PERFORM - while the piece playing goes on."),
+    "Anchor glide": (", ".join(n for n, _ in S.SANCG), "How long ANCHOR (aux + top A) takes to glide back."),
+    "Compare": ("yours, saved", "Up: the slot as loaded or saved; down: yours again (as holding top B)."),
+    "Pump": (", ".join(S.SPUMP), "PUMP: the bed (drone, sub, pads) drops on each period and comes back over 70 % of "
+             "it - a sidechain breath on the grid."),
+    "Pump depth": ("0-100 %", "How far the bed drops."),
+    "Duck": ("0-100 %", "DUCK: while you play (notes held, breath), the piece dips by this much - your notes don't."),
+    "Duck release": (", ".join(n for n, _ in S.SDUCKR), "How long the piece takes to come back after you stop."),
+    "Macro": ("1-4", "The macro the rows below set (both MACRO pages). A macro is a CC target (macro 1-4) that moves "
+              "two knobs at once."),
+    "Mode": ("COMPOSE, DRIFT / offset, latch", "SETUP page 1: the mode of the next piece (also aux + top A#). MACRO A: "
+             "offset - the knobs move away from where they are set while the macro is up, and come back as it comes "
+             "down; latch - the macro drags the knobs' values, which stay where they are left."),
+    "A": ("off, a knob", "The macro's first knob (any knob but In and the reverb type)."),
+    "B": ("off, a knob", "The macro's second knob."),
+    "A depth": ("-100 % to +100 %", "How far and which way the macro moves its first knob."),
+    "B depth": ("-100 % to +100 %", "How far and which way the macro moves its second knob."),
+    "Value": ("0-100 %", "The macro's value now - turn it here to try the macro without a controller."),
+    "Speed": (", ".join(n for n, _ in S.SJOUR), "JOURNEY: the time from one engine to the next (held: only a CC's "
+              "journey step moves on). Each step crossfades over 60 % of it."),
+    "Pre-delay": (", ".join(str(x) for x in S.SPRE) + " ms", "A pre-delay before every reverb."),
+    "Era": (", ".join(S.SERA), "The reverb's converters: 70s narrow band and 8 bits, 80s 12 bits, 90s 16 bits, now "
+            "full band."),
+    "CC out": ("off, on", "CC OUT: what moves inside goes out as 16 CCs from From CC, on change: the 8 layers' levels "
+               "(drone, sub, pads, bells, motion, textures, atmosphere, cloud), energy, density, brightness, the way "
+               "to the next chord, the way through the section, the reverb, the pads' pitch, you (breath, notes)."),
+    "Channel": ("1-16", "CC OUT's MIDI channel."),
+    "From CC": (", ".join(str(x) for x in S.SCCBASE), "The first of the 16 CCs."),
+    "Rate": (", ".join(n for n, _ in S.SCCRATE), "How often CC OUT looks for changes."),
     "Sub": (", ".join(S.SSUBS), "The sub: auto = the piece's choice; or the pedal under the tonic, the chord root "
             "as a bass line, or both."),
     "Form": (", ".join(S.SFORMS), "The shape of the next piece (or now, while a piece waits ready). custom = your "
@@ -212,6 +270,8 @@ FLAV_DESC = {
     "sine": "a harmonic sine pad: the fundamental and five harmonics, brightness tilting the upper ones in",
     "glass": "glassy wavetables: a soft body and sparse high harmonics, brightness and a slow drift morphing "
              "between them",
+    "beat": "five partials, a touch stretched toward a bell, each pulsing at its own pace, a formant wandering "
+            "across them (after Frasil's PARTIALS)",
 }
 TEX_DESC = {"rain": "rain: a soft hiss, a dense patter of tiny drops and a few heavier plops",
             "wind": "filtered air", "ember": "crackling embers", "chirp": "bird-like chirps",
@@ -231,7 +291,9 @@ STRIKE_DESC = {"bars": "struck bars, 3 partials tuned per piece (the bells' own)
                "metal": "a metallophone: vibraphone modes, a beating twin, the motor's tremolo"}
 DRONE_DESC = {"pure": "tonic, a beating twin, an interval and breath tubes",
               "analog": "saws and a square through a slow resonant sweep",
-              "organ": "drawbars with a rotary shimmer", "fm": "an electric growl"}
+              "organ": "drawbars with a rotary shimmer", "fm": "an electric growl",
+              "frost": "three drifting detuned saws through a note-tracking resonant low-pass, over noise through "
+                       "three glassy resonators on the note (after Frasil's CHOIR and BREATH)"}
 CHAR_DESC = {"clean": "no effect", "chorus": "a wide chorus", "tape": "wow, flutter, saturation and a little hiss",
              "ring": "ring modulation on the chord", "crush": "bit and sample-rate crush"}
 ATMOS_DESC = {"haze": "air shimmering on the chord", "deep": "low rumble with distant thunder",
@@ -367,8 +429,10 @@ def story():
                            "what Amble hears - pitch, pluck, textr), a dot while a memory records."],
                  ["Voices", "One row in the layer keys' order (Dr Sb Pd Bl Mo Tx At Cl): two letters while the voice "
                             "sounds, a dot while it rests, a dash when it is out."],
-                 ["Bottom", "Key and scale, then the section's role - or HOLD / FRZ while a section is held or Freeze "
-                            "is on; READY or STOPPED (A# starts), FIN at the end."]], [1.0, 5.7]),
+                 ["Bottom", "Key and scale, then the section's role - or what is latched: HLD (a held section), FRZ "
+                            "(Freeze), ANC (an anchor set), LTE (the CPU guard lightening the sound); READY or STOPPED "
+                            "(A# starts), FIN at the end. A line along the very foot shows a morph or an anchor's "
+                            "glide; a dot right of the chord line, that the sound differs from its slot."]], [1.0, 5.7]),
           Spacer(1, 6),
           table([["MIX view", "What it shows"],
                  ["Header", "The page, the section and its role; a knob's name and value while you turn it."],
@@ -413,6 +477,27 @@ def story():
                  ["Aux held 1 s", "Enter SETUP; hold again to leave and save."],
                  ["Footswitch", "Chord change now."]], [1.4, 5.3])]
 
+    s += [Paragraph("Performing", H2),
+          para("<b>PERFORM</b> (low F#) puts the whole sound on the knobs: <b>Sink</b> takes everything under a low-pass, "
+               "<b>Blur</b> dissolves it into the reverb, <b>Swell</b> makes it fuller and brighter, and <b>Harm</b> sets "
+               "how adventurous the harmony may be: at 0 it stays in the pleasing palette (diatonic and pentatonic scales, "
+               "triads, sevenths, add9, sus and open voicings, roots by fourths, fifths and thirds); turned up, other "
+               "relationships drift in. A macro or CC on Harm moves a piece out and back."),
+          para("<b>ANCHOR</b> (aux + top A): the first time, the sound as it is now is kept (ANC on the screen). Change "
+               "anything; aux + A again glides every knob and the layer keys back there while the piece plays on. Held, "
+               "it anchors here anew."),
+          para("<b>Quick save and recall</b>: hold top B and press a key - low C to B are slots 1-12, top C to D# slots "
+               "13-16 - and that slot loads; with aux held too it is saved there. Hold top B alone: <b>COMPARE</b>, the "
+               "slot as saved, until you let go. A loaded piece comes in over SETUP RECALL Morph (its knobs glide, its "
+               "choices switch at once), as a whole piece or as its sound only. A dot at the right of the chord line "
+               "shows that the sound has changed since the slot. Empty slots 1-6 hold factory pieces: "
+               + esc(", ".join(n for n, _, _ in S.FACTORY)) + "."),
+          para("<b>JOURNEY</b> (SETUP 19) lets the pad voices, the drone and the bells' and motion's engines travel "
+               "through their engines, slowly crossfaded; a CC (journey step) moves them on by hand. <b>PUMP</b> and "
+               "<b>DUCK</b> (SETUP 16) make the bed breathe on the grid and the piece dip under your playing. Four "
+               "<b>macros</b> (SETUP 17-18, CC targets macro 1-4) each move two knobs, offset or latched. <b>CC OUT</b> "
+               "(SETUP 21) sends what moves inside to your other instruments.")]
+
     items = setup_items()
     srows = [["Page", "Row", "Item", "Choices", "What it does"]]
     for pg, row, label in sorted(items):
@@ -430,7 +515,11 @@ def story():
                  [shot("setup_page9", 3.1, "SETUP page 9: VOICES"), shot("setup_page10", 3.1, "SETUP page 10: FORM")],
                  [shot("setup_page11", 3.1, "SETUP page 11: SECTIONS"),
                   shot("setup_page12", 3.1, "SETUP page 12: SECTION MIX")],
-                 [shot("setup_page13", 3.1, "SETUP page 13: SAVES"), shot("setup_page14", 3.1, "SETUP page 14: LIVE")]],
+                 [shot("setup_page13", 3.1, "SETUP page 13: SAVES"), shot("setup_page14", 3.1, "SETUP page 14: LIVE")],
+                 [shot("setup_page15", 3.1, "SETUP page 15: RECALL"), shot("setup_page16", 3.1, "SETUP page 16: GROOVE")],
+                 [shot("setup_page17", 3.1, "SETUP page 17: MACRO A"), shot("setup_page18", 3.1, "SETUP page 18: MACRO B")],
+                 [shot("setup_page19", 3.1, "SETUP page 19: JOURNEY"), shot("setup_page20", 3.1, "SETUP page 20: REVERB")],
+                 [shot("setup_page21", 3.1, "SETUP page 21: CC OUT"), ""]],
                 colWidths=[3.35 * inch, 3.35 * inch])]
 
     s += [PageBreak(), Paragraph("6  How a piece is composed", H1),
@@ -573,7 +662,9 @@ def story():
                                                        "was."]], [2.0, 4.7]),
           Spacer(1, 10),
           Paragraph(f"Amble {esc(VERSION)} is GPL-3. The Bloom reverb follows Conduit's bloom.c, after "
-                    "thement's midiverb_emulator analysis of the Alesis MidiVerb II.", NOTE)]
+                    "thement's midiverb_emulator analysis of the Alesis MidiVerb II. ANCHOR, MORPH, COMPARE, SINK, BLUR, "
+                    "SWELL, PUMP, the pleasing chord shapes and the Frost and Beat engines take their ideas from Styves "
+                    "Goupil's FRASIL (MPL-2.0); the macros and ducking from TrimFX. No code of theirs is used.", NOTE)]
     return s
 
 

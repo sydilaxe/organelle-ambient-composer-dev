@@ -49,17 +49,21 @@ The layers and their rhythms:
   press top A# to start. Stop fades out over 8 s and freezes the piece where it is; Start goes on from there.
   An incoming MIDI Start / Stop does the same when Sync is set to follow clock.
 - **The Organelle keys are functions**, one press each, so a hand can leave your instrument for a moment:
-  - low C to F#: the knob pages SHAPE, SPACE, PIECE, MIX 1, MIX 2, SENDS 1, SENDS 2;
+  - low C to F#: the knob pages SHAPE, SPACE, PIECE, MIX 1, MIX 2, SENDS (again: SENDS 2), PERFORM;
   - low G: hold for **Root** and press a key, play a MIDI note or turn knob 1;
   - low G# **Resolve** (the tonic as open fifths, held), A chord change now (hold it to pick another next chord),
     A# next section, B hold section;
-  - top C to G: the layers in or out (aux: back to auto); G# input mode (aux: capture), A **Freeze**,
-    A# start / stop (aux: COMPOSE / DRIFT), B new piece (aux: SAVES);
+  - top C to G: the layers in or out (aux: back to auto); G# input mode (aux: capture), A **Freeze** (aux:
+    ANCHOR), A# start / stop (aux: COMPOSE / DRIFT), B new piece (hold: COMPARE, hold + key: load a slot);
   - aux + a low key opens that SETUP page.
 - **Your own form:** SETUP FORM, SECTIONS and SECTION MIX build a piece section by section: roles, lengths, pad
   types, and per layer auto / off / on or coming in or going out at 1/4, 1/2, 3/4 of a section. With Section at
   *now* they edit the section that plays. **SAVES** keeps 16 pieces; a program change can load one (SETUP LIVE),
   and a bank of 16 CCs can drive the layer levels and in/out buttons from a controller.
+- **Performing:** a PERFORM knob page (low F#) with Sink, Blur, Swell and Harm (0 = pleasing harmony only, up =
+  other relationships drift in); ANCHOR (aux + top A) to come back to a sound; quick save and recall (hold top B
+  and press a key), COMPARE (hold top B), loads that morph in; factory pieces in empty slots 1-6; JOURNEY (the
+  pads, drone, bells and motion travelling through their engines); PUMP, DUCK, four macros and CC OUT.
 - **Two screens:** the play view (the chord now and the next one coming, a live score, the voices that sound) and
   the MIX view (levels and sends, the column you turn framed with its value), which takes over while a MIX or
   SENDS page is open.
