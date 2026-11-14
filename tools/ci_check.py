@@ -82,15 +82,18 @@ check(rms_db(a[2 * SR:12 * SR]) > -40, "the composition plays")
 # 5. controls: knob pickup, pages, keys
 ev = [(50, "ac-setseed 11"), (100, "ac-extnote 1"), (200, "knob4 0.5"), (210, "knob1 0.5"), (400, "knob4 0.8"), (500, "aux 1"), (550, "aux 0"),
       (600, "knob1 0.1"), (800, "aux 1"), (850, "aux 0"), (900, "aux 1"), (950, "aux 0")]
+# root: hold low G and press E; then chord now (A), next section (A#), drone (top C), input (G#), stop (A#), new
 T = 1500
-for n in (64, 73, 74, 75, 81, 82, 83):
+ev += [(T, "notesRaw 67 100"), (T + 20, "notesRaw 64 100"), (T + 40, "notesRaw 64 0"), (T + 60, "notesRaw 67 0")]
+T += 2000
+for n in (69, 70, 72, 80, 82, 83):
     ev += [(T, f"notesRaw {n} 100"), (T + 50, f"notesRaw {n} 0")]
     T += 2000
 log, _ = run(ev, T / 1000 + 2)
 check("ac-txt5: list Colr 50 In 60 auto" in log, "knob pickup scales towards the end (In 60)")
 check("ac-txt4: list Mix 9 Verb auto" in log, "page 2 knobs (SPACE)")
 check("ac-txt4: list Len 12 min Weird 30" in log, "page 3 (PIECE)")
-for t in ("next key E", "chord change", "next section", "drone off", "input reso", "stopped - A# to start", "new piece"):
+for t in ("next key E", "chord change", "next section", "drone out", "input reso", "stopped - A# to start", "new piece"):
     check(f"ac-toast: list {t}" in log, f"key toast: {t}")
 
 # 6. input processing: every mode makes sound from the input, and ghost onsets ring bells
@@ -208,33 +211,34 @@ windows = [sum(1 for h in hits if w <= h < w + 8) for w in range(hits[0], hits[-
 check(len(hits) > 20 and pat in rots and set(windows) == {5},
       f"motion follows E(5,8): {len(hits)} hits, steps mod 8 = {sorted(pat)}, 5 in every 8 steps")
 
-# 10. live notes: Organelle keys play, MPE bend retunes its own voice, breath controls the level
+# 10. live notes: a MIDI note plays, MPE bend retunes its own voice, breath controls the level
 mute = [(310, f"{m} 0") for m in ALL] + [(311, "acfade 10"), (312, "ac-layers bang"), (313, "ac-rwet 0 10")]
 ev = [(50, "ac-setseed 9"), (305, "ac-chgstop bang"), (305, "ac-secstop bang"), (320, "ac-lvtype 6")] + mute + [
-    (1000, "notesRaw 69 100"), (4000, "notesRaw 69 0"),
+    (1000, "ac-livenote 1 69 100"), (4000, "ac-livenote 1 69 0"),
     (6000, "ac-livenote 2 57 100"), (9000, "ac-livebend 2 2"), (12000, "ac-livenote 2 57 0"),
     (14000, "ac-livebreath 3 0"), (14000, "ac-livenote 3 60 100"), (15000, "ac-livebreath 3 110"),
     (17000, "ac-livebreath 3 0"), (18000, "ac-livenote 3 60 0")]
 log, a = run(ev, 20)
 lv = lambda t0, t1: a[int(t0 * SR):int(t1 * SR), 0]
-check(rms_db(lv(2, 3.8)) > -50, f"an Organelle key plays a note ({rms_db(lv(2, 3.8)):.1f} dB)")
+check(rms_db(lv(2, 3.8)) > -50, f"a MIDI note plays ({rms_db(lv(2, 3.8)):.1f} dB)")
 fa, fb = f0(lv(7, 8.8)), f0(lv(10, 11.8))
 st_ = 12 * np.log2(fb / fa)
 check(abs((st_ - 2 + 6) % 12 - 6) < 0.15, f"MPE bend +2 semitones ({fa:.1f} -> {fb:.1f} Hz, the detector may jump an octave)")
 check(rms_db(lv(14.2, 14.9)) < -80 and rms_db(lv(15.5, 16.8)) > -45, "breath 0 is silent, breath plays")
 check("breath control" in log, "a breath controller is noticed")
 
-# 11. key modes and listening
-ev = [(50, "ac-setseed 21"), (310, "acfollow 1"), (1000, "notesRaw 73 100"), (1100, "notesRaw 73 0"),
-      (2000, "aux 1"), (2100, "notesRaw 74 100"), (2200, "notesRaw 74 0"), (2300, "aux 0"),
-      (3000, "aux 1"), (3100, "aux 0"), (4000, "ac-extnote 1"), (4100, "notesRaw 73 100"), (4200, "notesRaw 73 0"),
+# 11. the Organelle keys are functions (they never play), aux + a low key opens that SETUP page, aux tap the
+#     next knob page; a MIDI note held long becomes the key
+ev = [(50, "ac-setseed 21"), (310, "acfollow 1"), (1000, "notesRaw 69 100"), (1100, "notesRaw 69 0"),
+      (2000, "aux 1"), (2100, "aux 0"),
+      (3000, "aux 1"), (3100, "notesRaw 62 100"), (3200, "notesRaw 62 0"), (3300, "aux 0"),
       (5000, "ac-livenote 1 64 100"), (13000, "ac-livenote 1 64 0")]
-log, _ = run(ev, 15, prints=("ac-lvon", "ac-fkey"))
+log, _ = run(ev, 15, prints=("ac-lvon", "ac-fkey", "ac-sett0"))
 L_ = log.splitlines()
-check("ac-lvon: 0 73 0.787402" in L_, "standalone: keys play notes")
-check("ac-fkey: 74" in L_ and "ac-toast: list next section" in L_, "aux + key: a function")
+check("ac-fkey: 69" in L_ and "ac-toast: list chord change" in L_ and not any(l.startswith("ac-lvon: 0 69") for l in L_),
+      "an Organelle key is a function and plays no note")
 check("ac-txt4: list Mix 45 Verb auto" in L_, "aux tap: next page")
-check("ac-fkey: 73" in L_ and "ac-toast: list chord change" in L_, "with external MIDI the keys are functions")
+check(f"ac-sett0: list SETUP 3 of {GS.NSET} - hold aux" in L_, "aux + low D: SETUP page 3")
 check("ac-toast: list key from you E" in L_, "a note held 6 s becomes the key")
 
 # 12. audio: pitch tracking and the input class
@@ -319,8 +323,8 @@ log, _ = run([(50, "ac-setseed 2718"), (3000, "knob3 0.4"), (3100, "knob3 0.6"),
               (9500, "aux 1"), (9600, "aux 0")], 10, prints=("oscOut", "ac-sett0"))
 osc = [l for l in log.splitlines() if l.startswith("oscOut")]
 check(sum("gFlip" in l for l in osc) >= 50, "the OLED flips about 10 times a second")
-for what, pat in (("form strip", "gFillArea 3 0 0 128 8 0"), ("ladder", "gFillArea 3 0 20 60 33 0"),
-                  ("meters", "gFillArea 3 62 20 33 33 0"), ("rhythm", "gFillArea 3 96 20 32 33 0"),
+for what, pat in (("form strip", "gFillArea 3 0 0 128 8 0"), ("ladder", "gFillArea 3 0 21 95 19 0"),
+                  ("voices", "gFillArea 3 0 41 128 10 0"), ("rhythm", "gFillArea 3 96 21 32 19 0"),
                   ("tempo", "bpm"), ("knob page", "page SHAPE")):
     check(any(pat in l for l in osc), f"OLED draws the {what}")
 check(f"ac-sett0: list SETUP 2 of {GS.NSET} - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
@@ -496,9 +500,9 @@ check(np.abs(a).max() < 0.95, f"a fast piece with its textures keeps headroom (p
 ev = [(40, "actime 0.08"), (50, "ac-setseed 2718"), (311, "acinput 0.6"), (312, "ac-inputupd bang")]
 log, _ = run(ev, 8, inp="voice", prints=("oscOut",))
 osc = log.splitlines()
-check(any("gPrintln 3 97 35 8 1 auto" in l for l in osc) and any("gPrintln 3 97 43 8 1 pitch" in l for l in osc)
-      and any("gFillArea 3 8 " in l and l.split()[-2:] == ["1", "1"] and " 42 " in l for l in osc),
-      "OLED: an input panel (auto / pitch) and the sung pitch on the ladder")
+check(any("gPrintln 3 97 31 8 1 pitch" in l for l in osc)
+      and any("gFillArea 3 8 " in l and l.split()[-2:] == ["1", "1"] and " 80 " in l for l in osc),
+      "OLED: an input panel (in auto: pitch) and the sung pitch on the ladder")
 log, _ = run(ev + [(4000, "acinput 0"), (4001, "ac-inputupd bang")], 12, inp="voice", prints=("oscOut",))
 late = [l for l in log.splitlines()]
 check(any("bpm" in l for l in late[len(late) // 2:]), "OLED: the rhythm column returns after the input stops")
@@ -541,9 +545,9 @@ check(len(lv) >= 2 and lv[0] == 3 and lv[-1] == 0 and log.count("ac-toast: list 
 lv, log = lite_at([(40, "acguard 0"), (50, "ac-setseed 7"), (5000, "acloadtest 0.9")], 15, [14000])
 check(lv and lv[-1] == 0 and "CPU high" not in log, "CPU guard off: never sheds")
 
-# 25. Start / Stop (A#), Freeze (aux + F#; standalone aux + F# twice), MIDI Start / Stop when following
+# 25. Start / Stop (top A#), the cloud key (top G; aux = auto), Freeze (top A), MIDI Start / Stop when following
 # (Stop fades out over 8 s: silent from 16 s)
-log, a = run([(40, "acforce 1"), (50, "ac-setseed 7"), (8000, "notesRaw 82 100"), (8050, "notesRaw 82 0"),
+log, a = run([(50, "ac-setseed 7"), (8000, "notesRaw 82 100"), (8050, "notesRaw 82 0"),
               (22000, "notesRaw 82 100"), (22050, "notesRaw 82 0")], 30)
 t1 = sorted({l for l in log.splitlines() if l.startswith("ac-txt1")})
 fade = [rms_db(a[t * SR:(t + 1) * SR, 0]) for t in (8, 11, 14)]
@@ -555,13 +559,15 @@ check(fade[0] > fade[1] > fade[2] > -100 and rms_db(a[17 * SR:21 * SR, 0]) < -10
 def toasts(ev, secs=6):
     log, _ = run([(50, "ac-setseed 7")] + ev, secs)
     return [l.split("list ", 1)[-1] for l in log.splitlines() if l.startswith("ac-toast")]
-F = [(2100, "notesRaw 78 100"), (2150, "notesRaw 78 0")]
-F2 = [(2300, "notesRaw 78 100"), (2350, "notesRaw 78 0")]
-cases = [toasts([(40, "acforce 1")] + F), toasts([(40, "acforce 1"), (2000, "aux 1")] + F + [(2500, "aux 0")]),
-         toasts([(2000, "aux 1")] + F + [(2500, "aux 0")]), toasts([(2000, "aux 1")] + F + F2 + [(2500, "aux 0")])]
-check(cases[0] == ["cloud off"] and cases[1] == ["freeze - reverb and cloud"] and cases[2] == ["cloud off"]
-      and cases[3] == ["freeze - reverb and cloud"],
-      f"F# = cloud, aux + F# = Freeze; standalone aux + F# once = cloud, twice = Freeze ({cases})")
+C = [(2100, "notesRaw 79 100"), (2150, "notesRaw 79 0")]
+C2 = [(2300, "notesRaw 79 100"), (2350, "notesRaw 79 0")]
+F = [(2100, "notesRaw 81 100"), (2150, "notesRaw 81 0")]
+F2 = [(2300, "notesRaw 81 100"), (2350, "notesRaw 81 0")]
+cases = [toasts(C), toasts(C + C2), toasts([(2000, "aux 1")] + C + [(2500, "aux 0")]), toasts(F), toasts(F + F2)]
+check(cases[0] in (["cloud in"], ["cloud out"]) and len(cases[1]) == 2 and cases[1][0] != cases[1][1]
+      and cases[2] == ["cloud auto"] and cases[3] == ["freeze - reverb and cloud"]
+      and cases[4] == ["freeze - reverb and cloud", "freeze released"],
+      f"top G = cloud in / out, aux + top G = auto, top A = Freeze, again = released ({cases})")
 mt = toasts([(40, "acsync 1"), (2000, "ac-rtin 252"), (4000, "ac-rtin 250")])
 check("stopped - A# to start" in mt and "playing again" in mt, "following a clock: MIDI Stop / Start stop and start")
 
@@ -601,8 +607,8 @@ run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 
 vals = open(os.path.join(d, "settings.txt")).read().split()
 log, _ = run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 1"), (550, "aux 0"),
               (700, "knob2 0.5"), (750, "knob2 0.52")], 3, d=d)
-# (every SETTINGS value is saved: 56 since the bells' and motion's engines joined, page 9)
-check(len(vals) == len(GS.SETTINGS) == 56 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
+# (every SETTINGS value is saved: 75 since the MIX levels, the mode, sub, FORM and LIVE pages joined)
+check(len(vals) == len(GS.SETTINGS) == 75 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
       "SENDS: a send is saved after the SETUP values and comes back after a restart")
 
 # 29. the patch asks the Organelle OS for a larger audio buffer (pd-opts.txt is appended to Pd's options)
@@ -773,8 +779,8 @@ for name in ("murmur", "echoes", "whisper", "leaves", "brook"):
 x = tex_only("radio")
 check(np.corrcoef(x[:, 0], x[:, 1])[0, 1] < 0.9, f"radio: static on both sides (L/R {np.corrcoef(x[:, 0], x[:, 1])[0, 1]:.2f})")
 
-# 36. Resolve: the harmony moves to the tonic as open fifths and stays (chord changes keep it), standalone aux + C#
-#     twice, or a CC mapped to resolve; released, the composition moves on
+# 36. Resolve: the harmony moves to the tonic as open fifths and stays (chord changes keep it), low G#, or a CC
+#     mapped to resolve; released, the composition moves on
 def chord_pcs(log, after, before=None):
     part = log.split(after)[1] if after else log
     if before:
@@ -784,15 +790,15 @@ def chord_pcs(log, after, before=None):
         if l.startswith("ac-v") and "-pitch:" in l:
             out.append(int(float(l.split()[1]) + 0.5))
     return out
-ev = [(40, "acforce -1"), (45, "actime 0.15"), (50, "ac-setseed 7"), (2990, "h-mark bang"), (3000, "aux 1"), (3010, "notesRaw 73 100"),
-      (3020, "notesRaw 73 0"), (3100, "notesRaw 73 100"), (3110, "notesRaw 73 0"), (3200, "aux 0"),
+ev = [(45, "actime 0.15"), (50, "ac-setseed 7"), (2990, "h-mark bang"), (3000, "notesRaw 68 100"),
+      (3020, "notesRaw 68 0"),
       (8000, "ac-change bang"), (15000, "h-mark2 bang")]
 log, _ = run(ev, 16, prints=tuple(f"ac-v{k}-pitch" for k in range(4)) + ("ac-dronep", "h-mark", "h-mark2", "ac-toast"))
 ton = [int(float(l.split()[1])) for l in log.split("h-mark: bang")[1].splitlines() if l.startswith("ac-dronep")]
 held = chord_pcs(log, "h-mark: bang", "h-mark2")
 iv = sorted({(p - ton[-1]) % 12 for p in held}) if ton else []
 check("resolve - open fifths" in log and len(held) >= 8 and iv == [0, 7],
-      f"Resolve (aux + C# twice): the chord is the tonic in open fifths and stays ({len(held)} notes, intervals {iv})")
+      f"Resolve (low G#): the chord is the tonic in open fifths and stays ({len(held)} notes, intervals {iv})")
 ev2 = [(45, "actime 0.15"), (50, "ac-setseed 7"), (300, "acsetup 1"), (310, "acsetpg 7"),
        (400, f"ac-setknob 0 {(GS.CCS.index(64) + 0.5) / len(GS.CCS)}"),
        (450, f"ac-setknob 1 {(GS.TARGETS.index('resolve') + 0.5) / len(GS.TARGETS)}"), (500, "acsetup 0"),
@@ -854,6 +860,92 @@ log, _ = run([(50 + 300 * i, f"ac-setseed {sd}") for i, sd in enumerate((3, 11, 
 picks = {int(float(l.split()[1])) for l in log.splitlines() if l.startswith("EP:")}
 check(len({p // 10 for p in picks}) >= 2 and len({p % 10 for p in picks}) >= 2,
       f"Auto: pieces pick different bell and motion engines ({sorted(picks)})")
+
+# Glide (page 9 row 3): off = the voices jump to a new chord together; slow = the full glide; short in between
+def glides(label):
+    log, _ = run([(45, "actime 0.15"), (50, "ac-setseed 7"), (300, "acsetup 1"), (310, "acsetpg 8"),
+                  (400, f"ac-setknob 2 {(GS.GLIDES.index(label) + 0.5) / len(GS.GLIDES)}"), (500, "acsetup 0"),
+                  (900, "h-mark bang"), (1000, "ac-change bang")], 2,
+                 prints=tuple(f"ac-v{k}-pitch" for k in range(4)) + ("h-mark", "ac-sett3"))
+    after = log.split("h-mark: bang")[1]
+    ps = [l.split()[1:] for l in after.splitlines() if "-pitch:" in l]
+    return [float(p[1]) for p in ps], [float(p[2]) for p in ps], f"3 Glide {label}" in log
+g0, d0, s0 = glides("off")
+gs, _, s1 = glides("short")
+g5, _, s5 = glides("slow")
+check(s0 and s1 and s5 and len(g0) == 4 and max(g0) == 0 and max(d0) == 0 and 0 < max(gs) < min(g5),
+      f"Glide: off jumps together ({g0}, delays {d0}), short {[int(x) for x in gs]} < slow {[int(x) for x in g5]} ms")
+
+# 50. live play: the piece waits ready until top A# (as on the Organelle)
+log, a = run([(50, "ac-setseed 7"), (6000, "notesRaw 82 100"), (6050, "notesRaw 82 0")], 12, autostart=False)
+check("ac-txt1: list READY COMPOSE - A# start" in log and rms_db(a[1 * SR:5 * SR]) < -90
+      and "ac-toast: list start - playing" in log and rms_db(a[8 * SR:12 * SR]) > -45,
+      f"starts ready and silent ({rms_db(a[1 * SR:5 * SR]):.0f} dB), top A# starts it ({rms_db(a[8 * SR:12 * SR]):.0f} dB)")
+
+# 51. SECTION MIX: the section turned fully down follows the playing one; pads "in 1/2" stay out for the first
+#     half of it, then come in over the entry fade; hold (low B) keeps a section past its end
+k = lambda i, n: (i + 0.5) / n
+ev = [(45, "actime 0.05"), (50, "ac-setseed 7"), (300, "acsetup 1"), (310, "acsetpg 11"),
+      (400, "ac-setknob 0 0"), (450, f"ac-setknob 1 {k(2, 8)}"),
+      (500, f"ac-setknob 2 {k(GS.SPLAY.index('in 1/2'), len(GS.SPLAY))}"), (600, "acsetup 0")]
+log, _ = run(ev, 12, prints=("ac-g-pad", "ac-sett1"))
+gp = [l.split()[1:] for l in log.splitlines() if l.startswith("ac-g-pad")]
+first_on = next((i for i, g in enumerate(gp) if float(g[0]) > 0), None)
+check("ac-sett1: 1 Section 1 now" in log and first_on is not None and first_on > 2
+      and all(float(g[0]) == 0 for g in gp[:first_on]) and gp[first_on][1] == str(GS.SSFADE[2][1]),
+      f"SECTION MIX: Section now, pads in at 1/2 then swell in ({gp[:first_on + 1]})")
+log, _ = run([(45, "actime 0.03"), (50, "ac-setseed 7"), (1000, "notesRaw 71 100"), (1050, "notesRaw 71 0")], 30)
+t1 = {l for l in log.splitlines() if l.startswith("ac-txt1")}
+check("ac-toast: list section held" in log and not any("COMP 2 of" in l for l in t1),
+      f"hold section (low B): the section stays ({sorted(t1)})")
+
+# 52. SAVES: a piece saved to a slot comes back after another piece (and after a restart)
+d = build_tmp()
+sv = [(50, "ac-setseed 777"), (300, "acsetup 1"), (310, "acsetpg 12"), (400, f"ac-setknob 0 {k(2, GS.NSLOTS)}"),
+      (500, "ac-setknob 1 0.5"), (600, "ac-setknob 1 1"), (700, "acsetup 0")]
+log1, _ = run(sv, 3, d=d)
+log2, _ = run([(50, "ac-setseed 31"), (300, "acsetup 1"), (310, "acsetpg 12"), (400, f"ac-setknob 0 {k(2, GS.NSLOTS)}"),
+               (500, "ac-setknob 2 0.5"), (600, "ac-setknob 2 1"), (700, "acsetup 0")], 3, d=d)
+seeds = [l for l in log2.splitlines() if l.startswith("ac-setseed")]
+check("ac-toast: list saved to slot 3" in log1 and "ac-toast: list loaded slot 3" in log2 and seeds[-1] == "ac-setseed: 777",
+      f"SAVES: slot 3 saved, then loaded after a restart and another piece ({seeds})")
+
+# 53. the OLED: a MIX or SENDS page shows the MIX view (bars, two-letter labels); back on SHAPE, the play view
+log, _ = run([(50, "ac-setseed 7"), (2000, "notesRaw 63 100"), (2050, "notesRaw 63 0"),
+              (4000, "notesRaw 60 100"), (4050, "notesRaw 60 0")], 6, prints=("oscOut",))
+o = [l for l in log.splitlines() if l.startswith("oscOut")]
+check(any("gPrintln 3 2 54 8 1 Dr" in l for l in o) and any("gPrintln 3 114 54 8 1 At" in l for l in o)
+      and any("gPrintln 3 2 41 8 1 Dr" in l for l in o),
+      "OLED: the MIX view's labels (Dr .. At) on MIX 1, the play view's voice row")
+
+# 54. SETUP LIVE: the Mix CC bank (CC 20-27 levels, 28-35 in/out buttons on a press) and program change -> a slot
+log, _ = run([(50, "ac-setseed 7"), (100, "acmixcc 1"), (1000, "ac-ccin 22 127 1"), (2000, "ac-ccin 30 127 1"),
+              (2100, "ac-ccin 30 0 1"), (3000, "ac-ccin 30 127 1"), (3100, "ac-ccin 30 127 1")], 5)
+ts = [l.split("list ", 1)[-1] for l in log.splitlines() if l.startswith("ac-toast")]
+check(ts[-2:] == ["pads in", "pads out"] and "Pads 100" in ts,
+      f"Mix CCs: CC 22 sets the Pads level, CC 30 presses the pads key (once per press: {ts[-2:]})")
+log, _ = run([(50, "ac-setseed 9"), (100, "acpgm 1"), (1000, "ac-pgmin 3")], 3, d=d)
+check("ac-toast: list loaded slot 3" in log and log.splitlines()[-1] != "" and
+      [l for l in log.splitlines() if l.startswith("ac-setseed")][-1] == "ac-setseed: 777",
+      "Prog change 3 loads save slot 3")
+
+# 55. the play screen: line 2 is the chord now > the next one, and the next one is the one that comes; holding
+#     low A picks another next chord (every 0.7 s) without a change; a tap changes to the shown one
+log, _ = run([(50, "actime 0.1"), (60, "ac-setseed 2026")], 40, prints=("ac-oledtop",))
+L = [l.split("list ", 1)[1] for l in log.splitlines() if l.startswith("ac-oledtop")]
+D = [x for i, x in enumerate(L) if i == 0 or x != L[i - 1]]
+# (at a real change the new chord is the one shown as next; between changes the next one may be picked again,
+#  e.g. when the key plan moves the key at a section)
+bad = [(a, b) for a, b in zip(D[1:], D[2:]) if a.split(" > ")[0] != b.split(" > ")[0] and a.split(" > ")[1] != b.split(" > ")[0]]
+check(len(D) > 8 and not bad, f"chord line: each next chord is the one that plays ({len(D)} lines, {bad[:2]})")
+log, _ = run([(50, "ac-setseed 7"), (2900, "h-mark bang"), (3000, "notesRaw 69 100"), (4400, "notesRaw 69 0"),
+              (6000, "notesRaw 69 100"), (6050, "notesRaw 69 0")], 8, prints=("ac-oledtop", "h-mark"))
+part = [l.split("list ", 1)[1] for l in log.split("h-mark: bang")[1].splitlines() if l.startswith("ac-oledtop")]
+cut = next((i for i, x in enumerate(part) if x.split(" > ")[0] != part[0].split(" > ")[0]), len(part))
+held, after = part[:cut], part[cut:]
+check(len({h.split(" > ")[0] for h in held}) == 1 and len({h.split(" > ")[1] for h in held}) >= 2 and after
+      and after[0].split(" > ")[0] == held[-1].split(" > ")[1],
+      f"low A held picks other next chords ({held}), a tap plays the shown one ({after[:1]})")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

@@ -1,8 +1,9 @@
 """Organelle controls: knobs (two pages, pickup), keys, aux, footswitch, screen lines, LED, toasts."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, run_steps, Line, lookup
 from data import *
-from pdlib import Toast, Later
+from pdlib import Toast, Later, Arm
 from gen_setup import NSET
+import gen_setup as _S
 
 SECNAMES = ["emerge", "haze", "drift", "bloom", "swell", "dissolve"]
 DRIFTNAMES = ["haze", "drift", "bloom", "swell", "surge"]
@@ -18,14 +19,25 @@ SIDE = {  # what to do after a knob changes a value (index = page*4 + knob)
     10: [SendL("ac-motion", ["acmotion"]), Call("ac-stereo")],
     11: [Send("ac-densch"), Call("ac-pulseupd")],
 }
-for _i in range(12, 4 * len(PAGES)):          # the SENDS pages
+for _i in range(12, SEND_KNOBS):              # the SENDS pages
     SIDE[_i] = [Call("ac-sendupd")]
+for _i in range(SEND_KNOBS, 4 * len(PAGES)):  # the MIX pages: the layer levels (coalesced: knobs send fast)
+    SIDE[_i] = [Send("ac-mixch")]
 NP = len(PAGES)
-# the function keys (top octave, C..B): the manual (tools/manual.py) documents these, in this order
-FKEYS = ["COMPOSE / DRIFT", "chord change now | aux: Resolve", "next section", "drone on/off", "pads on/off", "textures on/off",
-         "cloud on/off | aux: Freeze", "bells on/off", "capture 8 s of input", "input mode", "start / stop",
-         "new piece"]
-TAP2_MS = 350          # standalone: aux + F# twice within this = Freeze (a single tap waits this long)
+# The Organelle keys are always functions (notes come from MIDI). Low octave: the knob pages, then harmony and form;
+# top octave: the layers, then input, Freeze and the transport. Aux + a low key opens that SETUP page (C = 1).
+# The manual (tools/manual.py) documents these, in this order.
+PAGE_KEYS = [0, 1, 2, 5, 6, 3, 4]       # low C..F#: SHAPE, SPACE, PIECE, MIX 1, MIX 2, SENDS 1, SENDS 2
+LOW_KEYS = ["SHAPE page", "SPACE page", "PIECE page", "MIX 1 page", "MIX 2 page", "SENDS 1 page", "SENDS 2 page",
+            "Root (hold)", "Resolve", "chord change now", "next section", "hold section"]
+LAYER_KEYS = [("acmdrone", "drone", "acgdrone"), ("acmsub", "sub", "acgsub"), ("acmpad", "pads", "acgpad"),
+              ("acmbell", "bells", "acgbell"), ("acmmotion", "motion", "acgmotion"), ("acmtex", "textures", "acgtex"),
+              ("acmatm", "atmosphere", "acgatm"), ("acmcloud", "cloud", "acgcloud")]
+TOP_KEYS = [f"{n} in/out | aux: auto" for _, n, _ in LAYER_KEYS] + [
+    "input mode | aux: capture", "Freeze", "start / stop | aux: COMPOSE / DRIFT", "new piece | aux: SAVES"]
+FKEYS = LOW_KEYS + TOP_KEYS
+ROOT_KEY = 60 + LOW_KEYS.index("Root (hold)")
+CHORD_KEY = 60 + LOW_KEYS.index("chord change now")
 
 
 def knobs():
@@ -33,8 +45,19 @@ def knobs():
     c.comment("Knob pickup: when a page changes, a knob moves its value proportionally towards the end it "
               "turns to, so nothing jumps")
     for k in range(4):
-        mo = c.ch(c.recv(f"knob{k + 1}"), "expr if(acsetup, -1 - $f1, $f1)", "moses 0")
-        c.c(c.m(c.to((mo, 0), "expr -1 - $f1"), f"{k} $1"), 0, c.obj("s ac-setknob"), 0)
+        kr = c.recv(f"knob{k + 1}")
+        if k == 0:     # while Root (low G) is held, knob 1 picks the next key
+            rs = c.obj("spigot")
+            kt = c.to(kr, "t f b")
+            c.c(c.to((kt, 1), "expr acroothold"), 0, rs, 1)
+            c.c(kt, 0, rs, 0)
+            rt_ = c.to(rs, "t b f")
+            c.c(rt_, 1, c.obj("v acrootk"), 0)
+            run_steps(c, (rt_, 0), [V("acrootn", "int(acrootk*11.99)"),
+                                                     If("acrootn != acpend", [Call("ac-rootset")])])
+        mo = c.ch(kr, f"expr if(acroothold && {k} == 0, -1000, if(acsetup, -1 - $f1, $f1))", "moses 0")
+        sk = c.to((mo, 0), "moses -500")
+        c.c(c.m(c.to((sk, 1), "expr -1 - $f1"), f"{k} $1"), 0, c.obj("s ac-setknob"), 0)
         t = c.to((mo, 1), "t f f")
         P = f"acparams[int(acpage*4+{k})]"
         R = f"acraw[{k}]"
@@ -62,77 +85,83 @@ def knobs():
     for i, n in enumerate(names):
         tb = c.to((rt, i), "t b f")
         c.c(tb, 1, c.obj("v " + n), 0)
-        run_steps(c, (tb, 0), SIDE.get(i, []) + [Call("ac-oledpop"), Send("ac-dirty")])
+        run_steps(c, (tb, 0), SIDE.get(i, []) + [V("aclastk", str(i)), Call("ac-oledknob"), Send("ac-dirty")])
         c.col(150)
     # the scaled length shown on the screen
     return c
 
 
 def keys():
-    c = Canvas("keys", w=3000)
-    c.comment("Keys play notes, unless an external controller is playing (or aux is held): then low octave = next "
-              "key centre, top octave = functions. Aux tap: knob page. Footswitch: change now.")
+    c = Canvas("keys", w=3200)
+    c.comment("The Organelle keys are functions: low octave = knob pages, harmony and form (aux + key = that SETUP "
+              "page), top octave = layers, input, Freeze, transport. Hold Root (low G) and play a key or MIDI note, "
+              "or turn knob 1: the next key. Aux tap: next page. Footswitch: change now.")
     up = c.to(c.recv("notesRaw"), "unpack f f")
     c.c(up, 1, c.obj("v ackv"), 0)
     kb = c.to(up, "t b f")
     c.c(kb, 1, c.obj("v ackn"), 0)
-    run_steps(c, (kb, 0), [If("acext || acauxheld || acforce == 1", [
-        If("ackv > 0", [V("acauxused", "acauxheld"), SendL("ac-fkey", ["ackn"])],
-           [SendL("ac-livenote", ["0", "ackn", "0"])])],
-        [SendL("ac-livenote", ["0", "ackn", "ackv"])])])
+    run_steps(c, (kb, 0), [If("ackv > 0", [
+        V("acauxused", "acauxheld || acauxused"),
+        If(f"acroothold && ackn != {ROOT_KEY}", [V("acrootn", "int(ackn) % 12"), Call("ac-rootset")],
+           [SendL("ac-fkey", ["ackn"])])],
+        [If(f"ackn == {ROOT_KEY}", [V("acroothold", "0")]),
+         # low A let go: a tap changes to the next chord now; a hold already picked others (ac-reroll)
+         If(f"ackn == {CHORD_KEY}", [Send("ac-rrstop"), If("acrr == 0", [Call("ac-chordnow")]), V("acrr", "-1")])])])
     mo = c.ch(c.recv("ac-fkey"), "- 60", "moses 12")
-    kt = c.to((mo, 0), "t b f")
-    c.c(kt, 1, c.obj("v acpend"), 0)
-    c.c(kt, 0, c.obj("s ac-keytoast"), 0)
-    sel = c.ch((mo, 1), "- 12", "sel " + " ".join(str(i) for i in range(12)))
+    lsel = c.to((mo, 0), "sel " + " ".join(str(i) for i in range(12)))
+    tsel = c.ch((mo, 1), "- 12", "sel " + " ".join(str(i) for i in range(12)))
     c.col()
 
-    def mute(var, label):
-        return [V(var, f"1-{var}"), V("acfade", "2500"), Call("ac-layers"),
-                If(var, [Toast(label + " on")], [Toast(label + " off")])]
+    def layer(var, label, g):
+        # tap: in (always on) if it's silent now, out if it plays; aux + tap: back to auto (the piece decides)
+        return [If("acauxheld", [V(var, "1"), Toast(label + " auto")],
+                   [If(f"{g} > 0.01", [V(var, "0"), Toast(label + " out")], [V(var, "2"), Toast(label + " in")])]),
+                V("acfade", _S.LFADE), Call("ac-layers")]
 
-    funcs = [
-        [V("acmode", "1-acmode"), V("acended", "0"), V("acstopped", "0"), V("acrun", "1"), Send("ac-master", "1 3000"),
-         If("acmode==1", [V("acsec", "0"), Call("ac-plan"), Call("ac-section"), Call("ac-change"),
-                          Toast("COMPOSE new arc")],
-            [Call("ac-section"), Call("ac-change"), Toast("DRIFT endless")]),
-         Call("ac-scr"), Send("ac-led")],
-        # C#: chord change now. Resolve (open fifths on the tonic, held) = aux + C# with an external controller;
-        # standalone aux + C# twice quickly (once = chord change, after TAP2_MS)
-        [If("(acext || acforce == 1) && acforce != 0", [If("acauxheld", [Call("ac-resolvetoggle")],
-                                                         [Call("ac-chordnow")])],
-            [If("acnow - acctap < " + str(TAP2_MS + 100),
-                [Send("ac-chordtapstop"), V("acctap", "-1e+06"), Call("ac-resolvetoggle")],
-                [V("acctap", "acnow"), Later("ac-chordnow", TAP2_MS, stop="ac-chordtapstop")])])],
+    def page(p):
+        return [V("acpage", str(p)), If("acsetup", [V("acsetup", "0"), Send("ac-save"), Call("ac-oledall")]),
+                Call("ac-oledpop")]
+
+    low = [page(p) for p in PAGE_KEYS] + [
+        [V("acroothold", "1"), Toast("root: play a note or turn knob 1")],
+        [Call("ac-resolvetoggle")],
+        [V("acrr", "0"), Arm("ac-reroll", "500", stop="ac-rrstop")],
         [V("acsec", "acsec+1"), Call("ac-section"), Toast("next section")],
-        mute("acmdrone", "drone"), mute("acmpad", "pads"), mute("acmtex", "texture"),
-        # F#: cloud on/off. With an external controller (plain keys = functions) aux + F# = Freeze; standalone
-        # (functions are aux + key) aux + F# twice quickly = Freeze, once = cloud (after TAP2_MS)
-        [If("(acext || acforce == 1) && acforce != 0", [If("acauxheld", [Call("ac-freezetoggle")],
-                                                         [Call("ac-cloudtoggle")])],
-            [If("acnow - acftap < " + str(TAP2_MS + 100),
-                [Send("ac-cloudtapstop"), V("acftap", "-1e+06"), Call("ac-freezetoggle")],
-                [V("acftap", "acnow"), Later("ac-cloudtoggle", TAP2_MS, stop="ac-cloudtapstop")])])],
-        mute("acmbell", "bells"),
-        [Call("ac-capture")],
-        [V("acinmode", "(acinmode+1) % 8"), Call("ac-inputupd"), Call("ac-inmodetoast"), Call("ac-scr5")],
-        [Call("ac-startstop")],
-        [Call("ac-reseed"), Toast("new piece")],
+        [V("acsecfz", "1 - acsecfz"), If("acsecfz", [Toast("section held")], [Toast("section moves on")]),
+         Call("ac-oledbottom")],
     ]
-    proc(c, "ac-cloudtoggle", mute("acmcloud", "cloud"))
+    for i, lk in enumerate(LAYER_KEYS):
+        proc(c, f"ac-laykey{i}", layer(*lk))
+    top = [[Call(f"ac-laykey{i}")] for i in range(len(LAYER_KEYS))] + [
+        [If("acauxheld", [Call("ac-capture")],
+            [V("acinmode", "(acinmode+1) % 8"), Call("ac-inputupd"), Call("ac-inmodetoast"), Call("ac-scr5")])],
+        [Call("ac-freezetoggle")],
+        [If("acauxheld", [Call("ac-modetoggle")], [Call("ac-startstop")])],
+        [If("acauxheld", [V("acsetup", "1"), V("acsetpg", str(NSET - 1)), Call("ac-oledsetup")], [Call("ac-newkey")])],
+    ]
+    assert len(low) == len(LOW_KEYS) and len(top) == len(TOP_KEYS)
+    for i, f in enumerate(low):
+        b = c.obj("t b")
+        c.c(lsel, i, b, 0)
+        # aux + a low key: that SETUP page
+        run_steps(c, (b, 0), [If("acauxheld", [If(f"{i} < {NSET}", [
+            V("acsetup", "1"), V("acsetpg", str(i)), Call("ac-oledsetup")])], f)])
+        c.col(170)
+    for i, f in enumerate(top):
+        b = c.obj("t b")
+        c.c(tsel, i, b, 0)
+        run_steps(c, (b, 0), f)
+        c.col(170)
+    proc(c, "ac-rootset", [V("acpend", "acrootn"), Send("ac-keytoast"), Call("ac-chordnext")])
+    # low A held: another next chord now, and again every 0.7 s while it is held
+    proc(c, "ac-reroll", [V("acrr", "1"), Call("ac-chordnext"), Arm("ac-reroll", "700", stop="ac-rrstop")])
     proc(c, "ac-chordnow", [Call("ac-change"), Toast("chord change")])
     proc(c, "ac-resolvetoggle", [V("acres", "1 - acres"), Call("ac-resolveupd")])
     proc(c, "ac-resolveupd", [Call("ac-change"),
                               If("acres", [Toast("resolve - open fifths")], [Toast("resolve released")])])
     proc(c, "ac-freezetoggle", [
         V("acvfreeze", "1-acvfreeze"), V("acfreeze", "acvfreeze"), Call("ac-freezeupd"), Call("ac-revupd"),
-        If("acvfreeze", [Toast("freeze - reverb and cloud")], [Toast("freeze released")])])
-    assert len(funcs) == len(FKEYS)
-    for i, f in enumerate(funcs):
-        b = c.obj("t b")
-        c.c(sel, i, b, 0)
-        run_steps(c, (b, 0), f)
-        c.col(170)
+        If("acvfreeze", [Toast("freeze - reverb and cloud")], [Toast("freeze released")]), Call("ac-oledbottom")])
     Line("ac-keytoast", "list next key $1", [("s", "acpend", NOTE_NAMES)], "ac-toast")(c)
     Line("ac-inmodetoast", "list input $1", [("s", "acinmode", INMODES)], "ac-toast")(c)
     # aux: knob page
@@ -152,12 +181,15 @@ def screen():
     c.comment("Line 1 state, 2 key/scale/voicing, 3 pad timbres + texture (and toasts), 4-5 the knob page")
     proc(c, "ac-scr", [Call(f"ac-scr{i}") for i in range(1, 6)])
     # line 1
-    s1 = c.ch(c.recv("ac-scr1"), "expr if(acstopped, 3, if(acended || acrun==0, 2, acmode))", "sel 0 1 2 3")
+    s1 = c.ch(c.recv("ac-scr1"), "expr if(acready && acstopped, 4, if(acstopped, 3, if(acended || acrun==0, 2, acmode)))",
+              "sel 0 1 2 3 4")
     c.c(c.m((s1, 3), "list STOPPED - A# start"), 0, c.obj("s ac-txt1"), 0)
+    c.c(c.to((s1, 4), "t b"), 0, c.obj("s ac-scr1r"), 0)
     c.c(c.to((s1, 0), "t b"), 0, c.obj("s ac-scr1d"), 0)
     c.c(c.to((s1, 1), "t b"), 0, c.obj("s ac-scr1c"), 0)
     c.c(c.m((s1, 2), "list FIN - B new piece"), 0, c.obj("s ac-txt1"), 0)
     c.col()
+    Line("ac-scr1r", "list READY $1 - A# start", [("s", "acmode", ["DRIFT", "COMPOSE"])], "ac-txt1")(c)
     Line("ac-scr1d", "list DRIFT $1 $2",
          [("s", "acrole", ROLES), ("f", "acseed % 10000")], "ac-txt1")(c)
     Line("ac-scr1c", "list COMP $1 of $2 $3",
@@ -166,9 +198,8 @@ def screen():
     Line("ac-scr2", "list $1 $2 $3",
          [("s", "int(actonic) % 12", NOTE_NAMES), ("s", "acsci", [n for n, _ in SCALES]),
           ("s", "acfam", [n for n, _, _ in FAMILIES])], "ac-txt2")(c)
-    # the OLED's top line: key and scale only (the voicing is on the bottom line)
-    Line("ac-scr2", "list $1 $2", [("s", "int(actonic) % 12", NOTE_NAMES), ("s", "acsci", [n for n, _ in SCALES])],
-         "ac-oledtop")(c)
+    # the OLED's line 2: the chord now and the next one (key and scale are on the bottom line)
+    Line("ac-scr2", "list $1 > $2", [("s", "acchn", CHORD_NAMES), ("s", "acnxn", CHORD_NAMES)], "ac-oledtop")(c)
     Line("ac-scr3", "list $1 $2 $3 $4 $5",
          [("s", f"acflav[{k}]", FLAVOURS) for k in range(4)] + [("s", "actex1", TEXTURES)], "ac-txt3")(c)
     for ln in (4, 5):

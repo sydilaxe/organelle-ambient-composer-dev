@@ -45,12 +45,24 @@ The layers and their rhythms:
 - **MIDI:** MPE notes, per-note bend (48 semitones; 2 on channel 1) and breath (CC 2, CC 11, channel or poly
   pressure) play 4 live voices in the piece's synthesis type. With a breath controller, breath sets the
   voices' level and brightness.
-- **The Organelle keys** play notes when Amble is standalone. When an external controller plays, they
-  become function keys; aux + key is a function at any time.
-- **Start / Stop** (A#, top octave): Stop fades out over 8 s and freezes the piece where it is; Start goes on from there.
-- **Resolve** (aux + C#; standalone aux + C# twice quickly, like Freeze): the harmony moves to the tonic as open fifths (root, 5th, octave, 12th) and stays there - no modulation, no dissonant chords - until you release it the same way. A CC mapped to **resolve** in SETUP CC MAP does it from a pedal (held at 64 and up).
-  An incoming MIDI Start / Stop does the same when Sync is set to follow clock. **Freeze** (the reverb tail and
-  the cloud) is aux + F# with an external controller, or aux + F# twice quickly standalone.
+- **Ready, then start:** Amble loads a piece and waits, silent; choose COMPOSE or DRIFT (aux + top A#) and
+  press top A# to start. Stop fades out over 8 s and freezes the piece where it is; Start goes on from there.
+  An incoming MIDI Start / Stop does the same when Sync is set to follow clock.
+- **The Organelle keys are functions**, one press each, so a hand can leave your instrument for a moment:
+  - low C to F#: the knob pages SHAPE, SPACE, PIECE, MIX 1, MIX 2, SENDS 1, SENDS 2;
+  - low G: hold for **Root** and press a key, play a MIDI note or turn knob 1;
+  - low G# **Resolve** (the tonic as open fifths, held), A chord change now (hold it to pick another next chord),
+    A# next section, B hold section;
+  - top C to G: the layers in or out (aux: back to auto); G# input mode (aux: capture), A **Freeze**,
+    A# start / stop (aux: COMPOSE / DRIFT), B new piece (aux: SAVES);
+  - aux + a low key opens that SETUP page.
+- **Your own form:** SETUP FORM, SECTIONS and SECTION MIX build a piece section by section: roles, lengths, pad
+  types, and per layer auto / off / on or coming in or going out at 1/4, 1/2, 3/4 of a section. With Section at
+  *now* they edit the section that plays. **SAVES** keeps 16 pieces; a program change can load one (SETUP LIVE),
+  and a bank of 16 CCs can drive the layer levels and in/out buttons from a controller.
+- **Two screens:** the play view (the chord now and the next one coming, a live score, the voices that sound) and
+  the MIX view (levels and sends, the column you turn framed with its value), which takes over while a MIX or
+  SENDS page is open.
 - **Listening:**
   - A held or sung pitch pulls the next chord to contain it.
   - A note held for 6 s becomes the key centre.
@@ -76,7 +88,7 @@ emulator, so the font only approximates the Organelle's.
 | **Score** | The form strip (one bar per section, height = energy, current one inverted, a playhead). Key and scale, with the time left. The pad voices gliding on a pitch ladder, with your held notes as boxes and a breath bar. Meters for every layer, the reverb and the input. The motion layer's Euclidean pattern with a moving cursor, the tempo and the reverb type. The section role and voicing, and K/M/E tags for who is playing and the clock. |
 | **Input** | While external audio plays, the right-hand column becomes an input panel: the last 6 s of the input as a waveform with its onsets ticked above, the input mode, and what Amble hears (pitch, pluck, texture), with a dot while it records a memory. A sung or played pitch is drawn as a line across the pitch ladder, so you see it against the pad voices. The rhythm column comes back 5 s after the input stops. |
 | **Knob page** | Shown for 6 s after you turn a knob or tap aux. |
-| **SETUP** | Hold aux for 1 s; aux taps turn the 9 pages. Page 1: MIDI out (off, tempo only, tempo + notes, notes only), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Page 3: output, width, pan motion, tempo range. Page 4: which MIDI notes go out, arp octave, the CPU load, the CPU guard (on or off). Page 5, **SOUNDS**: pad type, drone, texture and character, each auto or your choice (see below). Page 6, **MUSIC**: key, scale, chord voicing (auto or fixed) and the bar pulse. Page 7, **MIDI IN**: where notes go, what breath does, what pressure does, the breath level. Page 8, **CC MAP**: what each CC does. Page 9, **VOICES**: the engines of the bells and the motion. Saved in `settings.txt` with the knob values (except In, which always starts at 0). |
+| **SETUP** | Hold aux for 1 s; aux taps turn the 9 pages. Page 1: MIDI out (off, tempo only, tempo + notes, notes only), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Page 3: output, width, pan motion, tempo range. Page 4: which MIDI notes go out, arp octave, the CPU load, the CPU guard (on or off). Page 5, **SOUNDS**: pad type, drone, texture and character, each auto or your choice (see below). Page 6, **MUSIC**: key, scale, chord voicing (auto or fixed) and the bar pulse. Page 7, **MIDI IN**: where notes go, what breath does, what pressure does, the breath level. Page 8, **CC MAP**: what each CC does. Page 9, **VOICES**: the engines of the bells and the motion, and **Glide** (off, fast, short, medium, long, slow: how the pad voices slide to a new chord; off = they jump). Saved in `settings.txt` with the knob values (except In, which always starts at 0). |
 
 **SOUNDS** (SETUP page 5) lets you choose the sounds yourself, mid-piece, to audition them. Each item is **auto** (the piece chooses, as before) or your choice, applied at once (crossfaded) and kept for every later section:
 - **Pads:** auto; **raw** (the dry, buzzy types of the first demos: vox, partials, fold and pulsar, with no character effect); or one type for all four pad voices (fm, vox, bow, part, fold, pulsr, saws, pwm, digi, sync, tine).
@@ -87,7 +99,7 @@ emulator, so the font only approximates the Organelle's.
 **MUSIC** (SETUP page 6): **Key** (auto or C to B), **Scale** (auto or one of the 16) and **Chords** (auto or one voicing) apply at once with a chord change; a fixed choice stays (no modulation or scale change). **Pulse** (off, gentle, normal, strong) sets how much the drone and sub swell on every bar.
 
 **MIDI IN** (SETUP page 7):
-- **Notes to:** what MIDI notes and the Organelle keys play. **voice** (the live voice, as before); **chords** (the notes you hold are the pad chord; the composer waits until you let go); **drone** (the drone and sub move to your note); **bells** (a bell per note); **cloud** (each held note tunes a grain stream). The notes still steer the harmony.
+- **Notes to:** what MIDI notes play. **voice** (the live voice, as before); **chords** (the notes you hold are the pad chord; the composer waits until you let go); **drone** (the drone and sub move to your note); **bells** (a bell per note); **cloud** (each held note tunes a grain stream). The notes still steer the harmony.
 - **Breath to:** **voice+piece** (as before: the live voice's level and tone, and the piece's density), **voice**, **density**, **brightness**, **reverb** (the reverb sends) or **swell** (the whole level, like an expression pedal). Ten seconds without breath and it lets go.
 - **Pressure to:** what channel and poly pressure do (any CC MAP target; default breath).
 - **Breath in:** the breath level arriving now, to check your controller.

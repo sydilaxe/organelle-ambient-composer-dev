@@ -7,7 +7,8 @@ from data import INMODES, NOTE_NAMES, SEND_BUS, FLAVOURS
 NV = 4                                    # live voices
 
 GLOBALS = dict(
-    acnow=0, acext=0, acextt=-1e+06, acforce=-1, acauxheld=0, acauxused=0, acauxt=0,
+    acmcix=-1, acmck=0, acmcb=0, acpgn=0,
+    acnow=0, acext=0, acextt=-1e+06, acforce=-1, acroothold=0, acrr=-1, acrootn=0, acsecfz=0, acauxheld=0, acauxused=0, acauxt=0,
     aclch=0, aclnote=0, aclvel=0, aclage=0, acvi=0, acheld=0, acfocus=-1, acfocust=0, acfkdone=0,
     acbreath=0, acbreatht=-1e+06, acbrmode=0, acbrt=-1e+06, acbrlast=0, acsechold=0, acfollow=0.7,
     acgbr=2, acnbr=48, aclbv=0, aclbs=0,
@@ -16,7 +17,7 @@ GLOBALS = dict(
     acclt=0, aci2=40, aclnt=-1e+06, acyn=0, acbrfx=-1,
     acctlch=1, acctlv=0, acctlv127=0, acccn=0, actg=0, acvtsel=-1, achold=0, acwi=0, acmemn=0, acmemw=0, acmemt=-1e+06, acmemr=0, acmems=0, acmemrate=1, acgmem=0, acrec=0,
 )
-ARRAYS = dict(acyh=NV, actim=17, aclev=17, aclsus=NV, acbrch=17, aclvn=NV, aclvc=NV, aclva=NV, acbendt=17, achpc=12, acmemp=4)
+ARRAYS = dict(acyh=NV, actim=17, aclev=17, aclsus=NV, acbrch=17, aclvn=NV, aclvc=NV, aclva=NV, acbendt=17, achpc=12, acmemp=4, acmcp=8)
 CLASSES = ["quiet", "pitched", "plucked", "texture"]
 
 
@@ -68,6 +69,14 @@ def midi_in():
         c.c(c.to((rt, o), "t b"), 0, c.obj("s ac-allnotesoff"), 0)
     # every other CC -> ac-ccin "cc value ch" (SETUP CC MAP)
     c.c(c.m((rt, 2), "$1 $2 $3"), 0, c.obj("s ac-ccin"), 0)
+    # a program change (1-16) loads that save slot, if SETUP LIVE allows it
+    pg = c.obj("pgmin")
+    c.c(pg, 0, c.obj("s ac-pgmin"), 0)
+    c.col()
+    tpg = c.to(c.recv("ac-pgmin"), "t b f")
+    c.c(tpg, 1, c.obj("v acpgn"), 0)
+    run_steps(c, (tpg, 0), [If("acpgm && acpgn >= 1 && acpgn <= 16", [V("acslot", "acpgn - 1"),
+                                                                        Call("ac-slotcheck"), Call("ac-loadpiece")])])
     return c
 
 
@@ -85,8 +94,20 @@ def cc_map():
     look = "-1"
     for j, n in reversed(list(enumerate(_S.CCS))):
         look = f"if(acccn == {n}, acmap{j}, {look})"
-    run_steps(c, (tb, 0), [X("acccn; acctlv127", "v aclastcc", "v aclastv"), V("actg", look),
-                           If("actg >= 0", [Call("ac-ctl")])])
+    # SETUP LIVE Mix CCs: 16 CCs from the base - 8 layer levels (the MIX knobs), then 8 in/out buttons
+    mixknob = _S.SEND_KNOBS
+    order = [0, 1, 2, 3, 4, 5, 7, 6]   # level CCs in layer-key order (drone .. atmosphere, cloud) -> MIX knob
+    lvl = "if(acmcix == 0, 0" + "".join(f", if(acmcix == {i}, {o}" for i, o in enumerate(order) if i) + ", 0" + ")" * 8
+    run_steps(c, (tb, 0), [X("acccn; acctlv127", "v aclastcc", "v aclastv"),
+                           V("acmcix", f"if(acmixcc > 0, acccn - {_S.MIXCC_BASE}, -1)"),
+                           If("acmcix >= 0 && acmcix < 16", [Call("ac-mixcc")], [
+                               V("actg", look), If("actg >= 0", [Call("ac-ctl")])])])
+    proc(c, "ac-mixcc", [
+        If("acmcix < 8", [V("acmck", f"{mixknob} + {lvl}"), T("acparams", "acmck", "acctlv127/127"),
+                          SendL("ac-param", ["acmck", "acctlv127/127"])],
+           [V("acmcb", "acmcix - 8"),
+            If("acctlv127 >= 64 && acmcp[int(acmcb)] < 64", [If(f"acmcb == {i}", [Call(f"ac-laykey{i}")]) for i in range(8)]),
+            T("acmcp", "acmcb", "acctlv127")])])
     c.col()
     up = c.to(c.recv("ac-pressin"), "unpack f f")
     c.c(up, 1, c.obj("v acctlv127"), 0)
@@ -113,6 +134,13 @@ def cc_map():
         If("actg == 10", [SendL("ac-brsw", ["acctlv", "30"])]),
         # resolve: held while the CC is 64 or more (a pedal), released below
         If("actg == 12", [If("(acctlv >= 0.5) != acres", [V("acres", "acctlv >= 0.5"), Call("ac-resolveupd")])]),
+        # root: the CC's range spread over the 12 keys (an encoder or a slider); next section / chord now: on a
+        # press (64 and up); glide: its 6 steps
+        If("actg == 13", [V("acrootn", "int(acctlv*11.99)"), If("acrootn != acpend", [Call("ac-rootset")])]),
+        If("actg == 14", [If("acctlv >= 0.5 && acnsx == 0", [V("acsec", "acsec+1"), Call("ac-section"),
+                                                             Toast("next section")]), V("acnsx", "acctlv >= 0.5")]),
+        If("actg == 15", [If("acctlv >= 0.5 && acchx == 0", [Call("ac-chordnow")]), V("acchx", "acctlv >= 0.5")]),
+        If("actg == 16", [V("acglide", "int(acctlv*5.99)")]),
     ] + [If(f"actg == {t}", [T("acparams", knobs.index(n), "acctlv"), SendL("ac-param", [str(knobs.index(n)), "acctlv"])])
          for t, n in _S.TARGET_KNOB.items()])
     # a new note takes its channel's tone and level
@@ -131,6 +159,10 @@ def live():
     c.col()
     proc(c, "ac-now", [V("acnow", "acnow + 100"), If("acrun", [V("acel", "acel + 100/actime"),
                                                                V("acsecel", "acsecel + 100")]), If("int(acnow) % 500 == 0", [Call("ac-listen")]), Call("ac-ana"),
+                            # a custom section's layers coming in or going out at 1/4, 1/2, 3/4 of it
+                            If("acrun && acsecc", [V("acsecqn", "min(3, int(4*acsecel/max(1, acsecdur*actime)))"),
+                                                   If("acsecqn != acsecq", [V("acsecq", "acsecqn"), Call("ac-secovr"),
+                                                                            V("acfade", __import__("gen_setup").SFADE), Call("ac-layers")])]),
                             # SETUP page 7 shows the breath level as it comes in
                             If("acsetup && acsetpg >= 6 && int(acnow) % 300 == 0", [Call("ac-oledsetup")])])
     # ---- notes
@@ -173,8 +205,10 @@ def live():
     proc(c, "ac-noteoff", off)
     # hold (a CC mapped to hold, e.g. 64): a released note keeps sounding until hold lets go
     held_i = V("acvi", " + ".join(f"if(aclvn[{i}]==aclnote && aclvc[{i}]==aclch, {i + 1}, 0)" for i in range(NV)) + " - 1")
-    run_steps(c, (tb, 0), [If("aclvel > 0", on, [If("achold", [held_i, If("acvi >= 0", [T("aclsus", "acvi", "1")])],
-                                                     [Call("ac-noteoff")])])])
+    # while the Root key (low C#) is held, a note picks the next key instead of playing
+    run_steps(c, (tb, 0), [If("aclvel > 0 && acroothold", [V("acrootn", "int(aclnote) % 12"), Call("ac-rootset")],
+                              [If("aclvel > 0", on, [If("achold", [held_i, If("acvi >= 0", [T("aclsus", "acvi", "1")])],
+                                                     [Call("ac-noteoff")])])])])
     proc(c, "ac-holdoff", [If(f"aclsus[{i}] && aclvn[{i}] >= 0", [V("aclnote", f"aclvn[{i}]"), V("aclch", f"aclvc[{i}]"),
                                                                  T("aclsus", i, "0"), Call("ac-noteoff")])
                            for i in range(NV)])
@@ -188,15 +222,14 @@ def live():
                V("acp1", "if(acp1<43, acp1+12, if(acp1>86, acp1-12, acp1))"),
                V("acp1", "if(acp1<43, acp1+12, if(acp1>86, acp1-12, acp1))"),
                T("acnew", k, "acp1"), T("acch", k, "acp1"),
-               SendL(f"ac-v{k}-pitch", [f"acnew[{k}]", "300", "0"])]
+               SendL(f"ac-v{k}-pitch", [f"acnew[{k}]", "300*(acglide > 0)", "0"])]
     proc(c, "ac-youchord", steps + [If("acyn > 0", ch + [Call("ac-change2")])])
     # back to the composer's drone and grains when the notes stop (or Notes to changes)
     proc(c, "ac-routehome", [SendL("ac-dronep", ["actonic", "1500"]), SendL("ac-subp", ["mtof(actonic - 12)", "1500"]),
                              Call("ac-grains")])
     proc(c, "ac-allnotesoff", [Loop(str(NV), "aci", [T("aclvn", "aci", "-1"), SendL("ac-lvoff", ["aci"])]),
                                V("acheld", "0"), V("acfocus", "-1")])
-    proc(c, "ac-extnote", [If("acext == 0", [Toast("MIDI in - keys are functions")]), V("acext", "1"),
-                           V("acextt", "acnow")])
+    proc(c, "ac-extnote", [V("acext", "1"), V("acextt", "acnow")])
     # ---- bend: remember per channel, retune the voices on that channel
     ub = c.to(c.recv("ac-livebend"), "unpack f f")
     c.c(ub, 1, c.obj("v aclbs"), 0)
@@ -239,9 +272,7 @@ def live():
         # a held note for 6 s becomes the key centre (once per note)
         If("acfocus >= 0 && acnow - acfocust > 6000 && acfkdone == 0 && acfollow > 0.3 && ackeyc == 0 && "
            "acfocus != int(actonic) % 12 && acpend < 0", [
-            V("acpend", "acfocus"), V("acfkdone", "1"), Call("ac-keyfromyou")]),
-        # an external controller that went quiet for 2 minutes gives the keys back
-        If("acext && acforce < 0 && acnow - acextt > 120000", [V("acext", "0"), Toast("keys play notes")]),
+            V("acpend", "acfocus"), V("acfkdone", "1"), Call("ac-keyfromyou"), Call("ac-chordnext")]),
         # memories: capture what you play now and then, while the piece develops
         If("acrec == 0 && acact > 0.6 && (acpconf > 0.4 || acons > 0.6) && acnow - acmemt > 45000 && "
            "acrole >= 1 && acrole <= 4 && acinput > 0.05", [Call("ac-memrec")]),

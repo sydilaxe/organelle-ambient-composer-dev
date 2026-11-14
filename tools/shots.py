@@ -24,10 +24,18 @@ def main():
            (48600, "h-snap setup_page5"), (48800, "aux 1"), (48900, "aux 0"),
            (49300, "h-snap setup_page6"), (49500, "aux 1"), (49600, "aux 0"), (50000, "h-snap setup_page7"),
            (50200, "aux 1"), (50300, "aux 0"), (50700, "h-snap setup_page8"), (50900, "aux 1"), (51000, "aux 0"),
-           (51400, "h-snap setup_page9"), (51600, "aux 1"), (52900, "aux 0")]
+           (51400, "h-snap setup_page9")]
+    t = 51600
+    for pg in range(10, 15):
+        ev += [(t, "aux 1"), (t + 100, "aux 0"), (t + 500, f"h-snap setup_page{pg}")]
+        t += 700
+    ev += [(t, "aux 1"), (t + 1300, "aux 0")]
     ev += [(52000, "notesRaw 81 100"), (52050, "notesRaw 81 0"), (52300, "h-snap toast")] if False else []
-    ev += [(53500, "ac-toast list input reso"), (53800, "h-snap toast")]
-    log, _ = run(ev, 60, prints=("oscOut",), extra=snap)
+    ev += [(t + 2000, "ac-toast list input reso"), (t + 2300, "h-snap toast")]
+    # the MIX view (low D#), then a knob on it
+    ev += [(t + 4000, "notesRaw 63 100"), (t + 4050, "notesRaw 63 0"), (t + 5000, "h-snap mix"),
+           (t + 5500, "knob3 0.5"), (t + 5600, "knob3 0.7"), (t + 5800, "h-snap mix_knob")]
+    log, _ = run(ev, 70, prints=("oscOut",), extra=snap)
     saved = oledemu.render(log, OUT)
     # DRIFT, and the end of a piece
     log, _ = run([(40, "actime 0.03"), (45, "acmode 0"), (50, "ac-setseed 808"), (12000, "h-snap drift")], 13,

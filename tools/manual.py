@@ -58,36 +58,49 @@ KNOBS = {   # value name -> (range, what it does)
     "acsndi": ("off-full", "Reverb send of the audio input: its dry signal and the input modes (resonators, "
                            "bands, tape, vocoder, memories)."),
 }
+for _n, _lab in (("acmxd", "drone"), ("acmxs", "sub"), ("acmxp", "pads"), ("acmxb", "bells"), ("acmxm", "motion"),
+                 ("acmxt", "textures"), ("acmxc", "cloud"), ("acmxa", "atmosphere")):
+    KNOBS[_n] = ("off-+6 dB", f"Level of the {_lab}. 0 = silent, 50 % = the designed balance, 100 % = twice.")
 
 FKEY_DESC = {
-    "COMPOSE / DRIFT": "Switch between a composed piece (5-30 min, with a form and an end) and endless DRIFT.",
-    "chord change now | aux: Resolve": "Move to the next chord at once. Aux + C# = Resolve: the harmony moves "
-                                       "to the tonic as open fifths (root, 5th, octave, 12th) and stays there - no "
-                                       "modulation, no dissonant chords - until you release it the same way "
-                                       "(standalone: aux + C# twice quickly). A CC mapped to resolve does it too.",
+    "SHAPE page": "Knobs: Dens, Tide, Colr, In.",
+    "SPACE page": "Knobs: reverb Mix, Verb, Time, Tone.",
+    "PIECE page": "Knobs: Len, Weird, Mot, Rhy.",
+    "MIX 1 page": "Knobs: the levels of drone, sub, pads, bells. The screen shows the MIX view.",
+    "MIX 2 page": "Knobs: the levels of motion, textures, cloud, atmosphere. The screen shows the MIX view.",
+    "SENDS 1 page": "Knobs: the reverb sends of drone, pads, bells, motion (MIX view).",
+    "SENDS 2 page": "Knobs: the reverb sends of textures, cloud, atmosphere, input (MIX view).",
+    "Root (hold)": "Hold it and press an Organelle key, play a MIDI note or turn knob 1: that note is the next key "
+                   "(it arrives with the next chord change). While it is not held, MIDI notes play as usual.",
+    "Resolve": "The harmony moves to the tonic as open fifths (root, 5th, octave, 12th) and stays there - no "
+               "modulation, no dissonant chords - until you press it again. A CC mapped to resolve does it too.",
+    "chord change now": "Tap: move to the next chord (the one the screen shows) at once - the footswitch does the "
+                        "same. Hold: after half a second another next chord is picked, and again every 0.7 s while "
+                        "you hold; let go when line 2 shows one you like.",
     "next section": "Jump to the next section of the form.",
-    "drone on/off": "Mute or unmute the drone (and sub).",
-    "pads on/off": "Mute or unmute the 4 pad voices.",
-    "textures on/off": "Mute or unmute the textures and atmosphere.",
-    "cloud on/off | aux: Freeze": "Mute or unmute the granular cloud. Aux + F# = Freeze: the reverb tail and "
-                                  "the cloud hold still; again to release (standalone: aux + F# twice quickly).",
-    "bells on/off": "Mute or unmute the bell motif.",
-    "capture 8 s of input": "Record 8 s of the input into the cloud and keep it as a memory.",
-    "input mode": "Step through the input modes (see Audio input).",
-    "start / stop": "Stop fades out over 8 s and freezes the piece where it is (section, chord, time left; "
-                    "MIDI clock Stop and notes off). Start fades back in and goes on from there. After FIN it "
-                    "starts a new piece.",
-    "new piece": "Start a new piece with a new seed.",
+    "hold section": "Keep the section playing past its length; press again and the piece moves on within 2 s. "
+                    "HOLD shows on the screen.",
+    "input mode | aux: capture": "Step through the input modes (see Audio input). Aux: record 8 s of the input "
+                                 "into the cloud and keep it as a memory.",
+    "Freeze": "The reverb tail and the cloud hold still; again to release.",
+    "start / stop | aux: COMPOSE / DRIFT": "Start a ready piece, or stop: an 8 s fade that freezes the piece where "
+                                           "it is (section, chord, time left; MIDI clock Stop and notes off); "
+                                           "start again goes on from there. After FIN it starts a new piece. Aux: "
+                                           "switch between COMPOSE (a 5-30 min piece with a form and an end) and "
+                                           "endless DRIFT - while stopped, the piece is prepared again in that mode.",
+    "new piece | aux: SAVES": "A new piece with a new seed (ready, if stopped). Aux: the SAVES page.",
 }
+for _var, _name, _g in U.LAYER_KEYS:
+    FKEY_DESC[f"{_name} in/out | aux: auto"] = (
+        f"Bring the {_name} in (on at its MIX level, whatever the piece does) if it is silent, or take it out if "
+        "it plays. Aux: back to auto - the piece and its sections decide. The fade takes SETUP LIVE Key fade.")
 
 SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
     "MIDI out": (", ".join(S.MOUT), "Tempo = MIDI clock (24 per beat) following the piece's tempo, with Start and "
                                     "Stop. Notes = the parts listed under MIDI out."),
     "Sync": ("internal, follow clock", "Follow clock: an incoming MIDI clock drives Amble's rhythm; Start restarts "
                                        "the bar and starts a stopped piece, Stop stops the piece."),
-    "Keys": ("auto, play notes, functions", "Auto: the Organelle keys play notes until an external controller plays, "
-                                            "then they become function keys (and play again after 2 minutes "
-                                            "without external notes)."),
+    "Mode": ("COMPOSE, DRIFT", "The mode of the next piece (also aux + top A#). Saved, so Amble starts in it."),
     "Bloom": ("clean, vintage", "Vintage adds the MidiVerb II's 13-bit grain to the Bloom reverbs."),
     "Follow you": ("0-100 %", "How strongly the chords follow what you play or sing."),
     "MPE bend": (", ".join(str(b) for b in S.BENDS), "Per-note pitch-bend range in semitones (channel 1 uses 2)."),
@@ -100,8 +113,10 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
                                      "one side of the reverb."),
     "Width": ("50-150 %", "Overall stereo width."),
     "Pan motion": ("0-100 %", "How far the voices travel in the stereo field."),
-    "Tempo": (", ".join(f"{n} {lo}-{hi}" for n, lo, hi in DT.TEMPOS), "The range a piece picks its tempo from. "
-              f"Above {DT.HALFTIME} BPM the slow layers move at half time."),
+    "Tempo": (", ".join(f"{n} {lo}-{hi}" for n, lo, hi in DT.TEMPOS) + "; FORM: auto, 40-140 bpm",
+              "Page 3: the range a piece picks its tempo from. Page 10 (FORM): a fixed tempo for the whole piece "
+              f"(auto = from the range, moving with the sections). Above {DT.HALFTIME} BPM the slow layers move at "
+              "half time."),
     "MIDI notes": (", ".join(S.PARTS), "Which notes go out: all; harmony (chords, tonic, bass); or the arp chord "
                                        "only."),
     "Arp octave": ("C1-C5", "Where the arp chord starts (MIDI out, base channel + 5)."),
@@ -109,7 +124,8 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
     "CPU guard": ("off, on", "When on, Amble gets lighter under overload (see CPU)."),
     "Pads": ("auto, raw, " + ", ".join(DT.FLAVOURS), "The pad types. auto: the piece's palette, new picks each "
              "section. raw: the dry, buzzy types of the first demos (vox, part, fold, pulsr), no character effect. "
-             "A type name: all four pad voices (and the notes you play) use it. Applies at once, crossfaded."),
+             "A type name: all four pad voices (and the notes you play) use it. Applies at once, crossfaded. "
+             "On SECTIONS (page 11): the pad type of that section only (auto = the SOUNDS choice)."),
     "Drone": ("auto, " + ", ".join(DT.DRONES), "The drone's design; auto = the piece's (and its break's)."),
     "Texture": ("auto, " + ", ".join(DT.TEXTURES), "The texture layer; auto = the section's two."),
     "Character": ("auto, " + ", ".join(DT.CHARACTERS), "The effect on the pads; auto = the piece's."),
@@ -117,6 +133,9 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
               "Notes to = bells); auto = the piece's (mostly bars or metal). Applies at once, crossfaded."),
     "Motion": ("auto, " + ", ".join(DT.STRIKES), "The engine of the motion arpeggio, through its tempo echoes; "
                "auto = the piece's (mostly fm or blip). Applies at once, crossfaded."),
+    "Glide": (", ".join(S.GLIDES), "How the pad voices move to a new chord. slow: each glides over 25-75 % of the "
+              "time between changes (at least 1.5 s), one voice after another; long, medium, short and fast are "
+              "60, 30, 15 and 5 % of that; off: they jump, all at once. From the next chord change."),
     "Key": ("auto, C-B", "The home key. A fixed key stays: no modulation, no key plan, no key from you (a top-octave "
             "key still moves it). Applies at once with a chord change."),
     "Scale": ("auto, " + ", ".join(n for n, _ in DT.SCALES), "The scale. A fixed scale stays (no chance scale "
@@ -125,7 +144,7 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
                "(see Voicings). Applies at once."),
     "Pulse": (", ".join(S.PULSES), "How much the drone and sub swell on every bar (normal = as designed; its "
               "depth also follows the section and the Rhy knob)."),
-    "Notes to": (", ".join(S.ROUTES), "What MIDI notes and the Organelle keys play: voice = the live voice; chords "
+    "Notes to": (", ".join(S.ROUTES), "What MIDI notes play: voice = the live voice; chords "
                  "= the notes you hold are the pad chord; drone = the drone and sub on your note; bells = a bell per "
                  "note; cloud = each note tunes a grain stream. The notes still steer the harmony (Follow you)."),
     "Breath to": (", ".join(S.BRTOS), "What breath does: voice+piece = the live voice's level and tone and the "
@@ -138,6 +157,37 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
     "Last CC": ("shown only", "The last CC that arrived and its value (0-127), to find what your controller sends."),
     "Vib rate": ("3-8 Hz", "The speed of the live voices' vibrato (its depth comes from a CC mapped to vibrato)."),
     "Breath in": ("shown only", "The breath level arriving now (after the Breath curve)."),
+    "Sub": (", ".join(S.SSUBS), "The sub: auto = the piece's choice; or the pedal under the tonic, the chord root "
+            "as a bass line, or both."),
+    "Form": (", ".join(S.SFORMS), "The shape of the next piece (or now, while a piece waits ready). custom = your "
+             "sections from SECTIONS and SECTION MIX; editing a section switches to custom, starting from the "
+             "piece's own plan."),
+    "Meter": (", ".join(S.SMETERS), "Beats in a bar; auto = the piece's. Applies at once."),
+    "Atmos": (", ".join(S.SATMS), "The atmosphere; auto = the section's. From the next section."),
+    "Section": ("now, 1-12", "Which section the rows below edit. Turned fully down = now: it follows the "
+                "section that plays, so an edit changes what you hear."),
+    "Role": (", ".join(S.SROLES), "The section's role (see Section roles): its energy, layers, key area, tempo. "
+             "end = the piece ends before this section."),
+    "Length": (", ".join(S.SLENS), "The section's length against the others (the Len knob sets the whole)."),
+    "Layer": (", ".join(S.SEC_LAYER_NAMES), "Which layer Play and Level set, in this section."),
+    "Play": (", ".join(S.SPLAY), "auto = the piece decides; off / on for the whole section; in 1/4 .. 3/4 = silent "
+             "until that point of the section, then it swells in to its Level over the Entry fade; out = it plays, "
+             "then fades out at that point. A layer key (top octave) set to in or out overrides this."),
+    "Level": ("0-200 %", "The layer's level in this section, on top of its MIX level."),
+    "Slot": ("1-16, empty / saved", "The save slot (in saves.txt, kept when you update Amble)."),
+    "Save - turn up": ("knob 2 up", "Turn knob 2 fully up: the piece is saved to the slot - its seed, mode, "
+                       "knobs (except In), SOUNDS, MUSIC, VOICES, FORM, your sections and the layer keys."),
+    "Load - turn up": ("knob 3 up", "Turn knob 3 fully up: the slot is loaded. Stopped, it waits ready; playing, "
+                       "it becomes the piece now."),
+    "Seed": ("shown only", "The piece's seed: the same seed is the same piece."),
+    "Mix CCs": (", ".join(S.SMIXCC), "A bank of 16 CCs for a controller: the first 8 set the levels of drone, sub, "
+                "pads, bells, motion, textures, atmosphere, cloud (the layer keys' order); the next 8 are their in/out "
+                "buttons (64 and up = a press, as the layer keys)."),
+    "Prog change": (", ".join(S.SPGM), "A program change 1-16 loads that save slot."),
+    "Key fade": (", ".join(n for n, _ in S.SLFADE), "How long a layer key (or a Mix CC button) takes to bring a "
+                 "layer in or out."),
+    "Entry fade": (", ".join(n for n, _ in S.SSFADE), "How long a section's layer takes to come in or go out at "
+                   "its point (SECTION MIX Play in / out)."),
 }
 
 INMODE_DESC = {
@@ -288,34 +338,49 @@ def story():
           para("<b>Install.</b> Unzip the release and copy the <b>Amble</b> folder into the Organelle's "
                "<b>Patches</b> folder (USB drive or SD card). It needs Organelle OS 5 (Pd 0.53 or later) and uses "
                "vanilla Pd objects only."),
-          para("<b>Start.</b> Load Amble from the menu. A new piece begins at once. The screen shows the piece as a "
-               "live score; the knobs shape it; the keys play notes (or, with an external controller, run "
-               "functions); hold <b>aux</b> for 1 s for SETUP."),
+          para("<b>Start.</b> Load Amble from the menu. A new piece waits, ready and silent: choose COMPOSE or DRIFT "
+               "(aux + top A#) and press <b>top A#</b> to start it. The screen shows the piece as a live score; the "
+               "knobs shape it; the Organelle keys are functions (pages, harmony, form, layers, transport) and you "
+               "play notes from a MIDI controller; hold <b>aux</b> for 1 s for SETUP, or press aux + a low key for "
+               "that SETUP page."),
           para("<b>Audio input.</b> Amble uses the Organelle's line input. Set the Organelle's mic/line switch to "
                "<b>Line</b>, plug in, and raise the <b>In</b> knob (SHAPE page). At In 0 the input is ignored, and "
                "In always starts at 0 when Amble loads."),
-          para("<b>Settings</b> (knob values and SETUP, except In) are saved in <b>settings.txt</b> in the patch folder. "
+          para("<b>Settings</b> (knob values and SETUP, except In) are saved in <b>settings.txt</b> in the patch folder; "
+               "a new release brings its own, so an update resets them. Pieces you keep go to <b>saves.txt</b> "
+               "(SETUP SAVES), which an update leaves alone. "
                "<b>seed.txt</b> counts start-ups so no two sessions begin the same way.")]
 
     s += [Paragraph("2  The screen", H1),
-          para("The OLED is a live score of the piece."),
+          para("The OLED has two views. The <b>play view</b> is a live score of the piece. The <b>MIX view</b> shows "
+               "the levels: it takes the screen while a MIX or SENDS page is open (low D# to F#) and gives it back "
+               "when you open SHAPE, SPACE or PIECE."),
           table([["Region", "What it shows"],
                  ["Top strip", "The form: one bar per section (height = energy), the current one inverted, a "
                                "playhead. In DRIFT: the energy and the section's progress."],
-                 ["Line 2", "Key and scale; the time left (elapsed in DRIFT); short messages."],
+                 ["Line 2", "The chord now > the next chord (picked ahead, so you see what is coming; hold low A "
+                            "for another). Under it a bar shrinks to the change. Messages take the line briefly."],
                  ["Left", "The 4 pad voices as dots on a pitch ladder (they glide between chords); your held notes "
                           "as boxes; tonic ticks; a breath bar. A pitch heard on the input is a line across it."],
-                 ["Middle", "Meters: drone, pads, textures, cloud, bells, motion, reverb, and the input level."],
-                 ["Right", "The motion layer's Euclidean pattern with its cursor, the tempo, the reverb (B1 B2 HALL "
-                           "SHIM). While audio comes in: the input panel - 6 s of its level as a waveform with "
-                           "onsets ticked, the input mode and what Amble hears (pitch, pluck, textr), a dot while "
-                           "a memory records."],
-                 ["Bottom", "Section role and voicing; K = keys play, M = external MIDI, E = following an external "
-                            "clock; FIN at the end."]], [1.0, 5.7]),
+                 ["Right", "The motion layer's Euclidean pattern with its cursor, and the tempo. While audio comes in: "
+                           "the input panel - its level as a waveform with onsets ticked, the input mode (in auto: "
+                           "what Amble hears - pitch, pluck, textr), a dot while a memory records."],
+                 ["Voices", "One row in the layer keys' order (Dr Sb Pd Bl Mo Tx At Cl): two letters while the voice "
+                            "sounds, a dot while it rests, a dash when it is out."],
+                 ["Bottom", "Key and scale, then the section's role - or HOLD / FRZ while a section is held or Freeze "
+                            "is on; READY or STOPPED (A# starts), FIN at the end."]], [1.0, 5.7]),
+          Spacer(1, 6),
+          table([["MIX view", "What it shows"],
+                 ["Header", "The page, the section and its role; a knob's name and value while you turn it."],
+                 ["Bars", "One per voice; on SENDS, In (the input) in place of Sb. The bar is the level now, the "
+                          "tick the knob's setting. A dot on top: the voice is on (a layer key); a dash at the foot: "
+                          "it is out. The column a knob is turning is framed, with its value on top."],
+                 ["Labels", "Two letters per voice; the four the knobs turn are underlined."]], [1.0, 5.7]),
           Spacer(1, 6),
           Table([[shot("score", 3.1, "The score"), shot("input", 3.1, "The input panel")],
                  [shot("knob_popup", 3.1, "Turning a knob shows its page for 6 s"),
-                  shot("toast", 3.1, "Messages take line 2 briefly")]],
+                  shot("toast", 3.1, "Messages take line 2 briefly")],
+                 [shot("mix", 3.1, "The MIX view (MIX 1)"), shot("mix_knob", 3.1, "Turning a MIX knob")]],
                 colWidths=[3.35 * inch, 3.35 * inch]),
           PageBreak()]
 
@@ -326,25 +391,22 @@ def story():
             rows.append([DT.PAGE_NAMES[pi] if ki == 0 else "", str(ki + 1), label, rng,
                          f"{int(round(default * 100))} %", desc])
     s += [Paragraph("3  Knobs", H1),
-          para(f"The four knobs have {len(DT.PAGES)} pages: " + ", ".join(DT.PAGE_NAMES) + ". A tap on <b>aux</b> "
-               "goes to the next page. Knobs pick up smoothly: after a page change a knob moves its value towards "
+          para(f"The four knobs have {len(DT.PAGES)} pages: " + ", ".join(DT.PAGE_NAMES) + ". Each has its own "
+               "low key (C to F#), and a tap on <b>aux</b> goes to the next page. Knobs pick up smoothly: after a page change a knob moves its value towards "
                "the end it turns to, so nothing jumps."),
           table(rows, [0.6, 0.4, 0.55, 0.75, 0.6, 3.8])]
 
     frows = [["Key", "Function", "What it does"]]
     for i, name in enumerate(U.FKEYS):
-        frows.append([SHARPS[i] + " (top)", name, FKEY_DESC[name]])
+        frows.append([SHARPS[i % 12] + (" (low)" if i < 12 else " (top)"), name, FKEY_DESC[name]])
     s += [Paragraph("4  Keys, aux and footswitch", H1),
-          para("<b>Standalone</b>, the Organelle keys play notes: 4 voices in the piece's own synthesis type. "
-               "<b>Functions</b> are aux + key."),
-          para("<b>With an external controller</b> (DM48X, any keyboard) playing, it takes over and the Organelle "
-               "keys become function keys without aux. After 2 minutes without external notes the keys play "
-               "again. SETUP <i>Keys</i> can fix either behaviour."),
-          para("<b>Low octave</b> (C to B): choose the next key centre. <b>Top octave</b>: the functions below."),
-          para("<b>Combinations.</b> With an external controller (plain keys are functions), <b>aux + F#</b> is "
-               "<b>Freeze</b>. Standalone (functions are already aux + key), Freeze is <b>aux + F# twice "
-               f"quickly</b> (within {U.TAP2_MS} ms); a single aux + F# toggles the cloud after that short wait."),
-          table(frows, [0.9, 1.6, 4.2]),
+          para("The Organelle keys are always functions: Amble is played from MIDI controllers (any keyboard, MPE "
+               "or breath controller). The <b>low octave</b> opens the knob pages and steers harmony and form; the "
+               "<b>top octave</b> brings layers in and out and runs input, Freeze and the transport. Every one is a "
+               "single press, so a hand can leave your instrument for a moment."),
+          para(f"<b>Aux + a low key</b> opens that SETUP page (C = page 1 ... B = page 12); aux + top B opens SAVES "
+               f"(page 13); aux taps reach the rest ({S.NSET} pages)."),
+          table(frows, [0.9, 1.9, 3.9]),
           Spacer(1, 6),
           table([["Control", "What it does"],
                  ["Aux tap", "Next knob page (in SETUP: next SETUP page)."],
@@ -365,13 +427,16 @@ def story():
                  [shot("setup_page3", 3.1, "SETUP page 3"), shot("setup_page4", 3.1, "SETUP page 4")],
                  [shot("setup_page5", 3.1, "SETUP page 5: SOUNDS"), shot("setup_page6", 3.1, "SETUP page 6: MUSIC")],
                  [shot("setup_page7", 3.1, "SETUP page 7: MIDI IN"), shot("setup_page8", 3.1, "SETUP page 8: CC MAP")],
-                 [shot("setup_page9", 3.1, "SETUP page 9: VOICES"), ""]],
+                 [shot("setup_page9", 3.1, "SETUP page 9: VOICES"), shot("setup_page10", 3.1, "SETUP page 10: FORM")],
+                 [shot("setup_page11", 3.1, "SETUP page 11: SECTIONS"),
+                  shot("setup_page12", 3.1, "SETUP page 12: SECTION MIX")],
+                 [shot("setup_page13", 3.1, "SETUP page 13: SAVES"), shot("setup_page14", 3.1, "SETUP page 14: LIVE")]],
                 colWidths=[3.35 * inch, 3.35 * inch])]
 
     s += [PageBreak(), Paragraph("6  How a piece is composed", H1),
           para("A seed picks the key and scale, voicing families, the pad palette, tempo and meter, the motif, "
                "textures, drone, character, reverb and a form. <b>COMPOSE</b> plays one piece of 5-30 minutes "
-               "(the Len knob) and ends with FIN; <b>B</b> (top) starts a new one. <b>DRIFT</b> plays endless "
+               "(the Len knob) and ends with FIN; <b>top B</b> prepares a new one. <b>DRIFT</b> plays endless "
                "sections for backing a performance."),
           Paragraph("Forms", H2),
           table([["Form", "Shape"]] + [[a, ARCH_DESC[a]] for a in DT.ARCHETYPES], [1.2, 5.5]),
@@ -389,7 +454,14 @@ def story():
           Paragraph("The composer listens", H2),
           para("What you hold or sing pulls the next chord to contain it (SETUP <i>Follow you</i>). A note held "
                "6 s becomes the new key centre. Breath raises the energy, and while you play a section waits for "
-               "you (up to 3 x 30 s). In silence the piece leads.")]
+               "you (up to 3 x 30 s). In silence the piece leads."),
+          Paragraph("Building a piece yourself", H2),
+          para("SETUP FORM sets the shape, a fixed tempo, the meter and the atmosphere. Form <b>custom</b> plays your "
+               "own sections: on SECTIONS give each one a role, a length and a pad type (role <i>end</i> ends the "
+               "piece there); on SECTION MIX set, per section, whether each layer plays (auto, off, on, or coming "
+               "in or going out at 1/4, 1/2 or 3/4 of the section) and its level. With Section at <b>now</b> the "
+               "pages follow the section that plays, so you can shape the piece while it plays. Keep what you like "
+               "in a SAVES slot; a program change can load it (SETUP LIVE).")]
 
     s += [PageBreak(), Paragraph("7  Sound", H1),
           Paragraph("Layers and their rhythms", H2),
@@ -440,12 +512,11 @@ def story():
                "and automatic gain level it, then Amble listens for pitch, attacks and noisiness and calls the "
                "sound pitched, plucked or texture."),
           table([["Mode", "What happens"]] + [[m, INMODE_DESC[m]] for m in DT.INMODES], [1.0, 5.7]),
-          para("Change the mode with the <b>input mode</b> function key (A, top)."),
+          para("Change the mode with the <b>input mode</b> function key (top G#)."),
           Paragraph("Memories, capture and hold", H2),
           para("While the piece develops, Amble keeps 8 s of what you played (up to 4 memories). Break, return and "
-               "dissolve sections bring them back: reversed, slowed or retuned to the chord. <b>Capture</b> (G#, "
-               "top) records 8 s now. <b>Freeze</b> (aux + F#; standalone aux + F# twice) holds the reverb tail "
-               "and the cloud still.")]
+               "dissolve sections bring them back: reversed, slowed or retuned to the chord. <b>Capture</b> (aux + "
+               "top G#) records 8 s now. <b>Freeze</b> (top A) holds the reverb tail and the cloud still.")]
 
     s += [Paragraph("9  MIDI", H1),
           Paragraph("MIDI in: notes, MPE and breath", H2),
@@ -492,10 +563,12 @@ def story():
                                                           "e.g. to 40. Lower it for less delay when playing live."],
                  ["Crackle when a lot is playing", "Leave the CPU guard on; check the CPU reading on SETUP "
                                                    "page 4; lower Dens or choose Bloom instead of Shimmer."],
-                 ["Keys run functions instead of notes", "An external controller took over: wait 2 minutes, or "
-                                                         "set SETUP Keys to play notes."],
-                 ["Nothing happens at the end", "COMPOSE ended (FIN): press B or A# (top) for a new piece, or "
-                                                "switch to DRIFT with C (top)."],
+                 ["The Organelle keys play no notes", "They are functions; play from a MIDI controller."],
+                 ["Silence and READY on the screen", "A piece waits: top A# starts it."],
+                 ["A layer never comes in", "Check its layer key (aux + key = back to auto), its MIX level and, "
+                                            "with Form custom, its Play in SECTION MIX."],
+                 ["Nothing happens at the end", "COMPOSE ended (FIN): press top A# or B for a new piece, or "
+                                                "switch to DRIFT with aux + top A#."],
                  ["Silence and STOPPED on the screen", "The piece is stopped: A# (top) starts it again where it "
                                                        "was."]], [2.0, 4.7]),
           Spacer(1, 10),

@@ -6,30 +6,31 @@ MIDI out base channel, breath curve. Page 3: output, width, pan motion, tempo ra
 parts go out as MIDI notes, the arp chord octave. Page 5 (SOUNDS): pad type, drone, texture, character
 (auto or your choice, applied at once). Page 6 (MUSIC): key, scale, chord voicing (auto or fixed), the bar pulse.
 Page 7 (MIDI IN): where notes go, what breath does, what pressure does, the breath level. Page 8 (CC MAP):
-what each CC does, the last CC in, the vibrato rate. Page 9 (VOICES): the bells' and the motion's engines. Aux tap = the other page, hold aux 1 s = leave (and save)."""
+what each CC does, the last CC in, the vibrato rate. Page 9 (VOICES): the bells' and the motion's engines, the pads' glide. Aux tap = the other page, hold aux 1 s = leave (and save)."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Line, Arm, Toast
 from gen_oled import Fill, OSC, FLIP, gated_text
-from data import PAGES, TEMPOS, FILE_KNOBS, STRIKES, FLAVOURS, DRONES, TEXTURES, CHARACTERS, SCALES, FAMILIES, NOTE_NAMES
+from data import PAGES, TEMPOS, FILE_KNOBS, SEND_KNOBS, SUBMODES, ARCHETYPES, ATMOS_NAMES, ROLES, STRIKES, FLAVOURS, DRONES, TEXTURES, CHARACTERS, SCALES, FAMILIES, NOTE_NAMES
 
 GLOBALS = dict(acmout=1, acsync=0, acvintage=0, acoutch=1, accurve=1.2, acsk=0, acsv=0, acextbpm=60,
                acrtb=0, acoutroot=-1, acclkon=0, acsaved=0, actrange=0,
                acmparts=0, acarpoct=48, acoutbass=-1, acload=0, acloadtest=0, acshedt=0, acldraw=0, acguard=1,
                ackeyc=0, acsclc=0, acchdc=0, acpulc=2, acroute=0, acbrto=0, acpressto=1, acccsel=0, aclastcc=0, aclastv=0, acvibr=5.5,
-               acmap0=2, acmap1=1, acmap2=1, acmap3=1, acmap4=6, acmap5=0, acmap6=3, acsbell=0, acsmot=0)
+               acmap0=2, acmap1=1, acmap2=1, acmap3=1, acmap4=6, acmap5=0, acmap6=3, acsbell=0, acsmot=0, acglide=5, acmodesel=0, acssub=0, acsform=0, acstempo=0, acsmeter=0, acsatm=0, acnsx=0, acchx=0, acslot=0, acslotfull=0, acsvp49=1, acsvp50=1, acsetpgl=-1, acmixcc=0, acpgm=0, aclfd=1, acsfd=2)
 ARRAYS = dict(acout=4, acarp=4)
 NP = len(PAGES)
 KNOBS = [n for p in PAGES for _, n, _ in p]
 SETTINGS = KNOBS[:FILE_KNOBS] + ["acmout", "acsync", "acforce", "acvintage", "acfollow", "acnbr",
                                                   "acoutch", "accurve", "acmono", "acwidth", "acpanmot",
-                                                  "actrange", "acmparts", "acarpoct", "acguard"] + KNOBS[FILE_KNOBS:] + \
+                                                  "actrange", "acmparts", "acarpoct", "acguard"] + KNOBS[FILE_KNOBS:SEND_KNOBS] + \
            ["acspad", "acsdrone", "acstex", "acschar"] + \
            ["ackeyc", "acsclc", "acchdc", "acpulc", "acroute", "acbrto", "acpressto", "acvibr"] + \
-           [f"acmap{j}" for j in range(7)] + ["acsbell", "acsmot"]
+           [f"acmap{j}" for j in range(7)] + ["acsbell", "acsmot", "acglide"] + KNOBS[SEND_KNOBS:] + ["acmodesel", "acssub", "acsform", "acstempo", "acsmeter", "acsatm"] + \
+           ["acmixcc", "acpgm", "aclfd", "acsfd"]
 IN_IDX = [n for p in PAGES for _, n, _ in p].index("acinput")     # the In knob's slot in acparams
 MOUT = ["off", "tempo only", "tempo+notes", "notes only"]
 PARTS = ["all", "harmony", "arp only"]
 OUTPUTS = ["stereo wide", "mono", "split"]   # split: pads + drone left, everything else right (mono stems)
-NSET = 9                                   # SETUP pages
+NSET = 14                                  # SETUP pages
 # SETUP page 5, SOUNDS: auto = the piece chooses; otherwise your choice, at once (to audition) and for every section
 SPADS = ["auto", "raw"] + FLAVOURS
 SDRONES = ["auto"] + DRONES
@@ -51,7 +52,7 @@ BRTOS = ["voice+piece", "voice", "density", "brightness", "reverb", "swell"]
 CCS = [1, 2, 7, 11, 64, 71, 74]
 CC_DEFAULTS = [2, 1, 1, 1, 6, 0, 3]          # mod = vibrato, 2 / 7 / 11 = breath, 64 = hold, 71 off, 74 = voice tone
 TARGETS = ["off", "breath", "vibrato", "voice tone", "voice level", "voice type", "hold", "density", "colour",
-           "reverb", "swell", "motion", "resolve"]
+           "reverb", "swell", "motion", "resolve", "root", "next section", "chord now", "glide"]
 TARGET_KNOB = {7: "acdens", 8: "accolor", 9: "acrvmix", 11: "acmotion"}   # piece targets: the knob they move
 CCSEL = "if(acccsel == 0, 1, " + ", ".join(f"if(acccsel == {j}, {n}" for j, n in enumerate(CCS) if j) + ", 0" + ")" * 7
 MAPSEL = "if(acccsel == 0, acmap0, " + ", ".join(f"if(acccsel == {j}, acmap{j}" for j in range(1, 7)) + ", 0" + ")" * 7
@@ -59,6 +60,50 @@ BENDS = [12, 24, 48, 96]
 # SETUP page 9, VOICES: the engine of the bells and of the motion (auto = the piece's)
 SBELLS = ["auto"] + STRIKES
 SMOTS = ["auto"] + STRIKES
+# how the pad voices move to a new chord: off = they jump; slow = the full glide (25-75 % of the time between
+# changes, at least 1.5 s); the steps between scale that glide
+GLIDES = ["off", "fast", "short", "medium", "long", "slow"]
+# the sub (page 9 row 4): auto = the piece's mode
+SSUBS = ["auto"] + SUBMODES
+# SETUP page 10, FORM: the form's shape (custom = your sections, page 11), a fixed tempo, the meter, the atmosphere
+SFORMS = ["auto"] + ARCHETYPES + ["custom"]
+STEMPOS = ["auto"] + [f"{t} bpm" for t in (40, 48, 56, 64, 72, 80, 90, 100, 110, 120, 140)]
+SMETERS = ["auto"] + [f"{m} beats" for m in (3, 4, 5, 6, 7)]
+SATMS = ["auto"] + ATMOS_NAMES
+# SETUP pages 11-12, SECTIONS and SECTION MIX: the custom form, section by section (a role of "end" ends the
+# piece there); each section's length, pad type, and each layer's play state and level
+SROLES = ROLES + ["end"]
+SLENS = ["short", "normal", "long"]
+SEC_LAYER_NAMES = ["drone", "sub", "pads", "bells", "motion", "textures", "atmos", "cloud"]
+SPLAY = ["auto", "off", "on", "in 1/4", "in 1/2", "in 3/4", "out 1/4", "out 1/2", "out 3/4"]
+# SETUP page 14, LIVE: a bank of 16 CCs (8 layer levels, then 8 layer in/out buttons), program change loads a
+# save slot, the fade of a layer key (or button), the swell of a layer coming in or going out within a section
+SMIXCC = ["off", "CC 20-35", "CC 102-117"]
+MIXCC_BASE = "if(acmixcc == 1, 20, 102)"
+SPGM = ["off", "loads a slot"]
+SLFADE = [("0.5 s", 500), ("2.5 s", 2500), ("5 s", 5000), ("10 s", 10000), ("20 s", 20000)]
+SSFADE = [("2 s", 2000), ("5 s", 5000), ("10 s", 10000), ("20 s", 20000), ("40 s", 40000)]
+
+
+def _pick(var, table):
+    e = str(table[-1][1])
+    for i in range(len(table) - 2, -1, -1):
+        e = f"if({var} == {i}, {table[i][1]}, {e})"
+    return e
+
+
+LFADE = _pick("aclfd", SLFADE)
+SFADE = _pick("acsfd", SSFADE)
+# SETUP page 13, SAVES: 16 slots in saves.txt, each the seed and everything that shapes the piece
+NSLOTS = 16
+SAVE_SCALARS = ["acseed", "acmodesel"] + [n for p in PAGES for _, n, _ in p if n != "acinput"] + \
+    ["acspad", "acsdrone", "acstex", "acschar", "ackeyc", "acsclc", "acchdc", "acpulc", "acsbell", "acsmot", "acglide",
+     "acssub", "acsform", "acstempo", "acsmeter", "acsatm", "acscount"] + \
+    ["acm" + n for n in ("drone", "sub", "pad", "bell", "motion", "tex", "atm", "cloud")]
+SAVE_ARRAYS = [("acsroles", 12), ("acslens", 12), ("acssp", 12), ("acsst", 96), ("acslv", 96)]
+SAVE_LEN = len(SAVE_SCALARS) + sum(n for _, n in SAVE_ARRAYS)
+ARRAYS["acsavebuf"] = SAVE_LEN
+GLIDE_X = "if(acglide == 0, 0, if(acglide == 1, 0.05, if(acglide == 2, 0.15, if(acglide == 3, 0.3, if(acglide == 4, 0.6, 1)))))"
 
 
 def settings():
@@ -87,7 +132,7 @@ def settings():
                            Loop(str(len(KNOBS)), "aci", [SendL("ac-pset", ["aci", "acparams[int(aci)]"])]),
                            Call("ac-sendupd"),
                            SendL("ac-vintage", ["acvintage"]), SendL("ac-brcurve", ["accurve"]),
-                           SendL("ac-lvvibr", ["acvibr"])])
+                           SendL("ac-lvvibr", ["acvibr"]), V("acmode", "acmodesel == 0")])
     rt = c.to(c.recv("ac-pset"), "route " + " ".join(str(i) for i in range(len(KNOBS))))
     for i, n in enumerate(KNOBS):
         c.c(rt, i, c.obj("v " + n), 0)
@@ -123,7 +168,13 @@ def setup_rows():
             ("list 1 Key $1", [("s", "ackeyc", SKEYS)]),
             ("list 1 Notes to $1", [("s", "acroute", ROUTES)]),
             ("list 1 CC $1", [("f", CCSEL)]),
-            ("list 1 Bells $1", [("s", "acsbell", SBELLS)])),
+            ("list 1 Bells $1", [("s", "acsbell", SBELLS)]),
+            ("list 1 Form $1", [("s", "acsform", SFORMS)]),
+            ("list 1 Section $1/$2 $3", [("f", "acsecsel + 1"), ("f", "if(acscount > 0, acscount, acnsec)"),
+                                          ("s", "acsecfol", ["fixed", "now"])]),
+            ("list 1 Section $1 $2", [("f", "acsecsel + 1"), ("s", "acsecfol", ["fixed", "now"])]),
+            ("list 1 Slot $1 $2", [("f", "acslot + 1"), ("s", "acslotfull", ["empty", "saved"])]),
+            ("list 1 Mix CCs $1", [("s", "acmixcc", SMIXCC)])),
         (2, ("list 2 Sync $1", [("s", "acsync", ["internal", "follow clock"])]),
             ("list 2 MPE bend $1", [("f", "acnbr")]), ("list 2 Width $1", [("f", "int(acwidth*100)")]),
             ("list 2 Arp octave C$1", [("f", "acarpoct/12 - 1")]),
@@ -131,15 +182,25 @@ def setup_rows():
             ("list 2 Scale $1", [("s", "acsclc", SSCALES)]),
             ("list 2 Breath to $1", [("s", "acbrto", BRTOS)]),
             ("list 2 to $1", [("s", MAPSEL, TARGETS)]),
-            ("list 2 Motion $1", [("s", "acsmot", SMOTS)])),
-        (3, ("list 3 Keys $1", [("s", "acforce + 1", ["auto", "play notes", "functions"])]),
+            ("list 2 Motion $1", [("s", "acsmot", SMOTS)]),
+            ("list 2 Tempo $1", [("s", "acstempo", STEMPOS)]),
+            ("list 2 Role $1", [("s", "if(acscount > 0, acsroles[int(acsecsel)], acroles[int(acsecsel)])", SROLES)]),
+            ("list 2 Layer $1", [("s", "acslay", SEC_LAYER_NAMES)]),
+            ("list 2 Save - turn up", None),
+            ("list 2 Prog change $1", [("s", "acpgm", SPGM)])),
+        (3, ("list 3 Mode $1", [("s", "acmodesel", ["COMPOSE", "DRIFT"])]),
             ("list 3 MIDI out ch $1", [("f", "acoutch")]), ("list 3 Pan motion $1", [("f", "int(acpanmot*100)")]),
             ("list 3 CPU $1% lite $2", [("f", "int(acload*100)"), ("f", "acshed")]),
             ("list 3 Texture $1", [("s", "acstex", STEXS)]),
             ("list 3 Chords $1", [("s", "acchdc", SCHORDS)]),
             ("list 3 Pressure to $1", [("s", "acpressto", TARGETS)]),
             ("list 3 Last CC $1 = $2", [("f", "aclastcc"), ("f", "aclastv")]),
-            ("list 3 -", None)),
+            ("list 3 Glide $1", [("s", "acglide", GLIDES)]),
+            ("list 3 Meter $1", [("s", "acsmeter", SMETERS)]),
+            ("list 3 Length $1", [("s", "acslens[int(acsecsel)]", SLENS)]),
+            ("list 3 Play $1", [("s", "acsst[int(acsecsel*8 + acslay)]", SPLAY)]),
+            ("list 3 Load - turn up", None),
+            ("list 3 Key fade $1", [("s", "aclfd", [n for n, _ in SLFADE])])),
         (4, ("list 4 Bloom $1", [("s", "acvintage", ["clean", "vintage"])]),
             ("list 4 Breath curve $1", [("f", "int(accurve*100)")]), ("list 4 Tempo $1 $2-$3", [("s", "actrange", [n for n, _, _ in TEMPOS]),
                                           ("f", "actlo[int(actrange)]"), ("f", "acthi[int(actrange)]")]),
@@ -148,7 +209,12 @@ def setup_rows():
             ("list 4 Pulse $1", [("s", "acpulc", PULSES)]),
             ("list 4 Breath in $1%", [("f", "int(aclbv*100)")]),
             ("list 4 Vib rate $1 Hz", [("f", "acvibr")]),
-            ("list 4 -", None)),
+            ("list 4 Sub $1", [("s", "acssub", SSUBS)]),
+            ("list 4 Atmos $1", [("s", "acsatm", SATMS)]),
+            ("list 4 Pads $1", [("s", "acssp[int(acsecsel)]", SPADS)]),
+            ("list 4 Level $1%", [("f", "int(acslv[int(acsecsel*8 + acslay)]*100)")]),
+            ("list 4 Seed $1", [("f", "acseed")]),
+            ("list 4 Entry fade $1", [("s", "acsfd", [n for n, _ in SSFADE])])),
     ]
 
 def setup():
@@ -170,11 +236,12 @@ def setup():
     c.c(tb, 1, c.obj("v acsk"), 0)
     item = "acsetpg*4 + acsk"
     run_steps(c, (tb, 0), [
+        If("acsetpg != acsetpgl", [X("1; 1; acsetpg", "v acsvp49", "v acsvp50", "v acsetpgl")]),
         If(f"{item} == 0", [V("acmout", "int(acsv*3.99)"), If("acmout == 0 || acmout == 3", [Call("ac-clockstop")],
                                                                [Call("ac-clockstart")]),
                             If("acmout < 2", [Call("ac-notesoff")], [Call("ac-outchord")])]),
         If(f"{item} == 1", [V("acsync", "acsv > 0.5"), SendL("ac-bpm", ["acbpm"])]),
-        If(f"{item} == 2", [V("acforce", "int(acsv*2.99) - 1")]),
+        If(f"{item} == 2", [If("(acsv > 0.5) != acmodesel", [Call("ac-modetoggle")])]),
         If(f"{item} == 3", [V("acvintage", "acsv > 0.5"), SendL("ac-vintage", ["acvintage"])]),
         If(f"{item} == 4", [V("acfollow", "acsv")]),
         If(f"{item} == 5", [V("acnbr", f"if(acsv < 0.25, 12, if(acsv < 0.5, 24, if(acsv < 0.75, 48, 96)))")]),
@@ -224,6 +291,45 @@ def setup():
             V(var, "acsnew"), V("acfade", "600"), Call("ac-layers")])])
         for j, (var, opts) in enumerate((("acsbell", SBELLS), ("acsmot", SMOTS)))
     ] + [
+        # the glide applies from the next chord change
+        If(f"{item} == 34", [V("acglide", f"int(acsv*{len(GLIDES) - 0.01})")]),
+        If(f"{item} == 35", [V("acssub", f"int(acsv*{len(SSUBS) - 0.01})")]),
+        # FORM: the shape applies to the next piece (or now, while the piece waits ready); the tempo and meter at
+        # once; the atmosphere from the next section
+        If(f"{item} == 36", [V("acsnew", f"int(acsv*{len(SFORMS) - 0.01})"), If("acsnew != acsform", [
+            V("acsform", "acsnew"), Call("ac-formset")])]),
+        If(f"{item} == 37", [V("acsnew", f"int(acsv*{len(STEMPOS) - 0.01})"), If("acsnew != acstempo", [
+            V("acstempo", "acsnew"), Call("ac-settempo")])]),
+        If(f"{item} == 38", [V("acsnew", f"int(acsv*{len(SMETERS) - 0.01})"), If("acsnew != acsmeter", [
+            V("acsmeter", "acsnew"), If("acsmeter > 0", [V("acmeter", "acsmeter + 2")])])]),
+        If(f"{item} == 39", [V("acsatm", f"int(acsv*{len(SATMS) - 0.01})"), If("acsatm > 0", [
+            V("acatmcur", "acsatm - 1"), V("acfade", "3000"), Call("ac-layers")])]),
+        # SECTIONS / SECTION MIX: editing a section turns the form to custom (from the piece's plan, the first
+        # time); it applies to the piece at once (sections to come; the current one's layers now)
+        # the section: turned fully down = now (follows the playing section), then sections 1-12
+        If(f"{item} == 40 || {item} == 44", [V("acsnew", "int(acsv*12.99)"), V("acsecfol", "acsnew == 0"),
+                                             V("acsecsel", "if(acsnew == 0, min(11, acsec), acsnew - 1)")]),
+        If(f"{item} == 45", [V("acslay", "int(acsv*7.99)")]),
+    ] + [If(f"{item} == {it}", [Call("ac-customcopy"), V("acsform", "6"), act, Call("ac-customapply"),
+                                Call("ac-secovr"), V("acfade", "1000"), Call("ac-layers")] + extra)
+         for it, act, extra in (
+             (41, T("acsroles", "acsecsel", f"int(acsv*{len(SROLES) - 0.01})"), []),
+             (42, T("acslens", "acsecsel", f"int(acsv*{len(SLENS) - 0.01})"), []),
+             (43, T("acssp", "acsecsel", f"int(acsv*{len(SPADS) - 0.01})"), [If("acsecsel == acsec", [Call("ac-padpick")])]),
+             (46, T("acsst", "acsecsel*8 + acslay", f"int(acsv*{len(SPLAY) - 0.01})"), []),
+             (47, T("acslv", "acsecsel*8 + acslay", "2*acsv"), []))
+    ] + [
+        # SAVES: knob 1 the slot, knob 2 up past 90 % saves, knob 3 loads (each re-arms below 90 %; a page change
+        # re-arms only after the knob has gone down, so arriving with a knob up does nothing)
+        If(f"{item} == 48", [V("acslot", f"int(acsv*{NSLOTS - 0.01})"), Call("ac-slotcheck")]),
+        If(f"{item} == 49", [If("acsv > 0.9 && acsvp49 <= 0.9", [Call("ac-savepiece")]), V("acsvp49", "acsv")]),
+        If(f"{item} == 50", [If("acsv > 0.9 && acsvp50 <= 0.9", [Call("ac-loadpiece")]), V("acsvp50", "acsv")]),
+        # LIVE
+        If(f"{item} == 52", [V("acmixcc", f"int(acsv*{len(SMIXCC) - 0.01})")]),
+        If(f"{item} == 53", [V("acpgm", f"int(acsv*{len(SPGM) - 0.01})")]),
+        If(f"{item} == 54", [V("aclfd", f"int(acsv*{len(SLFADE) - 0.01})")]),
+        If(f"{item} == 55", [V("acsfd", f"int(acsv*{len(SSFADE) - 0.01})")]),
+    ] + [
         Call("ac-oledsetup"), Send("ac-dirty"),
     ])
     c.col()
@@ -238,11 +344,11 @@ def setup():
     for k, *rows in defs:
         s = c.ch(c.recv(f"ac-setl{k}"), "expr acsetpg", "sel " + " ".join(str(j) for j in range(NSET)))
         for j, (ln, parts) in enumerate(rows):
-            c.c(c.to((s, j), "t b"), 0, c.obj(f"s ac-setl{k}{'abcdefghi'[j]}"), 0)
+            c.c(c.to((s, j), "t b"), 0, c.obj(f"s ac-setl{k}{'abcdefghijklmnop'[j]}"), 0)
             if parts:
-                Line(f"ac-setl{k}{'abcdefghi'[j]}", ln, parts, f"ac-sett{k}")(c)
+                Line(f"ac-setl{k}{'abcdefghijklmnop'[j]}", ln, parts, f"ac-sett{k}")(c)
             else:
-                c.c(c.m(c.recv(f"ac-setl{k}{'abcdefghi'[j]}"), ln), 0, c.obj(f"s ac-sett{k}"), 0)
+                c.c(c.m(c.recv(f"ac-setl{k}{'abcdefghijklmnop'[j]}"), ln), 0, c.obj(f"s ac-sett{k}"), 0)
     for k in range(5):
         gated_text(c, f"ac-sett{k}", "acsetup", 0, 2 + k * 12)
     # aux tap in SETUP: the other page
@@ -380,4 +486,62 @@ def clock_in():
     # the timer measures from one tick to the next: read (right inlet) then restart (left)
     run_steps(c, (sel, 1), [If("acsync", [V("actick", "-1"), Call("ac-start"), Toast("clock start")])])
     run_steps(c, (sel, 3), [If("acsync", [Call("ac-stop"), Toast("clock stop")])])
+    return c
+
+
+def saves():
+    """SAVES (SETUP page 13): saves.txt holds one line per saved slot: the slot number, then SAVE_SCALARS and
+    SAVE_ARRAYS. Loading sets them all and prepares the piece from its seed (ready while stopped)."""
+    c = Canvas("saves", w=2600)
+    c.comment("Saves: slot lines in saves.txt (slot, seed, mode, knobs, sounds, form, sections, layer states)")
+    td = c.obj("text define acsaves")
+    c.c(c.m(c.recv("ac-loadsettings"), "read saves.txt"), 0, td, 0)
+    c.c(c.ch(c.recv("ac-loadsettings"), "delay 5"), 0, c.obj("s ac-slotcheck"), 0)
+    # is the slot saved?
+    sc = c.ch(c.recv("ac-slotcheck"), "expr acslot + 1", "text search acsaves 0", "expr $f1 >= 0", "t b f")
+    c.c(sc, 1, c.obj("v acslotfull"), 0)
+    c.c(sc, 0, c.obj("s ac-oledsetupq"), 0)
+    c.col()
+    # save: the values into acsavebuf, then the line (slot first) replaces the slot's line, or is added
+    off = len(SAVE_SCALARS)
+    steps = [T("acsavebuf", i, n) for i, n in enumerate(SAVE_SCALARS)]
+    for name, n in SAVE_ARRAYS:
+        steps += [Loop(str(n), "aci", [T("acsavebuf", f"{off} + aci", f"{name}[int(aci)]")])]
+        off += n
+    proc(c, "ac-savepiece", steps + [Send("ac-savewrite"), Call("ac-slotcheck"), Send("ac-savesay")])
+    w = c.to(c.recv("ac-savewrite"), "t b b b")
+    ts = c.obj("text set acsaves")
+    c.c(c.ch((w, 2), "expr acslot + 1", "text search acsaves 0", "expr if($f1 < 0, 1e+06, $f1)"), 0, ts, 1)
+    lp = c.obj("list prepend")
+    c.c(c.to((w, 1), "expr acslot + 1"), 0, lp, 1)
+    c.c(c.ch((w, 1), "t b", f"array get acsavebuf"), 0, lp, 0)
+    c.c(c.to(lp, "list trim"), 0, ts, 0)
+    c.c(c.m((w, 0), "write saves.txt"), 0, td, 0)
+    c.col()
+    # load
+    ld = c.ch(c.recv("ac-loadpiece"), "expr acslot + 1", "text search acsaves 0", "moses 0")
+    c.c(c.to((ld, 0), "t b"), 0, c.obj("s ac-loadempty"), 0)
+    gl = c.ch((ld, 1), "text get acsaves", "list split 1")
+    c.c((gl, 1), 0, c.obj("array set acsavebuf"), 0)
+    c.c(c.to((gl, 1), "t b"), 0, c.obj("s ac-loadapply"), 0)
+    proc(c, "ac-loadempty", [Toast("slot is empty")])
+    knobs = [n for p in PAGES for _, n, _ in p]
+    off = len(SAVE_SCALARS)
+    steps = [V(n, f"acsavebuf[{i}]") for i, n in enumerate(SAVE_SCALARS)]
+    for name, n in SAVE_ARRAYS:
+        steps += [Loop(str(n), "aci", [T(name, "aci", f"acsavebuf[int({off} + aci)]")])]
+        off += n
+    steps += [T("acparams", knobs.index(n), n) for n in knobs if n != "acinput"]
+    steps += [Loop(str(len(knobs)), "aci", [SendL("ac-pset", ["aci", "acparams[int(aci)]"])]),
+              V("acmode", "acmodesel == 0"), V("acknown0", "0"), V("acknown1", "0"), V("acknown2", "0"),
+              V("acknown3", "0"),
+              Call("ac-sendupd"), Call("ac-revupd"), Call("ac-verbsel"), Call("ac-stereo"),
+              # the piece from its seed: ready while stopped, playing otherwise
+              If("acstopped", [V("acready", "1")]), SendL("ac-setseed", ["acseed"]),
+              Send("ac-loadsay"), Send("ac-dirty")]
+    proc(c, "ac-loadapply", steps)
+    Line("ac-savesay", "list saved to slot $1", [("f", "acslot + 1")], "ac-toast")(c)
+    Line("ac-loadsay", "list loaded slot $1", [("f", "acslot + 1")], "ac-toast")(c)
+    # the SETUP screen, if it shows
+    run_steps(c, (c.recv("ac-oledsetupq"), 0), [If("acsetup", [Call("ac-oledsetup")])])
     return c

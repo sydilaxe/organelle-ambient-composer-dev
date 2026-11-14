@@ -49,6 +49,9 @@ RAW_EXPR = "if(acr1<0.25, %d, if(acr1<0.5, %d, if(acr1<0.75, %d, %d)))" % tuple(
 SUBMODES = ["pedal", "bassline", "both"]
 INMODES = ["auto", "reso", "cloud", "tape", "ghost", "bands", "vocode", "morph"]
 NOTE_NAMES = "C Db D Eb E F Gb G Ab A Bb B".split()
+# chord names on the screen: the root and the triad the scale gives it (+ = augmented, 5 = Resolve's open fifths)
+CHORD_SUFFIXES = ["", "m", "dim", "+", "sus", "5"]
+CHORD_NAMES = [r + q for r in NOTE_NAMES for q in CHORD_SUFFIXES]
 
 # chord-root moves in scale degrees (weighted by repetition): 4ths/5ths, steps, 3rds
 MOVES = [3, -3, 1, -1, 2, 4, -2, 5, 3, -3, -4, 1]
@@ -77,8 +80,12 @@ PAGES = [
     # reverb sends per group, off .. full (50 % = the designed balance, 100 % = twice that)
     [("Drone", "acsndd", 0.5), ("Pads", "acsndp", 0.5), ("Bells", "acsndb", 0.5), ("Motn", "acsndm", 0.5)],
     [("Tex", "acsndt", 0.5), ("Cloud", "acsndc", 0.5), ("Atmo", "acsnda", 0.5), ("Inp", "acsndi", 0.5)],
+    # layer levels, off .. +6 dB (50 % = the designed balance)
+    [("Drone", "acmxd", 0.5), ("Sub", "acmxs", 0.5), ("Pads", "acmxp", 0.5), ("Bells", "acmxb", 0.5)],
+    [("Motn", "acmxm", 0.5), ("Tex", "acmxt", 0.5), ("Cloud", "acmxc", 0.5), ("Atmo", "acmxa", 0.5)],
 ]
-PAGE_NAMES = ["SHAPE", "SPACE", "PIECE", "SENDS 1", "SENDS 2"]
+PAGE_NAMES = ["SHAPE", "SPACE", "PIECE", "SENDS 1", "SENDS 2", "MIX 1", "MIX 2"]
+SEND_KNOBS = 20      # knobs up to the end of the SENDS pages (the MIX pages are saved at the end of settings.txt)
 # the send groups: knob value name -> the reverb send bus its sources throw to (pads are sent from the master)
 #   (the notes you play use the pad synthesis types and share the Pads send)
 SEND_BUS = {"acsndd": "ac-sendd", "acsndp": "ac-sendp", "acsndb": "ac-sendb", "acsndm": "ac-sendm",
