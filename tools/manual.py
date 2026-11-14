@@ -113,6 +113,10 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
     "Drone": ("auto, " + ", ".join(DT.DRONES), "The drone's design; auto = the piece's (and its break's)."),
     "Texture": ("auto, " + ", ".join(DT.TEXTURES), "The texture layer; auto = the section's two."),
     "Character": ("auto, " + ", ".join(DT.CHARACTERS), "The effect on the pads; auto = the piece's."),
+    "Bells": ("auto, " + ", ".join(DT.STRIKES), "The engine that plays the bells (the motif, and your notes when "
+              "Notes to = bells); auto = the piece's (mostly bars or metal). Applies at once, crossfaded."),
+    "Motion": ("auto, " + ", ".join(DT.STRIKES), "The engine of the motion arpeggio, through its tempo echoes; "
+               "auto = the piece's (mostly fm or blip). Applies at once, crossfaded."),
     "Key": ("auto, C-B", "The home key. A fixed key stays: no modulation, no key plan, no key from you (a top-octave "
             "key still moves it). Applies at once with a chord change."),
     "Scale": ("auto, " + ", ".join(n for n, _ in DT.SCALES), "The scale. A fixed scale stays (no chance scale "
@@ -156,6 +160,8 @@ FLAV_DESC = {
     "digi": "ring modulation, bit crush and sample-rate reduction", "sync": "a hard-sync sweep",
     "tine": "an electric-piano bell that strikes itself",
     "sine": "a harmonic sine pad: the fundamental and five harmonics, brightness tilting the upper ones in",
+    "glass": "glassy wavetables: a soft body and sparse high harmonics, brightness and a slow drift morphing "
+             "between them",
 }
 TEX_DESC = {"rain": "rain: a soft hiss, a dense patter of tiny drops and a few heavier plops",
             "wind": "filtered air", "ember": "crackling embers", "chirp": "bird-like chirps",
@@ -166,6 +172,13 @@ TEX_DESC = {"rain": "rain: a soft hiss, a dense patter of tiny drops and a few h
             "whisper": "whispers: breath shaped into fast syllables, one each side",
             "leaves": "leaves rustling in the trees, swelling with gusts",
             "brook": "a rippling, babbling brook"}
+STRIKE_DESC = {"bars": "struck bars, 3 partials tuned per piece (the bells' own)",
+               "fm": "FM pings: a carrier and a modulator at the piece's ratio, the index falling fast "
+                     "(the motion's own)",
+               "blip": "a filtered analog blip: a saw and a sub, a pitch flick, a resonant low-pass closing fast",
+               "wood": "a wooden bar: a mallet knock and three short marimba modes",
+               "wave": "a glassy wavetable that strikes bright and settles to its body",
+               "metal": "a metallophone: vibraphone modes, a beating twin, the motor's tremolo"}
 DRONE_DESC = {"pure": "tonic, a beating twin, an interval and breath tubes",
               "analog": "saws and a square through a slow resonant sweep",
               "organ": "drawbars with a rotary shimmer", "fm": "an electric growl"}
@@ -245,7 +258,8 @@ def setup_items():
     for row, *pages in S.setup_rows():
         for pg, (text, _) in enumerate(pages):
             label = re.sub(r"\s*C?\$\d.*$", "", text.split(" ", 2)[2]).strip()
-            out.append((pg + 1, row, label))
+            if label != "-":          # an empty row
+                out.append((pg + 1, row, label))
     return out
 
 
@@ -350,7 +364,8 @@ def story():
           Table([[shot("setup", 3.1, "SETUP page 1"), shot("setup_page2", 3.1, "SETUP page 2")],
                  [shot("setup_page3", 3.1, "SETUP page 3"), shot("setup_page4", 3.1, "SETUP page 4")],
                  [shot("setup_page5", 3.1, "SETUP page 5: SOUNDS"), shot("setup_page6", 3.1, "SETUP page 6: MUSIC")],
-                 [shot("setup_page7", 3.1, "SETUP page 7: MIDI IN"), shot("setup_page8", 3.1, "SETUP page 8: CC MAP")]],
+                 [shot("setup_page7", 3.1, "SETUP page 7: MIDI IN"), shot("setup_page8", 3.1, "SETUP page 8: CC MAP")],
+                 [shot("setup_page9", 3.1, "SETUP page 9: VOICES"), ""]],
                 colWidths=[3.35 * inch, 3.35 * inch])]
 
     s += [PageBreak(), Paragraph("6  How a piece is composed", H1),
@@ -396,6 +411,10 @@ def story():
           Paragraph("Pad synthesis types", H2),
           table([["Type", "Sound"]] + [[f, FLAV_DESC[f]] for f in DT.FLAVOURS], [1.2, 5.5]),
           para("The electronic and bell-like types come up most often."),
+          Paragraph("Bells and motion engines", H2),
+          para("Both layers can play on any of these engines (SETUP page 9). Auto: each piece picks one for each "
+               "layer - the bells mostly bars or metal, the motion mostly fm or blip."),
+          table([["Engine", "Sound"]] + [[e, STRIKE_DESC[e]] for e in DT.STRIKES], [1.2, 5.5]),
           Paragraph("Drones, character, textures, atmospheres", H2),
           table([["Drone", "Sound"]] + [[d, DRONE_DESC[d]] for d in DT.DRONES], [1.2, 5.5]),
           Spacer(1, 4),
@@ -493,7 +512,7 @@ def checks():
     for names, desc in ((DT.INMODES, INMODE_DESC), (DT.FLAVOURS, FLAV_DESC), (DT.TEXTURES, TEX_DESC),
                         (DT.DRONES, DRONE_DESC), (DT.CHARACTERS, CHAR_DESC), (DT.ATMOS_NAMES, ATMOS_DESC),
                         (DT.VERBS, VERB_DESC), (DT.ARCHETYPES, ARCH_DESC), (DT.ROLES, ROLE_DESC),
-                        (DT.SCENES, SCENE_DESC)):
+                        (DT.SCENES, SCENE_DESC), (DT.STRIKES, STRIKE_DESC)):
         missing += [n for n in names if n not in desc]
     if missing:
         sys.exit("manual.py: no description for: " + ", ".join(missing))

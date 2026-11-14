@@ -502,7 +502,8 @@ def cloud_write():
 
 
 def bells():
-    s, ln = switched("bells", "ac-g-bell")
+    from data import STRIKES
+    s, ln = switched("bells", f"ac-g-bel{STRIKES.index('bars')}")
     s.comment("Bells: the motif, played on 3-partial struck bars (per-piece partial ratios)")
     tl = s.to(s.recv("ac-bell"), "t l b")
     cnt = s.obj("f")
@@ -718,9 +719,10 @@ def master():
         s.c(s.ch(fin, "clip~ -0.98 0.98"), 0, s.obj("throw~ " + bus), 0)
     return s
 
-def motion():
-    s, ln = switched("motion", "ac-g-motion")
-    s.comment("Motion: Euclidean pulses on chord tones - FM pings with a click, a tempo echo")
+def motion_fm():
+    from data import STRIKES
+    s, ln = switched("motion-fm", f"ac-g-mot{STRIKES.index('fm')}")
+    s.comment("Motion FM: Euclidean pulses on chord tones - FM pings with a click (to the motion's echoes)")
     tl = s.to(s.recv("ac-mnote"), "t l b")
     cnt = s.obj("f")
     s.c(tl, 1, cnt, 0)
@@ -766,6 +768,15 @@ def motion():
         s.col(170)
     s.c(ln, 0, L, 1)
     s.c(ln, 0, R, 1)
+    s.c(L, 0, s.obj("throw~ ac-mvL"), 0)
+    s.c(R, 0, s.obj("throw~ ac-mvR"), 0)
+    return s
+
+
+def motion():
+    s, ln = switched("motion", "ac-g-motion")
+    s.comment("Motion: the engine chosen (SETUP page 9; FM pings by default) through tempo echoes and a soft limit")
+    L, R = s.obj("catch~ ac-mvL"), s.obj("catch~ ac-mvR")
     # echoes: 3/4 beat left, 1/2 beat right, darkening
     beat = s.to(s.recv("ac-bpm"), "t f f")
     outs = []

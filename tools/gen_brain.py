@@ -5,7 +5,7 @@ every [send]/[receive] name has a dash (ac-<word>), so values and sends never sh
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Arm, Toast, RNG, Later
 from data import *
 from data import DRONES, CHARACTERS, ATMOS_NAMES, ATMOS_ROLE, SCENES, SCENE_DATA, SCENE_ROLE, \
-    FLAVOUR_WEIGHTS, FM_RATIO_WEIGHTS, PARTIAL_WEIGHTS, pick_table
+    FLAVOUR_WEIGHTS, FM_RATIO_WEIGHTS, PARTIAL_WEIGHTS, pick_table, STRIKES, BELL_ENGINE_WEIGHTS, MOTION_ENGINE_WEIGHTS
 
 NF = len(FAMILIES)
 NS = len(SCALES)
@@ -27,7 +27,7 @@ GLOBALS = dict(
     acmtr=2, acbld=1, acblp=0.5, acvauto=1, acvsec=1, acvtype=1, acrvsize=1,
     # rhythm
     acbpm0=56, acbpm=56, actpos=0.5, acmeter=4, actick=0, acstep=0, acms=0, acmk=5, acmn=8, acmei=0, acmrot=0, acmdiv=1,
-    acmarp=0, acshed=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acdtype=0, acdtype2=1, acdcur=0, acsubm=0, acchar=0, accheff=0, acflstag=4200, acres=0, acdauto=0, actex1a=0, actex2a=1, acspad=0, acsdrone=0, acstex=0, acschar=0, acsnew=0, acchamt=0.5, acavoc=0, acgvoc=0, acdb=0, acgt4=0, acgt5=0, acgt6=0, acgt7=0, acgt8=0, acgt9=0, acgt10=0, acgt11=0, acgsub=0, acatm=0, acatmT=0, acatmT2=1, acfatm=0, acatmcur=0, acgatm=0, acscene=0, acmono=0, acwidth=1, acpanmot=0.8, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
+    acmarp=0, acshed=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acdtype=0, acdtype2=1, acdcur=0, acsubm=0, acchar=0, accheff=0, acflstag=4200, acres=0, acbela=0, acmota=1, acdauto=0, actex1a=0, actex2a=1, acspad=0, acsdrone=0, acstex=0, acschar=0, acsnew=0, acchamt=0.5, acavoc=0, acgvoc=0, acdb=0, acgt4=0, acgt5=0, acgt6=0, acgt7=0, acgt8=0, acgt9=0, acgt10=0, acgt11=0, acgsub=0, acatm=0, acatmT=0, acatmT2=1, acfatm=0, acatmcur=0, acgatm=0, acscene=0, acmono=0, acwidth=1, acpanmot=0.8, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
 )
 for page in PAGES:
     for _, name, d in page:
@@ -35,7 +35,7 @@ for page in PAGES:
 
 ARRAYS = dict(acscale=16, acfamt=NF * 5, acch=4, acnew=4, acplan=16, acpdur=16, acmotif=8, acmotif0=8,
               acmrhy=8, acmoves=12, acmods=12, acgrt=12, acfmrt=8, acpartt=24, acbellt=12, acdintt=5, acrhyt=5,
-              acparams=4 * len(PAGES), acraw=4, acflav=4, acroles=16, acflpick=40, acfmrpick=40, acpapick=40, acscn=50,
+              acparams=4 * len(PAGES), acraw=4, acflav=4, acroles=16, acflpick=40, acbelpk=40, acmotpk=40, acfmrpick=40, acpapick=40, acscn=50,
               acscrole=24, acatmrole=8, ackeyp=16, acprog=8, acrmask=48, acrtide=8,
               acrtempo=8, acrpulse=8, acaway=8, aceuk=10, aceun=10, acmeters=6, acmratios=6, acbreath=4, actlo=5, acthi=5)
 
@@ -52,7 +52,7 @@ for _m in (_L, _O, _S):
     ARRAYS.update(_m.ARRAYS)
 
 DATA_TABLES = dict(
-    acflpick=pick_table(FLAVOUR_WEIGHTS), acfmrpick=pick_table(FM_RATIO_WEIGHTS), acpapick=pick_table(PARTIAL_WEIGHTS),
+    acflpick=pick_table(FLAVOUR_WEIGHTS), acbelpk=pick_table(BELL_ENGINE_WEIGHTS), acmotpk=pick_table(MOTION_ENGINE_WEIGHTS), acfmrpick=pick_table(FM_RATIO_WEIGHTS), acpapick=pick_table(PARTIAL_WEIGHTS),
     acscn=sum(SCENE_DATA, []), acscrole=sum(SCENE_ROLE, []), acatmrole=ATMOS_ROLE,
     acmoves=MOVES, acmods=MODS, acgrt=GRAIN_RATIOS, acfmrt=FM_RATIOS,
     acpartt=sum(PARTIAL_SETS, []), acbellt=sum(BELL_SETS, []), acdintt=DRONE_INTERVALS, acrhyt=RHYTHMS,
@@ -193,7 +193,9 @@ def piece():
         RNG,
         X(f"acr1 < 0.55; int(acr2*{len(ATMOS_NAMES)}); int(acr3*{len(ATMOS_NAMES)})", "v acatm", "v acatmT", "v acatmT2"),
         # tempo, meter, motion timbre
-        X("acr2; acmeters[int(acr3*6)]", "v actpos", "v acmeter"),
+        # (and the bells' and motion's engines for Auto, from the same draw: other picks stay as they were)
+        X("acr2; acmeters[int(acr3*6)]; acbelpk[int(acr1*40)]; acmotpk[int(acr1*1600) % 40]", "v actpos", "v acmeter",
+          "v acbela", "v acmota"),
         V("acbpm0", TEMPO0),
         SendL("ac-mtimbre", ["acmratios[int(acr4*6)]"]),
         RNG,
@@ -441,6 +443,13 @@ def layers():
             steps += [SendL("ac-g-drone", ["acgdrone*(acdcur==0)", "acfade"])]
             steps += [SendL(f"ac-g-drone{i}", [f"acgdrone*(acdcur=={i})", "acfade"]) for i in range(1, len(DRONES))]
             steps += [V("acgsub", "acgdrone*acmdrone*(1-acended)"), SendL("ac-g-sub", ["acgsub", "acfade"])]
+        elif name == "bell":    # the engine chosen in SETUP page 9, or the piece's (auto)
+            steps += [SendL(f"ac-g-bel{i}", [f"acgbell*(if(acsbell > 0, acsbell - 1, acbela) == {i})", "acfade"])
+                      for i in range(len(STRIKES))]
+        elif name == "motion":  # the echoes, and the engine through them
+            steps += [SendL("ac-g-motion", ["acgmotion", "acfade"])]
+            steps += [SendL(f"ac-g-mot{i}", [f"acgmotion*(if(acsmot > 0, acsmot - 1, acmota) == {i})", "acfade"])
+                      for i in range(len(STRIKES))]
         elif name != "tex":
             steps += [SendL("ac-g-" + name, ["acg" + name, "acfade"])]
     steps += [V("acgatm", "(acshed < 1)*acfatm*acmtex*(1-acended)*(0.55 + 0.45*min(1, acdeff*2))")]

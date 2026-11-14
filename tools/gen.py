@@ -9,6 +9,7 @@ import gen_live as L
 import gen_oled as O
 import gen_setup as S
 import gen_sounds as SN
+import gen_strikes as ST
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "patches", "Amble")
@@ -39,11 +40,12 @@ def main_patch():
         m.obj(f"acvoice {k}", 20 + k * 90, 365)
         m.obj(f"amlive {k}", 400 + k * 90, 365)
     for i, sub in enumerate((D.drone(), D.tex_rain(), D.tex_wind(), D.tex_ember(), D.tex_chirp(), D.cloud(),
-                             D.cloud_write(), D.bells(), D.motion(), D.inp(), D.reso(), D.tape(), D.bands(),
+                             D.cloud_write(), D.bells(), D.motion(), D.motion_fm(), D.inp(), D.reso(), D.tape(), D.bands(),
                              D.mem_rec(), D.mem_play(), D.master())
-                             + tuple(f() for f in SN.NEW_DRONES + SN.NEW_TEXTURES + SN.ATMOS) + (SN.sub(), SN.vocoder())):
+                             + tuple(f() for f in SN.NEW_DRONES + SN.NEW_TEXTURES + SN.ATMOS) + (SN.sub(), SN.vocoder())
+                             + tuple(ST.engines()) + (ST.wavetables(),)):
         m.sub(sub, 20 + (i % 4) * 110, 400 + (i // 4) * 30)
-    m.obj(f"array define acbuf {D.CLOUD_LEN}", 20, 510)
+    m.obj(f"array define acbuf {D.CLOUD_LEN}", 20, 900)
     return m
 
 
@@ -61,7 +63,7 @@ def build(out=OUT):
         from data import PAGES
         from data import FILE_KNOBS
         kd = [d for p in PAGES for _, _, d in p]
-        vals = kd[:FILE_KNOBS] + [1, 0, -1, 0, 0.7, 48, 1, 1.2, 0, 1, 0.8, 0, 0, 48, 1] + kd[FILE_KNOBS:] + [0, 0, 0, 0] + [0, 0, 0, 2, 0, 0, 1, 5.5] + gen_setup.CC_DEFAULTS
+        vals = kd[:FILE_KNOBS] + [1, 0, -1, 0, 0.7, 48, 1, 1.2, 0, 1, 0.8, 0, 0, 48, 1] + kd[FILE_KNOBS:] + [0, 0, 0, 0] + [0, 0, 0, 2, 0, 0, 1, 5.5] + gen_setup.CC_DEFAULTS + [0, 0]
         open(sf, "w").write(" ".join(f"{v:g}" for v in vals) + ";\n")
     # Pd start-up options: the Organelle OS starts Pd with a 6 ms audio buffer and appends the patch folder's
     # pd-opts.txt, so a later -audiobuf wins. 25 ms gives Pd room for brief spikes (screen, section changes,

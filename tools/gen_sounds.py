@@ -140,7 +140,31 @@ def flav_sine():
     return s
 
 
-NEW_FLAVS = (flav_saws, flav_pwm, flav_digi, flav_sync, flav_tine, flav_sine)
+def flav_glass():
+    s, ln = switched("glass", "$0-fw12")
+    s.comment("Glass: two glassy wavetables (acwtA, a soft body; acwtB, sparse high harmonics), brightness and a slow "
+              "drift morphing between them; the right side a hair sharp, drifting the other way; a faint octave of "
+              "the bright table on top")
+    f, b = _flav_inlets(s, 2)
+    outs = []
+    for d, rate, ph in ((1.0, 0.083, 0), (1.0011, 0.071, 0.5)):
+        fr = s.to(f, f"*~ {d}")
+        ta, tb = s.to(fr, "tabosc4~ acwtA"), s.to(fr, "tabosc4~ acwtB")
+        lfo = s.obj(f"osc~ {rate}")
+        s.c(s.m(s.obj("loadbang"), str(ph)), 0, lfo, 1)
+        m = s.to(add(s, s.to(b, "*~ 0.75"), s.ch(lfo, "*~ 0.2", "+~ 0.1")), "clip~ 0 1")
+        dif = s.obj("-~")
+        s.c(tb, 0, dif, 0)
+        s.c(ta, 0, dif, 1)
+        sm = s.obj("*~ 0.4")
+        s.c(add(s, ta, mul(s, dif, m)), 0, sm, 0)
+        s.c(s.ch(s.to(fr, "*~ 2"), "tabosc4~ acwtB", "*~ 0.12"), 0, sm, 0)
+        outs.append(sm)
+    _out(s, outs[0], ln, add(s, s.to(outs[0], "*~ 0.5"), s.to(outs[1], "*~ 0.65")))   # mono-safe
+    return s
+
+
+NEW_FLAVS = (flav_saws, flav_pwm, flav_digi, flav_sync, flav_tine, flav_sine, flav_glass)
 
 
 # ---------------------------------------------------------------- drone designs 1..3 (0 is the original)

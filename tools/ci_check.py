@@ -323,7 +323,7 @@ for what, pat in (("form strip", "gFillArea 3 0 0 128 8 0"), ("ladder", "gFillAr
                   ("meters", "gFillArea 3 62 20 33 33 0"), ("rhythm", "gFillArea 3 96 20 32 33 0"),
                   ("tempo", "bpm"), ("knob page", "page SHAPE")):
     check(any(pat in l for l in osc), f"OLED draws the {what}")
-check("ac-sett0: list SETUP 2 of 8 - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
+check(f"ac-sett0: list SETUP 2 of {GS.NSET} - hold aux" in log, "SETUP opens with aux held, aux tap turns its page")
 
 # 18. the wider sound world: drone designs, the sub, electric textures, character, the vocoder, variety
 from data import DRONES, TEXTURES, CHARACTERS, FLAVOURS
@@ -601,7 +601,8 @@ run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 
 vals = open(os.path.join(d, "settings.txt")).read().split()
 log, _ = run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 1"), (550, "aux 0"),
               (700, "knob2 0.5"), (750, "knob2 0.52")], 3, d=d)
-check(len(vals) == 54 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
+# (every SETTINGS value is saved: 56 since the bells' and motion's engines joined, page 9)
+check(len(vals) == len(GS.SETTINGS) == 56 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
       "SENDS: a send is saved after the SETUP values and comes back after a restart")
 
 # 29. the patch asks the Organelle OS for a larger audio buffer (pd-opts.txt is appended to Pd's options)
@@ -804,6 +805,55 @@ after = chord_pcs(log, "h-mark2")
 iv = sorted({(p - ton[-1]) % 12 for p in held}) if ton else []
 check(iv == [0, 7] and "resolve released" in log and len(set(p % 12 for p in after)) >= 3,
       f"Resolve from a CC (a pedal on 64): fifths while held {iv}, the chords move on after ({sorted(set(p % 12 for p in after))})")
+
+# 37. SETUP page 9, VOICES: the bells and the motion each play on any engine (bars, fm, blip, wood, wave, metal),
+#     at about the level of the layer's own engine (fixed test notes; the short wood and blip are calibrated a
+#     little under, halfway to equal peaks); the choice switches the engine at once; Auto picks vary by piece
+from data import STRIKES
+def strike(layer, k):
+    ev = [(50, "ac-setseed 77"), (305, "ac-secstop bang"), (306, "ac-chgstop bang")] + [(310, f"{m} 0") for m in ALL] + \
+         [(311, "acfade 10"), (312, "ac-layers bang"), (313, "ac-rwet 0 10")]
+    notes = [60, 67, 72, 64, 79, 71, 84, 62]
+    if layer == "bell":
+        ev += [(600, f"ac-g-bel{k} 1 10")] + [(1000 + 700 * i, f"ac-bell {notes[i % 8]} 0.8 0.5") for i in range(10)]
+    else:
+        ev += [(600, "ac-g-motion 1 10"), (600, f"ac-g-mot{k} 1 10"), (600, "ac-bpm 100")] + \
+              [(1000 + 150 * i, f"ac-mnote {notes[i % 8]} 0.8 0 0.5") for i in range(45)]
+    log, a = run(ev, 8)
+    return rms_db(a[SR:8 * SR]), np.abs(a[SR:]).max(), errors(log)
+for layer, own in (("bell", "bars"), ("motion", "fm")):
+    ref, _, _ = strike(layer, STRIKES.index(own))
+    for k, name in enumerate(STRIKES):
+        if name == own:
+            continue
+        lv, pk, er = strike(layer, k)
+        check(not er and ref - 8 < lv < ref + 2 and pk < 0.5,
+              f"{layer} engine {name}: {lv:.1f} dB (own {own} {ref:.1f} dB), peak {pk:.2f} {er[:1]}")
+log, _ = run([(50, "ac-setseed 7"), (290, "ac-secstop bang")] + [(295, f"{m} 1") for m in ("acdens", "acenergy", "acfbell",
+                                                                                         "acfmotion", "acrhythm")] +
+             [(300, "acsetup 1"), (310, "acsetpg 8"),
+              (400, f"ac-setknob 0 {(GS.SBELLS.index('wood') + 0.5) / len(GS.SBELLS)}"),
+              (450, f"ac-setknob 1 {(GS.SMOTS.index('blip') + 0.5) / len(GS.SMOTS)}"), (500, "acsetup 0"), (900, "h-mark bang")],
+             2, prints=("ac-sett1", "ac-sett2", "h-mark") + tuple(f"ac-g-bel{k}" for k in range(len(STRIKES)))
+             + tuple(f"ac-g-mot{k}" for k in range(len(STRIKES))))
+def last_on(log, pre):
+    on = {}
+    for l in log.splitlines():
+        if l.startswith(pre):
+            on[int(l.split(":")[0][len(pre):])] = float(l.split()[1])
+    return sorted(k for k, v in on.items() if v > 0)
+bon, mon = last_on(log, "ac-g-bel"), last_on(log, "ac-g-mot")
+check("1 Bells wood" in log and "2 Motion blip" in log and bon == [STRIKES.index("wood")]
+      and mon == [STRIKES.index("blip")],
+      f"VOICES: Bells wood, Motion blip switch the engines (on: bells {bon}, motion {mon})")
+def epick(c):
+    r = c.obj("r ac-txt2", 1400, 0)
+    c.c(c.ch(r, "t b", "expr acbela*10 + acmota"), 0, c.obj("print EP", 1400, 60), 0)
+log, _ = run([(50 + 300 * i, f"ac-setseed {sd}") for i, sd in enumerate((3, 11, 29, 47, 58, 71, 90, 123))], 3,
+             extra=epick)
+picks = {int(float(l.split()[1])) for l in log.splitlines() if l.startswith("EP:")}
+check(len({p // 10 for p in picks}) >= 2 and len({p % 10 for p in picks}) >= 2,
+      f"Auto: pieces pick different bell and motion engines ({sorted(picks)})")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)
