@@ -37,7 +37,7 @@ The layers and their rhythms:
 | Pads | breathing cycles of 7, 9, 11 and 13 half-bars, which phase against each other |
 | Motion | Euclidean patterns, with swing and tempo echoes |
 | Bells | free phrasing, in beats |
-| Textures | random weather |
+| Textures | rain, wind, embers, chirps, radio, data, buzz, murmurs, alien echoes, whispers, leaves, a brook |
 | Cloud | grains, locked to the beat in intense sections |
 
 ## Live input
@@ -47,7 +47,8 @@ The layers and their rhythms:
   voices' level and brightness.
 - **The Organelle keys** play notes when Amble is standalone. When an external controller plays, they
   become function keys; aux + key is a function at any time.
-- **Start / Stop** (A#, top octave): Stop fades out and freezes the piece where it is; Start goes on from there.
+- **Start / Stop** (A#, top octave): Stop fades out over 8 s and freezes the piece where it is; Start goes on from there.
+- **Resolve** (aux + C#; standalone aux + C# twice quickly, like Freeze): the harmony moves to the tonic as open fifths (root, 5th, octave, 12th) and stays there - no modulation, no dissonant chords - until you release it the same way. A CC mapped to **resolve** in SETUP CC MAP does it from a pedal (held at 64 and up).
   An incoming MIDI Start / Stop does the same when Sync is set to follow clock. **Freeze** (the reverb tail and
   the cloud) is aux + F# with an external controller, or aux + F# twice quickly standalone.
 - **Listening:**
@@ -75,12 +76,12 @@ emulator, so the font only approximates the Organelle's.
 | **Score** | The form strip (one bar per section, height = energy, current one inverted, a playhead). Key and scale, with the time left. The pad voices gliding on a pitch ladder, with your held notes as boxes and a breath bar. Meters for every layer, the reverb and the input. The motion layer's Euclidean pattern with a moving cursor, the tempo and the reverb type. The section role and voicing, and K/M/E tags for who is playing and the clock. |
 | **Input** | While external audio plays, the right-hand column becomes an input panel: the last 6 s of the input as a waveform with its onsets ticked above, the input mode, and what Amble hears (pitch, pluck, texture), with a dot while it records a memory. A sung or played pitch is drawn as a line across the pitch ladder, so you see it against the pad voices. The rhythm column comes back 5 s after the input stops. |
 | **Knob page** | Shown for 6 s after you turn a knob or tap aux. |
-| **SETUP** | Hold aux for 1 s; aux taps turn the 8 pages. Page 1: MIDI out (off, tempo only, tempo + notes, notes only), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Page 3: output, width, pan motion, tempo range. Page 4: which MIDI notes go out, arp octave, the CPU load, the CPU guard (on or off). Page 5, **SOUNDS**: pad type, drone, texture and character, each auto or your choice (see below). Page 6, **MUSIC**: key, scale, chord voicing (auto or fixed) and the bar pulse. Page 7, **MIDI IN**: where notes go, what breath does, what pressure does, the breath level. Page 8, **CC MAP**: what each CC does. Saved in `settings.txt` with the knob values (except In, which always starts at 0). |
+| **SETUP** | Hold aux for 1 s; aux taps turn the 9 pages. Page 1: MIDI out (off, tempo only, tempo + notes, notes only), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Page 3: output, width, pan motion, tempo range. Page 4: which MIDI notes go out, arp octave, the CPU load, the CPU guard (on or off). Page 5, **SOUNDS**: pad type, drone, texture and character, each auto or your choice (see below). Page 6, **MUSIC**: key, scale, chord voicing (auto or fixed) and the bar pulse. Page 7, **MIDI IN**: where notes go, what breath does, what pressure does, the breath level. Page 8, **CC MAP**: what each CC does. Page 9, **VOICES**: the engines of the bells and the motion. Saved in `settings.txt` with the knob values (except In, which always starts at 0). |
 
 **SOUNDS** (SETUP page 5) lets you choose the sounds yourself, mid-piece, to audition them. Each item is **auto** (the piece chooses, as before) or your choice, applied at once (crossfaded) and kept for every later section:
 - **Pads:** auto; **raw** (the dry, buzzy types of the first demos: vox, partials, fold and pulsar, with no character effect); or one type for all four pad voices (fm, vox, bow, part, fold, pulsr, saws, pwm, digi, sync, tine).
 - **Drone:** auto, pure, analog, organ, fm.
-- **Texture:** auto, rain, wind, ember, chirp, radio, data, buzz.
+- **Texture:** auto, rain, wind, ember, chirp, radio, data, buzz, murmur, echoes, whisper, leaves, brook.
 - **Character:** auto, clean, chorus, tape, ring, crush.
 
 **MUSIC** (SETUP page 6): **Key** (auto or C to B), **Scale** (auto or one of the 16) and **Chords** (auto or one voicing) apply at once with a chord change; a fixed choice stays (no modulation or scale change). **Pulse** (off, gentle, normal, strong) sets how much the drone and sub swell on every bar.
@@ -94,7 +95,7 @@ emulator, so the font only approximates the Organelle's.
 **CC MAP** (SETUP page 8): knob 1 picks a CC (1, 2, 7, 11, 64, 71, 74), knob 2 sets what it does:
 - **breath** (into the breath path, then Breath to), **vibrato** (the live voices' vibrato depth; knob 4 sets the rate, 3 to 8 Hz),
 - **voice tone**, **voice level** (per note, on the CC's channel, so MPE controllers shape each note; channel 1 = every note), **voice type** (the live voice's synthesis type), **hold** (sustain),
-- **density**, **colour**, **reverb**, **motion** (move that knob), **swell** (the whole level), or **off**.
+- **density**, **colour**, **reverb**, **motion** (move that knob), **swell** (the whole level), **resolve** (the tonic as open fifths while held), or **off**.
 
 Defaults (as the DM48 Engine reads a DM48X): 1 vibrato, 2 / 7 / 11 breath, 64 hold, 71 off, 74 voice tone. Row 3 shows the last CC that arrived, to find what your controller sends.
 
@@ -124,12 +125,13 @@ Defaults (as the DM48 Engine reads a DM48X): 1 vibrato, 2 / 7 / 11 breath, 64 ho
 
 | | Choices (each piece picks its own) |
 |---|---|
-| **Pads** | 11 types (most stereo inside): fm, vox formants, bowed string, drifting partials, wavefolder, pulsar, **saws** (detuned analog ensemble through a tracking resonant low-pass), **pwm** (Juno-like), **digi** (ring mod, bit crush, sample-rate reduction), **sync** (hard-sync sweep), **tine** (an electric-piano bell that strikes itself). A piece uses a palette of 3, per voice and per section, weighted towards the electronic and bell-like types (about 80 % of picks). |
+| **Pads** | 13 types (most stereo inside): fm, vox formants, bowed string, drifting partials, wavefolder, pulsar, **saws** (detuned analog ensemble through a tracking resonant low-pass), **pwm** (Juno-like), **digi** (ring mod, bit crush, sample-rate reduction), **sync** (hard-sync sweep), **tine** (an electric-piano bell that strikes itself), **sine** (a harmonic sine pad), **glass** (glassy wavetables morphing between a soft body and sparse high harmonics). A piece uses a palette of 3, per voice and per section, weighted towards the electronic and bell-like types (about 80 % of picks). |
 | **Drone** | 4 designs: pure, analog (saws and a square through a slow resonant sweep), organ (drawbars with a rotary shimmer), fm (an electric growl). The break may switch to the piece's second design. |
 | **Sub** | A dedicated layer: the pedal an octave under the tonic, the chord root as a bass line, or both. Softly saturated, so small speakers still hear it. |
 | **Character** | On the pads: clean, chorus, tape (wow, saturation, hiss that follows the music), ring modulation, or crush. |
 | **Atmospheres** | In about half the pieces, mostly in the emerge, break and dissolve sections: haze (air shimmering on the chord), deep (rumble with distant thunder), space (air ringing in combs tuned to the chord), night (distant insects), tides (waves washing across the field). All stereo. |
-| **Textures** | 7: rain, wind, embers, chirps, radio (soft drifting static and whistles), data (blip bursts), buzz (electric hum on the tonic). |
+| **Textures** | 12: rain (hiss, patter, plops), wind, embers, chirps, radio (static and a tuning whistle), data (blip bursts), buzz (electric hum on the tonic), murmur (ghostly distant voices), echoes (alien blips in bending echoes), whisper, leaves (rustling trees), brook (babbling water). |
+| **Bells and motion** | 6 engines each, chosen per piece or in SETUP page 9 (VOICES): **bars** (struck 3-partial bars tuned per piece; the bells' own), **fm** (FM pings; the motion's own), **blip** (a filtered analog blip: saw and sub, a pitch flick, a resonant low-pass closing fast), **wood** (a mallet knock and short marimba modes), **wave** (a glassy wavetable that strikes bright and settles), **metal** (a metallophone: vibraphone modes, a beating twin, the motor's tremolo). Auto leans the bells to bars and metal, the motion to fm and blip. |
 | **Input** | Besides chord strings, cloud, tape, ghost and tuned bands: **vocode** (a 10-band vocoder; your sound speaks through a synth choir singing the chord) and **morph** (it speaks through the pads themselves). Auto mode vocodes pitched input in some pieces. |
 
 The four random streams are seeded through a hash, so nearby seeds don't share their sound choices. The
@@ -232,6 +234,14 @@ The Organelle-M runs Amble on one core, so a few things keep it from crackling:
   pitch tracker runs only while the In knob is up. In always starts at 0 when Amble loads.
 - **Half rate where it can't be heard:** the Bloom and Hall/Shimmer reverbs, the vocoder and the pitch tracker
   run at 22.05 kHz (their content stays below 11 kHz).
+- **Even load per block.** A half-rate part works in 32-sample blocks (one 64-sample audio block): in 64s, Pd
+  computes it on every other audio block only, which doubles the peak there (the Hall and Shimmer crackled that
+  way on the Organelle). The Shimmer's pitch shifter runs only when Shimmer is chosen.
+- **Pads without waste.** Each pad type sends to its voice's own bus (throw~ / catch~), so the 10 types that
+  are switched off cost nothing; wired to the voice they cost about as much as one sounding type. In a new
+  section the four voices change type one after another (about 4 s apart), so at most one voice crossfades two
+  types at once: the peak during a change drops from twice the pads' cost to about 1.25 times. Same sound (the
+  pads come 1.5 ms later).
 - **No long ticks.** A new piece, a new section and a chord change are split into stages a few milliseconds
   apart, so no single scheduler tick runs long enough to make the audio drop out (the longest went from about
   0.9 ms to under 0.2 ms on a desktop core).

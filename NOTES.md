@@ -100,7 +100,7 @@ Working memory for this project: read it first in a new session.
 - **Only these OLED commands are used:** gFillArea, gInvertArea, gBox, gPrintln, gFlip and gShowInfoBar,
   the ones DM48 Engine already uses on the device. Checked only in `oledemu.py` so far.
 - **SETUP:** aux held 1 s (a `[delay 1000]` started by `[t b]`; a float into `[delay]` would *set its time*).
-  Knobs in SETUP are absolute (selectors). `settings.txt` holds 54 numbers: the first 12 knobs, 15 SETUP values, the 8 SENDS knobs, the 4 SOUNDS choices, the 8 MUSIC / MIDI IN values (key, scale, chords, pulse, notes to, breath to, pressure to, vibrato rate), then the 7 CC MAP targets (older files load with the sends at 50 %, everything else on auto / as before).
+  Knobs in SETUP are absolute (selectors). `settings.txt` holds 56 numbers: the first 12 knobs, 15 SETUP values, the 8 SENDS knobs, the 4 SOUNDS choices, the 8 MUSIC / MIDI IN values (key, scale, chords, pulse, notes to, breath to, pressure to, vibrato rate), the 7 CC MAP targets, then the 2 VOICES engines (bells, motion) (older files load with the sends at 50 %, everything else on auto / as before).
   It is written 3 s after a change and when SETUP closes, and read at start-up before the first piece.
 - **MIDI out:** through `ac-midibyte` → `[midiout]` and `ac-noteout` → `[noteout]`, so the tests can print
   them. Clock 248 on every `ac-tick` while `acclkon`. Start (250) at a new piece, Stop (252) at FIN.
@@ -165,6 +165,24 @@ Working memory for this project: read it first in a new session.
   `FM_RATIO_WEIGHTS` and `PARTIAL_WEIGHTS`. Electronic and bell-like types make about 80 % of picks.
   The bells layer's role chances were raised by 0.15.
 - **CPU:** about 3 % of an x86 core in the heaviest case.
+
+## Bells and motion engines (feedback: "more sound types for motion and bells: filtered analog blips, wooden
+## tones, wavetables, metallophones, selectable like the others; glassy wavetables on the pads")
+- `tools/gen_strikes.py`: six engines, each available to both layers - bars (the bells' own, in
+  `gen_dsp.bells()`), fm (the motion's own, `gen_dsp.motion_fm()`), blip, wood, wave, metal. Each engine of
+  each layer is its own switched subpatch on `ac-g-bel<k>` / `ac-g-mot<k>` (k = index in `STRIKES`), so only
+  the chosen one computes. Bell engines throw to the mix like the bells; motion engines throw to
+  `ac-mvL/ac-mvR`, caught by `gen_dsp.motion()` - the tempo echoes and the soft limit now serve every engine.
+- Engine choice: SETUP page 9 (`acsbell`, `acsmot`: 0 = auto), else the piece's pick (`acbela`, `acmota`),
+  drawn from the tempo step's unused `acr1` so every other choice of a seed stays as it was.
+- The motion engines' decays follow the piece's ping decay (`ac-mtimbre2`), through a per-engine value
+  `acslen<layer><kind>` ([v] names are global).
+- Levels (`STRIKE_GAIN`, per layer) are calibrated with fixed test notes against bars / fm, halfway between
+  equal RMS and equal peaks: wood and blip are short and spiky.
+- The glass pad and the wave engine share two wavetables (`gen_strikes.wavetables()`: `sinesum` + `normalize`
+  at load into `acwtA` / `acwtB`).
+- `data.pick_table` now always fills its 40 slots exactly (largest remainders): with 13 pad types the plain
+  rounding gave 42, and the last type (glass) would have been cut off.
 
 ## Pd gotchas met here
 - Screen lines: `[pack]` parts must be fed right to left: the hot inlet (part 0) goes last.

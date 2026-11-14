@@ -22,19 +22,25 @@ LAYERS AND THEIR RHYTHMS (one clock, 40-72 BPM by default, meter 3-7)
   Sub      a sine under everything, softly saturated so small speakers hear
            it: the pedal an octave under the tonic, the chord root as a
            bass line, or both (alternating by section)
-  Pads     4 voices, 11 synthesis types: fm, vox, bow, part, fold, pulsr,
+  Pads     4 voices, 13 synthesis types: fm, vox, bow, part, fold, pulsr,
            saws (detuned analog ensemble), pwm (Juno-like), digi (ring mod,
            bit-crush), sync (hard-sync sweep), tine (an electric-piano bell
-           that strikes itself); most are stereo inside. The electronic and
+           that strikes itself), sine (harmonic sines), glass (glassy
+           wavetables); most are stereo inside. The electronic and
            bell-like types come up most often. Voice-led; each breathes in
            its own cycle (7, 9, 11, 13 half-bars) so they phase
   Character  per piece on the pads: clean, chorus, tape (wow, saturation,
            hiss), ring, crush
-  Motion   Euclidean patterns (e.g. 5 in 8, 7 in 16) arpeggiating the chord on
-           FM pings, swing, tempo echoes
-  Bells    the motif, phrased in beats with rubato
-  Textures rain, wind, embers, chirps, radio (soft drifting static, whistles), data (blip
-           bursts), buzz (electric hum on the tonic)
+  Motion   Euclidean patterns (e.g. 5 in 8, 7 in 16) arpeggiating the chord,
+           swing, tempo echoes; on FM pings or another engine (below)
+  Bells    the motif, phrased in beats with rubato, on struck bars or another
+           engine. Engines (both layers, SETUP page 9): bars, fm, blip (a
+           filtered analog blip), wood (marimba-like), wave (a glassy
+           wavetable), metal (a vibraphone-like metallophone)
+  Textures rain (hiss, patter, plops), wind, embers, chirps, radio (static and a
+           tuning whistle), data (blip bursts), buzz (electric hum on the tonic),
+           murmur (ghostly distant voices), echoes (alien blips in bending
+           echoes), whisper, leaves (rustling trees), brook (babbling water)
   Cloud    grains of the recent sound or your input; locked to the beat in
            intense sections, free otherwise
   Atmosphere (about half the pieces, mostly in emerge, break, dissolve):
@@ -81,18 +87,22 @@ THE COMPOSER LISTENS
 
 FUNCTION KEYS (aux + key standalone, plain keys with external MIDI)
   Low octave C..B   next key centre
-  C   COMPOSE / DRIFT          C#  chord change now    D  next section
+  C   COMPOSE / DRIFT   C#  chord change now (aux: Resolve)   D  next section
   D#  drone on/off   E pads   F textures   F# cloud   G bells
   G#  capture 8 s of input (cloud + a memory)
   A   input mode: auto / reso / cloud / tape / ghost / bands / vocode /
       morph
-  A#  START / STOP: stop fades out and freezes the piece where it is
+  A#  START / STOP: stop fades out (8 s) and freezes the piece where it is
       (section, chord, time left); start fades back in and goes on.
       After FIN it starts a new piece. MIDI Start / Stop do the same
       when Sync = follow clock.
   B   new piece
   FREEZE (the reverb tail and the cloud): aux + F# with an external
       controller; standalone, aux + F# twice quickly
+  RESOLVE (the tonic as open fifths, held - no modulation, no dissonant
+      chords - until released the same way): aux + C# with an external
+      controller; standalone, aux + C# twice quickly. A CC mapped to
+      resolve (SETUP CC MAP) holds it from a pedal.
   Aux alone: next knob page.  Footswitch: chord change now
 
 AUDIO INPUT (In knob = amount, always 0 when Amble loads; samples, guitar,
@@ -157,11 +167,12 @@ SETUP (hold aux 1 s; aux tap = next page (8); hold aux 1 s to leave, save)
   page 5, SOUNDS (each auto = the piece chooses; a choice applies at
   once, crossfaded, and stays for every section - for auditioning):
     Pads       auto / raw / one type for all four voices: fm vox bow part
-               fold pulsr saws pwm digi sync tine. raw = the dry, buzzy
+               fold pulsr saws pwm digi sync tine sine glass. raw = the dry, buzzy
                types of the first demos (vox, part, fold, pulsr), no
                character effect
     Drone      auto / pure / analog / organ / fm
-    Texture    auto / rain / wind / ember / chirp / radio / data / buzz
+    Texture    auto / rain / wind / ember / chirp / radio / data / buzz /
+               murmur / echoes / whisper / leaves / brook
     Character  auto / clean / chorus / tape / ring / crush
   page 6, MUSIC (a fixed choice stays: no modulation, no scale change):
     Key        auto / C .. B (applies at once, with a chord change)
@@ -182,11 +193,14 @@ SETUP (hold aux 1 s; aux tap = next page (8); hold aux 1 s to leave, save)
   page 8, CC MAP (knob 1 picks a CC: 1 2 7 11 64 71 74; knob 2 its target):
     targets    off / breath (into Breath to) / vibrato / voice tone /
                voice level / voice type / hold (sustain) / density /
-               colour / reverb / swell / motion. Voice tone and level act
+               colour / reverb / swell / motion / resolve. Voice tone and level act
                per note on the CC's channel (MPE; channel 1 = all).
     defaults   1 vibrato, 2 7 11 breath, 64 hold, 71 off, 74 voice tone
     Last CC    the last CC in and its value
     Vib rate   3-8 Hz
+  page 9, VOICES (auto = the piece's; a choice applies at once):
+    Bells      auto / bars / fm / blip / wood / wave / metal
+    Motion     auto / bars / fm / blip / wood / wave / metal
 
 CPU GUARD: Amble measures its own load each second. Above 78 % it gets
 lighter in steps ("CPU high - lighter"): 1 cloud and atmosphere off,

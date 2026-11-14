@@ -61,7 +61,10 @@ KNOBS = {   # value name -> (range, what it does)
 
 FKEY_DESC = {
     "COMPOSE / DRIFT": "Switch between a composed piece (5-30 min, with a form and an end) and endless DRIFT.",
-    "chord change now": "Move to the next chord at once.",
+    "chord change now | aux: Resolve": "Move to the next chord at once. Aux + C# = Resolve: the harmony moves "
+                                       "to the tonic as open fifths (root, 5th, octave, 12th) and stays there - no "
+                                       "modulation, no dissonant chords - until you release it the same way "
+                                       "(standalone: aux + C# twice quickly). A CC mapped to resolve does it too.",
     "next section": "Jump to the next section of the form.",
     "drone on/off": "Mute or unmute the drone (and sub).",
     "pads on/off": "Mute or unmute the 4 pad voices.",
@@ -71,7 +74,7 @@ FKEY_DESC = {
     "bells on/off": "Mute or unmute the bell motif.",
     "capture 8 s of input": "Record 8 s of the input into the cloud and keep it as a memory.",
     "input mode": "Step through the input modes (see Audio input).",
-    "start / stop": "Stop fades out over 2.5 s and freezes the piece where it is (section, chord, time left; "
+    "start / stop": "Stop fades out over 8 s and freezes the piece where it is (section, chord, time left; "
                     "MIDI clock Stop and notes off). Start fades back in and goes on from there. After FIN it "
                     "starts a new piece.",
     "new piece": "Start a new piece with a new seed.",
@@ -110,6 +113,10 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
     "Drone": ("auto, " + ", ".join(DT.DRONES), "The drone's design; auto = the piece's (and its break's)."),
     "Texture": ("auto, " + ", ".join(DT.TEXTURES), "The texture layer; auto = the section's two."),
     "Character": ("auto, " + ", ".join(DT.CHARACTERS), "The effect on the pads; auto = the piece's."),
+    "Bells": ("auto, " + ", ".join(DT.STRIKES), "The engine that plays the bells (the motif, and your notes when "
+              "Notes to = bells); auto = the piece's (mostly bars or metal). Applies at once, crossfaded."),
+    "Motion": ("auto, " + ", ".join(DT.STRIKES), "The engine of the motion arpeggio, through its tempo echoes; "
+               "auto = the piece's (mostly fm or blip). Applies at once, crossfaded."),
     "Key": ("auto, C-B", "The home key. A fixed key stays: no modulation, no key plan, no key from you (a top-octave "
             "key still moves it). Applies at once with a chord change."),
     "Scale": ("auto, " + ", ".join(n for n, _ in DT.SCALES), "The scale. A fixed scale stays (no chance scale "
@@ -127,7 +134,7 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
     "Pressure to": ("a target (see CC)", "What channel and poly pressure do (default breath)."),
     "CC": (", ".join(str(n) for n in S.CCS), "Knob 1 picks a CC to set; row 2 shows what it does. Defaults: 1 vibrato, "
            "2 / 7 / 11 breath, 64 hold, 71 off, 74 voice tone."),
-    "to": (", ".join(S.TARGETS), "off; breath (into the breath path, see Breath to); vibrato (the live voices' vibrato depth); voice tone and voice level (per note: the voice on the CC's channel, channel 1 = all, so MPE controllers shape each note); voice type (the live voices' synthesis type, across the 11 pad types); hold (a sustain pedal: released notes keep sounding until it lets go); density, colour, reverb, motion (move that knob); swell (the whole level)."),
+    "to": (", ".join(S.TARGETS), "off; breath (into the breath path, see Breath to); vibrato (the live voices' vibrato depth); voice tone and voice level (per note: the voice on the CC's channel, channel 1 = all, so MPE controllers shape each note); voice type (the live voices' synthesis type, across the 12 pad types); hold (a sustain pedal: released notes keep sounding until it lets go); density, colour, reverb, motion (move that knob); swell (the whole level); resolve (held at 64 and up: the tonic as open fifths, see C#)."),
     "Last CC": ("shown only", "The last CC that arrived and its value (0-127), to find what your controller sends."),
     "Vib rate": ("3-8 Hz", "The speed of the live voices' vibrato (its depth comes from a CC mapped to vibrato)."),
     "Breath in": ("shown only", "The breath level arriving now (after the Breath curve)."),
@@ -152,10 +159,26 @@ FLAV_DESC = {
     "saws": "detuned analog saw ensemble through a tracking low-pass", "pwm": "Juno-like pulse-width modulation",
     "digi": "ring modulation, bit crush and sample-rate reduction", "sync": "a hard-sync sweep",
     "tine": "an electric-piano bell that strikes itself",
+    "sine": "a harmonic sine pad: the fundamental and five harmonics, brightness tilting the upper ones in",
+    "glass": "glassy wavetables: a soft body and sparse high harmonics, brightness and a slow drift morphing "
+             "between them",
 }
-TEX_DESC = {"rain": "drops", "wind": "filtered air", "ember": "crackling embers", "chirp": "bird-like chirps",
-            "radio": "soft drifting static and heterodyne whistles", "data": "bursts of tiny blips on chord tones",
-            "buzz": "an electric hum on the tonic"}
+TEX_DESC = {"rain": "rain: a soft hiss, a dense patter of tiny drops and a few heavier plops",
+            "wind": "filtered air", "ember": "crackling embers", "chirp": "bird-like chirps",
+            "radio": "static on both sides, swelling in and out, with a heterodyne whistle tuning near a chord tone",
+            "data": "bursts of tiny blips on chord tones", "buzz": "an electric hum on the tonic",
+            "murmur": "ghostly murmurs: two distant voices, vowels drifting, in syllables and phrases",
+            "echoes": "alien blips on chord tones in ping-pong echoes that bend in pitch as they repeat",
+            "whisper": "whispers: breath shaped into fast syllables, one each side",
+            "leaves": "leaves rustling in the trees, swelling with gusts",
+            "brook": "a rippling, babbling brook"}
+STRIKE_DESC = {"bars": "struck bars, 3 partials tuned per piece (the bells' own)",
+               "fm": "FM pings: a carrier and a modulator at the piece's ratio, the index falling fast "
+                     "(the motion's own)",
+               "blip": "a filtered analog blip: a saw and a sub, a pitch flick, a resonant low-pass closing fast",
+               "wood": "a wooden bar: a mallet knock and three short marimba modes",
+               "wave": "a glassy wavetable that strikes bright and settles to its body",
+               "metal": "a metallophone: vibraphone modes, a beating twin, the motor's tremolo"}
 DRONE_DESC = {"pure": "tonic, a beating twin, an interval and breath tubes",
               "analog": "saws and a square through a slow resonant sweep",
               "organ": "drawbars with a rotary shimmer", "fm": "an electric growl"}
@@ -235,7 +258,8 @@ def setup_items():
     for row, *pages in S.setup_rows():
         for pg, (text, _) in enumerate(pages):
             label = re.sub(r"\s*C?\$\d.*$", "", text.split(" ", 2)[2]).strip()
-            out.append((pg + 1, row, label))
+            if label != "-":          # an empty row
+                out.append((pg + 1, row, label))
     return out
 
 
@@ -340,7 +364,8 @@ def story():
           Table([[shot("setup", 3.1, "SETUP page 1"), shot("setup_page2", 3.1, "SETUP page 2")],
                  [shot("setup_page3", 3.1, "SETUP page 3"), shot("setup_page4", 3.1, "SETUP page 4")],
                  [shot("setup_page5", 3.1, "SETUP page 5: SOUNDS"), shot("setup_page6", 3.1, "SETUP page 6: MUSIC")],
-                 [shot("setup_page7", 3.1, "SETUP page 7: MIDI IN"), shot("setup_page8", 3.1, "SETUP page 8: CC MAP")]],
+                 [shot("setup_page7", 3.1, "SETUP page 7: MIDI IN"), shot("setup_page8", 3.1, "SETUP page 8: CC MAP")],
+                 [shot("setup_page9", 3.1, "SETUP page 9: VOICES"), ""]],
                 colWidths=[3.35 * inch, 3.35 * inch])]
 
     s += [PageBreak(), Paragraph("6  How a piece is composed", H1),
@@ -386,6 +411,10 @@ def story():
           Paragraph("Pad synthesis types", H2),
           table([["Type", "Sound"]] + [[f, FLAV_DESC[f]] for f in DT.FLAVOURS], [1.2, 5.5]),
           para("The electronic and bell-like types come up most often."),
+          Paragraph("Bells and motion engines", H2),
+          para("Both layers can play on any of these engines (SETUP page 9). Auto: each piece picks one for each "
+               "layer - the bells mostly bars or metal, the motion mostly fm or blip."),
+          table([["Engine", "Sound"]] + [[e, STRIKE_DESC[e]] for e in DT.STRIKES], [1.2, 5.5]),
           Paragraph("Drones, character, textures, atmospheres", H2),
           table([["Drone", "Sound"]] + [[d, DRONE_DESC[d]] for d in DT.DRONES], [1.2, 5.5]),
           Spacer(1, 4),
@@ -483,7 +512,7 @@ def checks():
     for names, desc in ((DT.INMODES, INMODE_DESC), (DT.FLAVOURS, FLAV_DESC), (DT.TEXTURES, TEX_DESC),
                         (DT.DRONES, DRONE_DESC), (DT.CHARACTERS, CHAR_DESC), (DT.ATMOS_NAMES, ATMOS_DESC),
                         (DT.VERBS, VERB_DESC), (DT.ARCHETYPES, ARCH_DESC), (DT.ROLES, ROLE_DESC),
-                        (DT.SCENES, SCENE_DESC)):
+                        (DT.SCENES, SCENE_DESC), (DT.STRIKES, STRIKE_DESC)):
         missing += [n for n in names if n not in desc]
     if missing:
         sys.exit("manual.py: no description for: " + ", ".join(missing))

@@ -2,7 +2,7 @@
 listening (focus pitch, key from a held note, breath raising the energy and holding a section),
 audio analysis into a class (quiet / pitched / plucked / textural), and memories."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Line, Arm, Toast, RNG
-from data import INMODES, NOTE_NAMES, SEND_BUS
+from data import INMODES, NOTE_NAMES, SEND_BUS, FLAVOURS
 
 NV = 4                                    # live voices
 
@@ -107,10 +107,12 @@ def cc_map():
            + [If(mine(i), [SendL("ac-lvtim", [str(i), tone(i)])]) for i in range(NV)]),
         If("actg == 4", [T("aclev", "acctlch", "1 - acctlv")]
            + [If(mine(i), [SendL("ac-lvlev", [str(i), lev(i)])]) for i in range(NV)]),
-        If("actg == 5", [V("acvtsel", "int(acctlv*10.99)"), SendL("ac-lvtype", ["acvtsel"])]),
+        If("actg == 5", [V("acvtsel", f"int(acctlv*{len(FLAVOURS) - 0.01})"), SendL("ac-lvtype", ["acvtsel"])]),
         If("actg == 6", [If("(acctlv >= 0.5) != achold", [V("achold", "acctlv >= 0.5"),
                                                           If("achold == 0", [Call("ac-holdoff")])])]),
         If("actg == 10", [SendL("ac-brsw", ["acctlv", "30"])]),
+        # resolve: held while the CC is 64 or more (a pedal), released below
+        If("actg == 12", [If("(acctlv >= 0.5) != acres", [V("acres", "acctlv >= 0.5"), Call("ac-resolveupd")])]),
     ] + [If(f"actg == {t}", [T("acparams", knobs.index(n), "acctlv"), SendL("ac-param", [str(knobs.index(n)), "acctlv"])])
          for t, n in _S.TARGET_KNOB.items()])
     # a new note takes its channel's tone and level

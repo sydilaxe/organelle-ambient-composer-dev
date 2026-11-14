@@ -35,8 +35,12 @@ FAMILIES = [
     ("sus",      0, [0, 3, 4, 8]),        # root, 4th, 5th, 9th
 ]
 
-FLAVOURS = ["fm", "vox", "bow", "part", "fold", "pulsr", "saws", "pwm", "digi", "sync", "tine"]          # pad synthesis types
-TEXTURES = ["rain", "wind", "ember", "chirp", "radio", "data", "buzz"]
+FLAVOURS = ["fm", "vox", "bow", "part", "fold", "pulsr", "saws", "pwm", "digi", "sync", "tine", "sine", "glass"]          # pad synthesis types
+# texture output gains (calibrated so each texture sits near the others, see tools/ci_check.py)
+TEXG = dict(RAIN_PAT=1.4, RAIN_PLOP=30.0, RAIN_G=1.0, MURMUR_G=1.5, MURMUR_X=0.3, ECHO_G=1.1, WHISPER_G=0.26,
+            LEAVES_G=0.2, BROOK_G=0.5)
+TEXTURES = ["rain", "wind", "ember", "chirp", "radio", "data", "buzz", "murmur", "echoes", "whisper",
+            "leaves", "brook"]
 DRONES = ["pure", "analog", "organ", "fm"]
 CHARACTERS = ["clean", "chorus", "tape", "ring", "crush"]
 # SETUP SOUNDS "raw": the pad types of the first demos (vox, partials, fold, pulsar), with no character effect
@@ -137,7 +141,24 @@ SCENE_DATA = [
 # the scenes each section role chooses from (3 picks)
 SCENE_ROLE = [[2, 0, 2], [0, 4, 0], [1, 4, 0], [3, 1, 3], [3, 0, 4], [1, 2, 1], [0, 4, 0], [2, 3, 2]]
 # preferences: the electronic and bell-like sounds come up more often
-FLAVOUR_WEIGHTS = [1.6, 0.5, 0.5, 1.3, 0.6, 1.0, 1.3, 1.3, 1.2, 1.1, 1.8]
+FLAVOUR_WEIGHTS = [1.6, 0.5, 0.5, 1.3, 0.6, 1.0, 1.3, 1.3, 1.2, 1.1, 1.8, 1.3, 1.3]
+# the engines that play the bells (the motif) and the motion (the arpeggio), selectable in SETUP page 9 for each:
+# bars = the struck 3-partial bars (the bells' own), fm = the FM pings (the motion's own), blip = a filtered analog
+# blip, wood = a wooden bar (marimba / woodblock), wave = a glassy wavetable, metal = a vibraphone-like metallophone
+STRIKES = ["bars", "fm", "blip", "wood", "wave", "metal"]
+# auto: what a piece picks (bells lean to bars and metal, motion to the FM pings and blips)
+BELL_ENGINE_WEIGHTS = [2.2, 0.4, 0.5, 0.8, 0.9, 1.4]
+MOTION_ENGINE_WEIGHTS = [0.4, 2.0, 1.5, 0.9, 0.9, 0.5]
+# per engine and layer: output gain, calibrated against the layer's own engine (bars, fm) halfway between equal
+# level and equal peaks (the short, spiky wood and blip would be too loud at equal level) - see tools/ci_check.py;
+# then the decay in ms on the bells, and the motion's decay as a factor of its piece decay (250-950 ms)
+STRIKE_GAIN = dict(bell=dict(bars=1.0, fm=0.8, blip=2.8, wood=1.0, wave=1.05, metal=1.2),
+                   motion=dict(bars=14.0, fm=1.0, blip=18.0, wood=7.0, wave=9.0, metal=10.0))
+STRIKE_DEC = dict(bars=5200, fm=2600, blip=900, wood=700, wave=3200, metal=3600)
+STRIKE_MDEC = dict(bars=1.0, fm=1.0, blip=0.8, wood=0.6, wave=1.2, metal=1.4)
+# the glassy wavetables (harmonic number: amplitude), shared by the glass pad and the wave engine
+WAVETABLES = dict(acwtA={1: 1, 2: 0.25, 3: 0.4, 4: 0.08, 5: 0.22, 7: 0.15, 9: 0.1},
+                  acwtB={1: 0.6, 3: 0.15, 4: 0.35, 6: 0.3, 8: 0.38, 11: 0.25, 13: 0.2, 16: 0.12})
 FM_RATIO_WEIGHTS = [1, 1, 2, 2, 0.7, 2, 1, 1.5]
 PARTIAL_WEIGHTS = [1, 0.8, 2, 1, 0.8, 2]
 
@@ -145,7 +166,15 @@ PARTIAL_WEIGHTS = [1, 0.8, 2, 1, 0.8, 2]
 def pick_table(weights, n=40):
     """a table of n slots, each index repeated in proportion to its weight"""
     tot = sum(weights)
+    counts = [max(1, round(n * w / tot)) for w in weights]
+    # rounding can miss n: then the largest remainders decide (every slot read as int(r*n) must exist)
+    while sum(counts) != n:
+        err = [c - n * w / tot for c, w in zip(counts, weights)]
+        if sum(counts) > n:
+            counts[max((i for i in range(len(counts)) if counts[i] > 1), key=lambda i: err[i])] -= 1
+        else:
+            counts[min(range(len(counts)), key=lambda i: err[i])] += 1
     out = []
-    for i, w in enumerate(weights):
-        out += [i] * max(1, round(n * w / tot))
+    for i, c in enumerate(counts):
+        out += [i] * c
     return out

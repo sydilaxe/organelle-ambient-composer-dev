@@ -23,9 +23,10 @@ def main():
            (47400, "aux 1"), (47500, "aux 0"), (47900, "h-snap setup_page4"), (48100, "aux 1"), (48200, "aux 0"),
            (48600, "h-snap setup_page5"), (48800, "aux 1"), (48900, "aux 0"),
            (49300, "h-snap setup_page6"), (49500, "aux 1"), (49600, "aux 0"), (50000, "h-snap setup_page7"),
-           (50200, "aux 1"), (50300, "aux 0"), (50700, "h-snap setup_page8"), (50900, "aux 1"), (52200, "aux 0")]
+           (50200, "aux 1"), (50300, "aux 0"), (50700, "h-snap setup_page8"), (50900, "aux 1"), (51000, "aux 0"),
+           (51400, "h-snap setup_page9"), (51600, "aux 1"), (52900, "aux 0")]
     ev += [(52000, "notesRaw 81 100"), (52050, "notesRaw 81 0"), (52300, "h-snap toast")] if False else []
-    ev += [(52000, "ac-toast list input reso"), (52300, "h-snap toast")]
+    ev += [(53500, "ac-toast list input reso"), (53800, "h-snap toast")]
     log, _ = run(ev, 60, prints=("oscOut",), extra=snap)
     saved = oledemu.render(log, OUT)
     # DRIFT, and the end of a piece

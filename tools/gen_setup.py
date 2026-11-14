@@ -6,16 +6,16 @@ MIDI out base channel, breath curve. Page 3: output, width, pan motion, tempo ra
 parts go out as MIDI notes, the arp chord octave. Page 5 (SOUNDS): pad type, drone, texture, character
 (auto or your choice, applied at once). Page 6 (MUSIC): key, scale, chord voicing (auto or fixed), the bar pulse.
 Page 7 (MIDI IN): where notes go, what breath does, what pressure does, the breath level. Page 8 (CC MAP):
-what each CC does, the last CC in, the vibrato rate. Aux tap = the other page, hold aux 1 s = leave (and save)."""
+what each CC does, the last CC in, the vibrato rate. Page 9 (VOICES): the bells' and the motion's engines. Aux tap = the other page, hold aux 1 s = leave (and save)."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Line, Arm, Toast
 from gen_oled import Fill, OSC, FLIP, gated_text
-from data import PAGES, TEMPOS, FILE_KNOBS, FLAVOURS, DRONES, TEXTURES, CHARACTERS, SCALES, FAMILIES, NOTE_NAMES
+from data import PAGES, TEMPOS, FILE_KNOBS, STRIKES, FLAVOURS, DRONES, TEXTURES, CHARACTERS, SCALES, FAMILIES, NOTE_NAMES
 
 GLOBALS = dict(acmout=1, acsync=0, acvintage=0, acoutch=1, accurve=1.2, acsk=0, acsv=0, acextbpm=60,
                acrtb=0, acoutroot=-1, acclkon=0, acsaved=0, actrange=0,
                acmparts=0, acarpoct=48, acoutbass=-1, acload=0, acloadtest=0, acshedt=0, acldraw=0, acguard=1,
                ackeyc=0, acsclc=0, acchdc=0, acpulc=2, acroute=0, acbrto=0, acpressto=1, acccsel=0, aclastcc=0, aclastv=0, acvibr=5.5,
-               acmap0=2, acmap1=1, acmap2=1, acmap3=1, acmap4=6, acmap5=0, acmap6=3)
+               acmap0=2, acmap1=1, acmap2=1, acmap3=1, acmap4=6, acmap5=0, acmap6=3, acsbell=0, acsmot=0)
 ARRAYS = dict(acout=4, acarp=4)
 NP = len(PAGES)
 KNOBS = [n for p in PAGES for _, n, _ in p]
@@ -24,12 +24,12 @@ SETTINGS = KNOBS[:FILE_KNOBS] + ["acmout", "acsync", "acforce", "acvintage", "ac
                                                   "actrange", "acmparts", "acarpoct", "acguard"] + KNOBS[FILE_KNOBS:] + \
            ["acspad", "acsdrone", "acstex", "acschar"] + \
            ["ackeyc", "acsclc", "acchdc", "acpulc", "acroute", "acbrto", "acpressto", "acvibr"] + \
-           [f"acmap{j}" for j in range(7)]
+           [f"acmap{j}" for j in range(7)] + ["acsbell", "acsmot"]
 IN_IDX = [n for p in PAGES for _, n, _ in p].index("acinput")     # the In knob's slot in acparams
 MOUT = ["off", "tempo only", "tempo+notes", "notes only"]
 PARTS = ["all", "harmony", "arp only"]
 OUTPUTS = ["stereo wide", "mono", "split"]   # split: pads + drone left, everything else right (mono stems)
-NSET = 8                                   # SETUP pages
+NSET = 9                                   # SETUP pages
 # SETUP page 5, SOUNDS: auto = the piece chooses; otherwise your choice, at once (to audition) and for every section
 SPADS = ["auto", "raw"] + FLAVOURS
 SDRONES = ["auto"] + DRONES
@@ -51,11 +51,14 @@ BRTOS = ["voice+piece", "voice", "density", "brightness", "reverb", "swell"]
 CCS = [1, 2, 7, 11, 64, 71, 74]
 CC_DEFAULTS = [2, 1, 1, 1, 6, 0, 3]          # mod = vibrato, 2 / 7 / 11 = breath, 64 = hold, 71 off, 74 = voice tone
 TARGETS = ["off", "breath", "vibrato", "voice tone", "voice level", "voice type", "hold", "density", "colour",
-           "reverb", "swell", "motion"]
+           "reverb", "swell", "motion", "resolve"]
 TARGET_KNOB = {7: "acdens", 8: "accolor", 9: "acrvmix", 11: "acmotion"}   # piece targets: the knob they move
 CCSEL = "if(acccsel == 0, 1, " + ", ".join(f"if(acccsel == {j}, {n}" for j, n in enumerate(CCS) if j) + ", 0" + ")" * 7
 MAPSEL = "if(acccsel == 0, acmap0, " + ", ".join(f"if(acccsel == {j}, acmap{j}" for j in range(1, 7)) + ", 0" + ")" * 7
 BENDS = [12, 24, 48, 96]
+# SETUP page 9, VOICES: the engine of the bells and of the motion (auto = the piece's)
+SBELLS = ["auto"] + STRIKES
+SMOTS = ["auto"] + STRIKES
 
 
 def settings():
@@ -119,21 +122,24 @@ def setup_rows():
             ("list 1 Pads $1", [("s", "acspad", SPADS)]),
             ("list 1 Key $1", [("s", "ackeyc", SKEYS)]),
             ("list 1 Notes to $1", [("s", "acroute", ROUTES)]),
-            ("list 1 CC $1", [("f", CCSEL)])),
+            ("list 1 CC $1", [("f", CCSEL)]),
+            ("list 1 Bells $1", [("s", "acsbell", SBELLS)])),
         (2, ("list 2 Sync $1", [("s", "acsync", ["internal", "follow clock"])]),
             ("list 2 MPE bend $1", [("f", "acnbr")]), ("list 2 Width $1", [("f", "int(acwidth*100)")]),
             ("list 2 Arp octave C$1", [("f", "acarpoct/12 - 1")]),
             ("list 2 Drone $1", [("s", "acsdrone", SDRONES)]),
             ("list 2 Scale $1", [("s", "acsclc", SSCALES)]),
             ("list 2 Breath to $1", [("s", "acbrto", BRTOS)]),
-            ("list 2 to $1", [("s", MAPSEL, TARGETS)])),
+            ("list 2 to $1", [("s", MAPSEL, TARGETS)]),
+            ("list 2 Motion $1", [("s", "acsmot", SMOTS)])),
         (3, ("list 3 Keys $1", [("s", "acforce + 1", ["auto", "play notes", "functions"])]),
             ("list 3 MIDI out ch $1", [("f", "acoutch")]), ("list 3 Pan motion $1", [("f", "int(acpanmot*100)")]),
             ("list 3 CPU $1% lite $2", [("f", "int(acload*100)"), ("f", "acshed")]),
             ("list 3 Texture $1", [("s", "acstex", STEXS)]),
             ("list 3 Chords $1", [("s", "acchdc", SCHORDS)]),
             ("list 3 Pressure to $1", [("s", "acpressto", TARGETS)]),
-            ("list 3 Last CC $1 = $2", [("f", "aclastcc"), ("f", "aclastv")])),
+            ("list 3 Last CC $1 = $2", [("f", "aclastcc"), ("f", "aclastv")]),
+            ("list 3 -", None)),
         (4, ("list 4 Bloom $1", [("s", "acvintage", ["clean", "vintage"])]),
             ("list 4 Breath curve $1", [("f", "int(accurve*100)")]), ("list 4 Tempo $1 $2-$3", [("s", "actrange", [n for n, _, _ in TEMPOS]),
                                           ("f", "actlo[int(actrange)]"), ("f", "acthi[int(actrange)]")]),
@@ -141,7 +147,8 @@ def setup_rows():
             ("list 4 Character $1", [("s", "acschar", SCHARS)]),
             ("list 4 Pulse $1", [("s", "acpulc", PULSES)]),
             ("list 4 Breath in $1%", [("f", "int(aclbv*100)")]),
-            ("list 4 Vib rate $1 Hz", [("f", "acvibr")])),
+            ("list 4 Vib rate $1 Hz", [("f", "acvibr")]),
+            ("list 4 -", None)),
     ]
 
 def setup():
@@ -184,7 +191,7 @@ def setup():
     ] + [
         # SOUNDS: act only when the choice changes, so turning the knob within one choice does not re-pick
         If(f"{item} == {16 + j}", [V("acsnew", f"int(acsv*{len(opts) - 0.01})"), If(f"acsnew != {var}", [
-            V(var, "acsnew")] + ([Call("ac-padpick")] if j == 0 else []) + [
+            V(var, "acsnew")] + ([V("acflstag", "0"), Call("ac-padpick")] if j == 0 else []) + [
             Call("ac-sndovr"), V("acfade", "1500"), Call("ac-layers")])])
         for j, (var, opts) in enumerate((("acspad", SPADS), ("acsdrone", SDRONES), ("acstex", STEXS), ("acschar", SCHARS)))
     ] + [
@@ -211,6 +218,11 @@ def setup():
                              for j in range(len(CCS))] + [If("achold && " + " && ".join(f"acmap{j} != 6" for j in range(7))
                                                             + " && acpressto != 6", [V("achold", "0"), Call("ac-holdoff")])]),
         If(f"{item} == 31", [V("acvibr", "0.5*int(6 + 10*acsv)"), SendL("ac-lvvibr", ["acvibr"])]),
+        # VOICES: the bells' and the motion's engine, crossfaded at once
+    ] + [
+        If(f"{item} == {32 + j}", [V("acsnew", f"int(acsv*{len(opts) - 0.01})"), If(f"acsnew != {var}", [
+            V(var, "acsnew"), V("acfade", "600"), Call("ac-layers")])])
+        for j, (var, opts) in enumerate((("acsbell", SBELLS), ("acsmot", SMOTS)))
     ] + [
         Call("ac-oledsetup"), Send("ac-dirty"),
     ])
@@ -226,11 +238,11 @@ def setup():
     for k, *rows in defs:
         s = c.ch(c.recv(f"ac-setl{k}"), "expr acsetpg", "sel " + " ".join(str(j) for j in range(NSET)))
         for j, (ln, parts) in enumerate(rows):
-            c.c(c.to((s, j), "t b"), 0, c.obj(f"s ac-setl{k}{'abcdefgh'[j]}"), 0)
+            c.c(c.to((s, j), "t b"), 0, c.obj(f"s ac-setl{k}{'abcdefghi'[j]}"), 0)
             if parts:
-                Line(f"ac-setl{k}{'abcdefgh'[j]}", ln, parts, f"ac-sett{k}")(c)
+                Line(f"ac-setl{k}{'abcdefghi'[j]}", ln, parts, f"ac-sett{k}")(c)
             else:
-                c.c(c.m(c.recv(f"ac-setl{k}{'abcdefgh'[j]}"), ln), 0, c.obj(f"s ac-sett{k}"), 0)
+                c.c(c.m(c.recv(f"ac-setl{k}{'abcdefghi'[j]}"), ln), 0, c.obj(f"s ac-sett{k}"), 0)
     for k in range(5):
         gated_text(c, f"ac-sett{k}", "acsetup", 0, 2 + k * 12)
     # aux tap in SETUP: the other page

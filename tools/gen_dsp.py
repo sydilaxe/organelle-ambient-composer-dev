@@ -4,7 +4,7 @@ FDN reverb and the master stage.
 Buses (throw~/catch~): ac-mixL/R dry mix, ac-padL/R the pad voices, ac-send reverb input (mono),
 ac-src what the cloud resamples. Every layer that can be silent sits in a switch~ed subpatch."""
 from pdlib import Canvas
-from data import CLOUD_LEN
+from data import CLOUD_LEN, TEXG
 
 
 def switched(name, gain, block=None, hook=None):
@@ -97,10 +97,14 @@ def _flav_inlets(s, n):
     return [s.obj("inlet~", 20 + i * 140, 5) for i in range(n)]
 
 
-def _out(s, sig, ln, sigR=None):
-    """a pad type's outputs: left (outlet 0) and right (outlet 1); mono types send the same to both"""
-    s.c(mul(s, sig, ln), 0, s.obj("outlet~", 20, 980), 0)
-    s.c(mul(s, sig if sigR is None else sigR, ln), 0, s.obj("outlet~", 300, 980), 0)
+def _out(s, sig, ln, sigR=None, outlets=False):
+    """a pad type's output, left and right, thrown to its voice's body bus ($0-bL / $0-bR, caught in the voice):
+    a type that is switched off adds nothing there (12 types wired to outlets cost 20 additions a block per
+    voice, sounding or not); mono types send the same to both"""
+    # (outlets=True: a type in its own block size, which throw~ can't cross - the bow, in 16s)
+    dst = ("outlet~", "outlet~") if outlets else ("throw~ $0-bL", "throw~ $0-bR")
+    s.c(mul(s, sig, ln), 0, s.obj(dst[0], 20, 980), 0)
+    s.c(mul(s, sig if sigR is None else sigR, ln), 0, s.obj(dst[1], 300, 980), 0)
 
 
 def flav_fm():
@@ -129,10 +133,14 @@ def flav_vox():
     l1 = s.ch(s.recv("$0-la"), "osc~", "*~ 0.5")
     l2 = s.ch(s.recv("$0-lb"), "osc~", "*~ 0.5")
     bm = s.ch(b, "*~ 0.8", "+~ 0.35")
+    # (shared by both sides: the low body, and the formant centres - the right side's is the mirror image)
+    body = s.ch(saw, "lop~ 600", "*~ 0.2")
+    c1 = s.ch(l1, "*~ 450", "+~ 505")              # 280 + 450*(0.5 + l1)
+    c2 = s.ch(l2, "*~ 1000", "+~ 1400")            # 900 + 1000*(0.5 + l2)
     outs = []
     for sign in (1, -1):
-        cf1 = s.ch(l1, f"*~ {sign}", "+~ 0.5", "*~ 450", "+~ 280")
-        cf2 = s.ch(l2, f"*~ {sign}", "+~ 0.5", "*~ 1000", "+~ 900")
+        cf1 = c1 if sign == 1 else s.ch(c1, "*~ -1", "+~ 1010")
+        cf2 = c2 if sign == 1 else s.ch(c2, "*~ -1", "+~ 2800")
         v1 = s.obj("vcf~ 7")
         v2 = s.obj("vcf~ 10")
         for v, cf in ((v1, cf1), (v2, cf2)):
@@ -141,7 +149,7 @@ def flav_vox():
         sm = s.obj("+~")
         s.c(v1, 0, sm, 0)
         s.c(s.to(v2, "*~ 0.7"), 0, sm, 0)
-        s.c(s.ch(saw, "lop~ 600", "*~ 0.2"), 0, sm, 0)
+        s.c(body, 0, sm, 0)
         outs.append(s.to(mul(s, sm, bm), "*~ 2.2"))
     _out(s, outs[0], ln, add(s, s.to(outs[0], "*~ 0.4"), s.to(outs[1], "*~ 0.75")))
     return s
@@ -160,7 +168,7 @@ def flav_bow():
     damp = s.to(vd, "lop~ 3000")
     ctl(s, damp, "ac-bright", "1500 + 5500*$f1", first=True)
     s.c(s.to(damp, "*~ 0.993"), 0, a, 1)
-    _out(s, s.ch(vd, "hip~ 40", "*~ 9"), ln)
+    _out(s, s.ch(vd, "hip~ 40", "*~ 9"), ln, outlets=True)
     return s
 
 
@@ -285,6 +293,8 @@ def voice():
     bodyL, bodyR = v.obj("*~"), v.obj("*~")
     v.c(amp, 0, bodyL, 1)
     v.c(amp, 0, bodyR, 1)
+    v.c(v.obj("catch~ $0-bL"), 0, bodyL, 0)
+    v.c(v.obj("catch~ $0-bR"), 0, bodyR, 0)
     for i, fl in enumerate((flav_fm(), flav_vox(), flav_bow(), flav_part(), flav_fold(), flav_pulsar())
                            + tuple(f() for f in NEW_FLAVS)):
         sp = v.sub(fl, 20 + i * 120, 700)
@@ -292,8 +302,8 @@ def voice():
         v.c(bsig, 0, sp, 1)
         if fl.name == "bow":
             v.c(dsig, 0, sp, 2)
-        v.c((sp, 0), 0, bodyL, 0)
-        v.c((sp, 1), 0, bodyR, 0)
+            v.c((sp, 0), 0, bodyL, 0)
+            v.c((sp, 1), 0, bodyR, 0)
     # stereo: the composition gives each voice a home (ac-v$1-home "pos ms", by section scene); it orbits
     # around it on its own slow cycle, as far as ac-pandepth. The voice's own stereo is kept (balance pan).
     home = v.ch(v.recv("ac-v$1-home"), "line~")
@@ -363,28 +373,22 @@ def drone():
 
 def tex_rain():
     s, ln = switched("rain", "ac-g-tex0")
-    s.comment("Rain: water-drop bubbles (a sine whose pitch rises as it dies) on chord tones")
-    rt = s.to(s.recv("ac-drop"), "route 0 1 2")
-    L, R = s.obj("*~"), s.obj("*~")
-    s.c(ln, 0, L, 1)
-    s.c(ln, 0, R, 1)
-    for i in range(3):
-        up = s.to((rt, i), "unpack f f")
-        pn = s.to((up, 1), "expr cos($f1*1.5708); sin($f1*1.5708)")
-        tf = s.ch((up, 0), "mtof", "t f f")
-        env = s.ch(s.m(s.to((tf, 1), "expr 90 + 30000/$f1"), "0.9, 0 $1"), "vline~")
-        ex = s.to((tf, 0), "expr $f1*0.7; $f1")
-        pk = s.obj("pack f f")
-        s.c(ex, 1, pk, 1)
-        s.c(ex, 0, pk, 0)
-        fr = s.ch(s.m(pk, "$1, $2 40"), "vline~")
-        sig = mul(s, s.to(fr, "osc~"), mul(s, env, env))
-        for k, dst in ((0, L), (1, R)):
-            m = s.to(sig, "*~ 0.5")
-            s.c(pn, k, m, 1)
-            s.c(m, 0, dst, 0)
-        s.col(160)
-    throws(s, L, R, mix=0.13, send=0.3)
+    s.comment("Rain: a soft hiss, a dense patter of tiny unpitched ticks (sparse noise impulses ringing bright "
+              "bands that wander), and a few heavier plops - each side its own")
+    swell = s.ch(s.obj("osc~ 0.031"), "*~ 0.3", "+~ 0.7")
+    outs = []
+    for side in range(2):
+        bed = s.ch(s.obj("noise~"), "hip~ 600", "lop~ 6000", "*~ 0.05")
+        pat = s.obj("vcf~ 2.5")
+        s.c(s.ch(s.obj("noise~"), "-~ 0.97", "max~ 0", "*~ 30", "lop~ 9000"), 0, pat, 0)   # ~1300 small drops a second
+        s.c(s.ch(s.obj("noise~"), "lop~ 50", "*~ 40000", f"+~ {3800 + 600 * side}", "clip~ 1500 7500"), 0, pat, 1)
+        plop = s.obj("vcf~ 6")
+        s.c(s.ch(s.obj("noise~"), "-~ 0.9997", "max~ 0", "*~ 1500"), 0, plop, 0)
+        s.c(s.obj(f"sig~ {850 + 150 * side}"), 0, plop, 1)
+        o = add(s, add(s, bed, s.to(pat, f"*~ {TEXG['RAIN_PAT']}")), s.to(plop, f"*~ {TEXG['RAIN_PLOP']}"))
+        outs.append(mul(s, mul(s, o, swell), ln))
+        s.col(220)
+    throws(s, s.to(outs[0], f"*~ {TEXG['RAIN_G']}"), s.to(outs[1], f"*~ {TEXG['RAIN_G']}"), mix=0.5, send=0.35)
     return s
 
 
@@ -498,7 +502,8 @@ def cloud_write():
 
 
 def bells():
-    s, ln = switched("bells", "ac-g-bell")
+    from data import STRIKES
+    s, ln = switched("bells", f"ac-g-bel{STRIKES.index('bars')}")
     s.comment("Bells: the motif, played on 3-partial struck bars (per-piece partial ratios)")
     tl = s.to(s.recv("ac-bell"), "t l b")
     cnt = s.obj("f")
@@ -714,9 +719,10 @@ def master():
         s.c(s.ch(fin, "clip~ -0.98 0.98"), 0, s.obj("throw~ " + bus), 0)
     return s
 
-def motion():
-    s, ln = switched("motion", "ac-g-motion")
-    s.comment("Motion: Euclidean pulses on chord tones - FM pings with a click, a tempo echo")
+def motion_fm():
+    from data import STRIKES
+    s, ln = switched("motion-fm", f"ac-g-mot{STRIKES.index('fm')}")
+    s.comment("Motion FM: Euclidean pulses on chord tones - FM pings with a click (to the motion's echoes)")
     tl = s.to(s.recv("ac-mnote"), "t l b")
     cnt = s.obj("f")
     s.c(tl, 1, cnt, 0)
@@ -762,6 +768,15 @@ def motion():
         s.col(170)
     s.c(ln, 0, L, 1)
     s.c(ln, 0, R, 1)
+    s.c(L, 0, s.obj("throw~ ac-mvL"), 0)
+    s.c(R, 0, s.obj("throw~ ac-mvR"), 0)
+    return s
+
+
+def motion():
+    s, ln = switched("motion", "ac-g-motion")
+    s.comment("Motion: the engine chosen (SETUP page 9; FM pings by default) through tempo echoes and a soft limit")
+    L, R = s.obj("catch~ ac-mvL"), s.obj("catch~ ac-mvR")
     # echoes: 3/4 beat left, 1/2 beat right, darkening
     beat = s.to(s.recv("ac-bpm"), "t f f")
     outs = []
@@ -877,6 +892,8 @@ def live_voice():
     bodyL, bodyR = v.obj("*~"), v.obj("*~")
     v.c(amp, 0, bodyL, 1)
     v.c(amp, 0, bodyR, 1)
+    v.c(v.obj("catch~ $0-bL"), 0, bodyL, 0)
+    v.c(v.obj("catch~ $0-bR"), 0, bodyR, 0)
     for i, fl in enumerate((flav_fm(), flav_vox(), flav_bow(), flav_part(), flav_fold(), flav_pulsar())
                            + tuple(f() for f in NEW_FLAVS)):
         sp = v.sub(fl, 20 + i * 120, 760)
@@ -884,8 +901,8 @@ def live_voice():
         v.c(bright, 0, sp, 1)
         if fl.name == "bow":
             v.c(dsig, 0, sp, 2)
-        v.c((sp, 0), 0, bodyL, 0)
-        v.c((sp, 1), 0, bodyR, 0)
+            v.c((sp, 0), 0, bodyL, 0)
+            v.c((sp, 1), 0, bodyR, 0)
     home = v.ch(v.obj("loadbang"), "f $1", "expr 0.2 + 0.2*$f1")
     orb = v.to(v.ch(v.obj("loadbang"), "f $1", "expr 0.05 + 0.017*$f1"), "osc~")
     dep = v.to(orb, "*~ 0.06")

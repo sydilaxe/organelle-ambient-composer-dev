@@ -78,9 +78,12 @@ def ap(c, src, name, ms, g):
 
 
 def hall():
-    s, ln = switched("hall", "ac-g-rvh", block="64 1 0.5")
+    # 32-sample blocks at half rate = one parent block: the work is spread evenly over every audio block (in
+    # 64-sample blocks it all landed on every other block, and those peaks crackled on the Organelle)
+    s, ln = switched("hall", "ac-g-rvh", block="32 1 0.5")
     s.comment("Hall: 8-line FDN, Hadamard feedback, 2 modulated lines; Shimmer adds an octave-up shifter "
-              "in the loop. At 22.05 kHz (half the CPU); its input is band-limited outside")
+              "in the loop (its own subpatch, on only for Shimmer). At 22.05 kHz (half the CPU); its input is "
+              "band-limited outside")
     x = s.obj("inlet~", 20, 5)
     shim_in = s.obj("+~")
     s.c(ap(s, ap(s, ap(s, x, "$0-hap1", 4.77, 0.62), "$0-hap2", 3.59, 0.62), "$0-hap3", 12.7, 0.6), 0, shim_in, 0)
@@ -121,17 +124,31 @@ def hall():
         g = s.to(v[i], "*~ 0.3")
         s.c(s.to(s.recv(f"ac-rg{i}"), "* 0.353553"), 0, g, 1)
         s.c(g, 0, adds[i], 1)
-    # output level matched to Bloom's on program material (the Hall measured about 9 dB quieter)
-    L = s.obj("*~ 0.9")
-    R = s.obj("*~ 0.9")
+    # output level matched to Bloom's on program material (the Hall measured about 9 dB quieter). 1.27: in
+    # 64-sample blocks the modulated lines read about 3 dB hot; in 32s the Hall measures as it does at full rate
+    L = s.obj("*~ 1.27")
+    R = s.obj("*~ 1.27")
     for i, dm in enumerate(damps):
         s.c(dm, 0, L if i % 2 == 0 else R, 0)
-    # shimmer: two crossfaded taps sweeping a 125 ms window -> an octave up, back into the loop
+    # shimmer: its own subpatch, computed only while Shimmer is chosen (ac-shim > 0)
     s.col()
     mono = s.obj("*~ 0.25")
     for dm in damps:
         s.c(dm, 0, mono, 0)
-    s.to(mono, "delwrite~ $0-shd 300")
+    sp = s.sub(shimmer())
+    s.c(mono, 0, sp, 0)
+    s.c(sp, 0, shim_in, 1)
+    for i, o in enumerate((L, R)):
+        s.c(mul(s, o, ln), 0, s.obj("outlet~ lin", 20 + i * 200, 980), 0)
+    return s
+
+
+def shimmer():
+    """Inside the Hall (same rate and block): two crossfaded taps sweeping a 125 ms window -> an octave up,
+    back into the loop. Switched off while ac-shim is 0, so the plain Hall doesn't pay for it."""
+    s, ln = switched("shimmer", "ac-shim", block="32")
+    x = s.obj("inlet~", 20, 5)
+    s.to(x, "delwrite~ $0-shd 300")
     ph = s.obj("phasor~ 8")
     shout = s.obj("hip~ 200")
     for off in (0, 0.5):
@@ -140,8 +157,5 @@ def hall():
         s.c(s.ch(p, "*~ -125", "+~ 126.5"), 0, vd, 0)
         win = s.ch(p, "*~ 0.5", "-~ 0.25", "cos~")
         s.c(mul(s, vd, win), 0, shout, 0)
-    sh = s.ch(s.recv("ac-shim"), "line~")
-    s.c(mul(s, s.to(shout, "lop~ 7000"), sh), 0, shim_in, 1)
-    for i, o in enumerate((L, R)):
-        s.c(mul(s, o, ln), 0, s.obj("outlet~ lin", 20 + i * 200, 980), 0)
+    s.c(mul(s, s.to(shout, "lop~ 7000"), ln), 0, s.obj("outlet~", 20, 980), 0)
     return s
