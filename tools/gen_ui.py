@@ -1,4 +1,9 @@
-"""Organelle controls: knobs (two pages, pickup), keys, aux, footswitch, screen lines, LED, toasts."""
+"""The Organelle's own controls: the knobs (8 pages, with pickup), the 24 keys (all functions: knob pages,
+harmony, form, layers, transport, ANCHOR, quick save / recall), aux, the footswitch, the text screen lines, the LED.
+
+The key layout is LOW_KEYS / TOP_KEYS (the manual documents them in that order); keys() wires them, and the
+gestures that use a key's release (low A tap / hold, top B tap / hold / + key, aux + top A) are handled at the top
+of keys()."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, run_steps, Line
 from data import *
 from pdlib import Toast, Arm

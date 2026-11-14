@@ -21,8 +21,6 @@ from reportlab.platypus import (Image, PageBreak, Paragraph, SimpleDocTemplate, 
                                 TableStyle)
 
 import data as DT
-import gen_brain
-import gen_live
 import gen_setup as S
 import gen_ui as U
 
@@ -121,7 +119,6 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
                                     "Stop. Notes = the parts listed under MIDI out."),
     "Sync": ("internal, follow clock", "Follow clock: an incoming MIDI clock drives Amble's rhythm; Start restarts "
                                        "the bar and starts a stopped piece, Stop stops the piece."),
-    "Mode": ("COMPOSE, DRIFT", "The mode of the next piece (also aux + top A#). Saved, so Amble starts in it."),
     "Bloom": ("clean, vintage", "Vintage adds the MidiVerb II's 13-bit grain to the Bloom reverbs."),
     "Follow you": ("0-100 %", "How strongly the chords follow what you play or sing."),
     "MPE bend": (", ".join(str(b) for b in S.BENDS), "Per-note pitch-bend range in semitones (channel 1 uses 2)."),
@@ -496,7 +493,7 @@ def story():
                "slot as saved, until you let go. A loaded piece comes in over SETUP RECALL Morph (its knobs glide, its "
                "choices switch at once), as a whole piece or as its sound only. A dot at the right of the chord line "
                "shows that the sound has changed since the slot. Empty slots 1-6 hold factory pieces: "
-               + esc(", ".join(n for n, _, _ in S.FACTORY)) + "."),
+               + esc(", ".join(n for n, _, _ in DT.FACTORY)) + "."),
           para("<b>JOURNEY</b> (SETUP 19) lets the pad voices, the drone and the bells' and motion's engines travel "
                "through their engines, slowly crossfaded; a CC (journey step) moves them on by hand. <b>PUMP</b> and "
                "<b>DUCK</b> (SETUP 16) make the bed breathe on the grid and the piece dip under your playing. Four "

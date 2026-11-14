@@ -11,6 +11,8 @@ import gen_setup as S
 import gen_sounds as SN
 import gen_strikes as ST
 import gen_perform as P
+import gen_saves as SV
+import gen_midi as MI
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "patches", "Amble")
@@ -33,7 +35,7 @@ def main_patch():
     m.comment("control", 20, 200)
     for i, sub in enumerate((B.globals_(), B.rng(), B.seed(), B.piece(), B.section(), B.change(), B.layers(),
                              B.players(), B.capture(), B.verb(), B.stereo(), B.rhythm(), L.midi_in(), L.cc_map(), L.live(), L.memories(), L.tables(),
-                             O.oled(), P.perform(), S.settings(), S.setup(), S.saves(), S.midi_out(), S.clock_in(), S.cpu_guard(),
+                             O.oled(), P.perform(), S.settings(), S.setup(), SV.saves(), MI.midi_out(), MI.clock_in(), S.cpu_guard(),
                              U.knobs(), U.keys(), U.screen())):
         m.sub(sub, 20 + (i % 4) * 110, 225 + (i // 4) * 30)
     m.comment("sound", 20, 340)
@@ -58,8 +60,7 @@ def build(out=OUT):
     seedf = os.path.join(out, "seed.txt")
     if not os.path.exists(seedf):
         open(seedf, "w").write("0;\n")
-    import gen_setup as _GS
-    open(os.path.join(out, "factory.txt"), "w").write(_GS.factory_rows())
+    open(os.path.join(out, "factory.txt"), "w").write(SV.factory_rows())
     sv = os.path.join(out, "saves.txt")       # (the release zip leaves it out, so an update keeps your saves)
     if not os.path.exists(sv):
         open(sv, "w").write("")

@@ -1,17 +1,19 @@
-"""The OLED as a live score (128 x 64), drawn with /oled/g* messages to mother (oscOut).
+"""The OLED (128 x 64), drawn with /oled/g* messages to mother (oscOut). Three views:
 
-   y 0-7    the form: one bar per section (height = energy, width = length), the current one inverted,
-            a playhead; in DRIFT the energy and the section's progress
-   y 9-18   key, scale, voicing (toasts take this line for 2.5 s) and the time left (elapsed in DRIFT)
-   y 20-52  left: the 4 pad voices as dots on a pitch ladder (they glide), your held notes as boxes,
-            tonic ticks, breath bar; middle: 7 meters (drone, pads, textures, cloud, bells, motion,
-            reverb) and the input level; right: the motion layer's Euclidean pattern with a moving
-            cursor, and the tempo; while external audio plays, an INPUT panel instead: the last 6 s of
-            the input's level as a waveform (onsets ticked above), the input mode and what Amble hears
-            (pitch / pluck / textr), a dot while it records a memory; a sung or played pitch is drawn
-            as a line across the pitch ladder
-   y 53-63  section role, reverb, KEYS/MIDI, INT/EXT (FIN at the end)
-A knob or page change shows the knob page for 2 s; SETUP takes the whole screen."""
+PLAY (the knob pages SHAPE, SPACE, PIECE, PERFORM):
+   y 0-7    the form: a bar per section (height = energy, width = length), the current one inverted, a playhead;
+            in DRIFT the energy and the section's progress
+   y 9-17   the chord now > the next chord (toasts take this line for 2.5 s); a dot at the right when the sound
+            differs from its slot
+   y 19     a bar shrinking to the next chord change
+   y 21-39  left: the 4 pad voices as dots on a pitch ladder, your held notes as boxes, tonic ticks, breath;
+            right: the motion's Euclidean pattern and the tempo, or the INPUT panel while audio comes in
+   y 41-49  the voices: two letters while each sounds, a dot while it rests, a dash when it is out
+   y 54-62  key and scale, then the role or what is latched (HLD FRZ ANC LTE); READY / STOPPED / FIN
+   y 63     a morph's (or an anchor glide's) progress
+MIX (the SENDS and MIX pages): a bar per voice, the knob as a tick, the column turned framed with its value.
+SETUP: the page's name and its 4 rows (gen_setup draws them).
+A knob turned on a PLAY page shows its page for 6 s."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Line
 from data import ROLES, PAGE_NAMES, PAGES, NOTE_NAMES, SCALES
 

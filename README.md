@@ -218,26 +218,22 @@ CPU, measured offline: about 3 % of one x86 core with every layer, an atmosphere
 The patch is **generated** by Python, so it can be rebuilt and tested. Edit the generator, not the `.pd`
 files.
 
-- `gen.py` builds `patches/Amble`.
-- `pdlib.py` writes Pd files. It also has a small step language that compiles to `[expr]` chains.
-- `gen_brain.py`: piece, form, sections, chord changes, clock and motion, reverb control.
-- `gen_live.py`: MIDI in, live voices, listening, audio analysis and class, memories.
-- `gen_ui.py`: knobs, keys, screen.
-- `gen_dsp.py`: voices, layers, input, master.
-- `gen_sounds.py`: the electric pad types, drone designs, sub, electric textures, character effects and vocoder.
-- `gen_oled.py`: the OLED score.
-- `gen_setup.py`: SETUP, settings, MIDI clock and notes out, clock in.
-- `gen_verb.py`: the reverbs.
-- `data.py`: the tables.
-- `harness.py` runs the patch offline (`pd -batch`).
-- `ci_check.py` is the test suite (115 checks).
-- `shots.py` renders OLED screenshots with `oledemu.py`.
-- `ref/` holds Conduit's Bloom in C, the reference for the reverb tests.
+**[`tools/README.md`](tools/README.md)** is the guide to the source: what each file builds, the naming conventions,
+where to find a key, a knob, a SETUP row or a CC target, and how to add one. In short:
+
+- `gen.py` builds `patches/Amble`; `pdlib.py` writes Pd files (and the step language the control logic is in).
+- `gen_brain.py` composes; `gen_perform.py` is performing (morph, ANCHOR, macros, JOURNEY, CC OUT, GLINT).
+- `gen_ui.py`, `gen_oled.py`: the keys, knobs and screens. `gen_setup.py`, `gen_saves.py`, `gen_midi.py`: SETUP,
+  saves, MIDI out and clock in. `gen_live.py`: MIDI in, live voices, listening.
+- `gen_dsp.py`, `gen_sounds.py`, `gen_strikes.py`, `gen_verb.py`: the sound. `data.py`: the tables.
+- `harness.py` runs the patch offline (`pd -batch`); `ci_check.py` is the test suite (212 checks, by section);
+  `shots.py` renders OLED screenshots with `oledemu.py`; `ref/` holds Conduit's Bloom in C, the reverb tests'
+  reference.
 
 ```
 cd tools
 ./build.sh            # regenerate the patch
-python3 ci_check.py   # offline checks in Pure Data (needs gcc for the Bloom reference)
+python3 ci_check.py   # offline checks in Pure Data (needs gcc for the Bloom reference); --list, or section numbers
 ```
 
 Requirements: Python 3 with numpy and scipy, Pure Data 0.53+, gcc, and ffmpeg for the demos.

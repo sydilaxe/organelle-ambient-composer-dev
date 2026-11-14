@@ -203,3 +203,19 @@ def pick_table(weights, n=40):
     for i, c in enumerate(counts):
         out += [i] * c
     return out
+
+# empty slots 1-6 load these factory pieces: (name, seed, what differs from the defaults), all in the pleasing
+# harmony (Harm 0), each a different way in
+FACTORY = [
+    ("Dawn", 5150, dict(acmodesel=0, acsform="build", aclen=0.45, acdens=0.45, accolor=0.55, acchdc="open")),
+    ("Night river", 2207, dict(acmodesel=1, acsclc="minpent", acchdc="seventh", acsatm="night", acdens=0.35,
+                               acmotion=0.35, acrhythm=0.25, acsdrone="frost")),
+    ("Glass", 8813, dict(acmodesel=0, acsform="arch", acspad="glass", acsbell="wave", acrvtype=0.9, acchdc="add9",
+                         acrvmix=0.55)),
+    ("Pulse", 4096, dict(acmodesel=0, acsform="waves", acstempo="90 bpm", acrhythm=0.85, acmotion=0.6, acsmot="blip",
+                         acpump=5, acpumpd=0.35, acchdc="sus2")),
+    ("Deep", 3301, dict(acmodesel=1, acsdrone="analog", acssub="both", acsatm="deep", accolor=0.3, acsink=0.25,
+                        acchdc="wide", acsclc="dorian")),
+    ("Frost", 6610, dict(acmodesel=1, acsdrone="frost", acspad="beat", acjour=1, acjpad=1, acblur=0.3,
+                         acsclc="lydian", acchdc="triad")),
+]

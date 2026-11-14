@@ -1,4 +1,11 @@
-"""Offline checks of the patch in Pure Data. Exit code 1 on any failure.  python3 ci_check.py"""
+"""Offline checks of the patch in Pure Data. Exit code 1 on any failure.
+
+    python3 ci_check.py            every section (about 25 minutes)
+    python3 ci_check.py --list     the sections, by number
+    python3 ci_check.py 57 58      only those sections (a section may use a name an earlier one defined - ALL,
+                                   mute, a probe: then name that one too)
+
+Each section starts with a "# N. what it checks" line; a check prints ok or FAIL and what it measured."""
 import re
 import sys
 import numpy as np
@@ -26,6 +33,25 @@ def f0(seg, lo=40, hi=2000):
     f = np.fft.rfftfreq(N, 1 / SR)
     m = (f > lo) & (f < hi)
     return f[np.argmax(hps * m)]
+
+
+# ---- the sections to run (all, or those named on the command line)
+_SECTION = re.compile(r"^# (\d+)\. (.*)$", re.M)
+if len(sys.argv) > 1:
+    _src = open(__file__).read()
+    _marks = list(_SECTION.finditer(_src))
+    if sys.argv[1] == "--list":
+        for m in _marks:
+            print(f"{m.group(1):>3}  {m.group(2)}")
+        sys.exit(0)
+    _want = set(sys.argv[1:])
+    _end = _src.index('\nprint(f"\\n{len(fails)} failure(s)")')
+    for k, m in enumerate(_marks):
+        if m.group(1) in _want:
+            stop = _marks[k + 1].start() if k + 1 < len(_marks) else _end
+            exec(compile("\n" * _src.count("\n", 0, m.start()) + _src[m.start():stop], __file__, "exec"), globals())
+    print(f"\n{len(fails)} failure(s)")
+    sys.exit(1 if fails else 0)
 
 
 # 1. loads and plays with default settings
@@ -1058,7 +1084,7 @@ check(len(set(fl)) >= 3 and len({p[0] for p in P}) >= 3 and len({p[1] for p in P
       f"JOURNEY: pads {fl}, drone / bells / motion engines {P}")
 
 # 65. Harm 0: every piece in the pleasing palette (diatonic / pentatonic scales, tertian voicings); Harm 1: wider
-from data import PLEASING_SCALES, PLEASING_FAMS, SCALES as _SC, FAMILIES as _FA
+from data import PLEASING_SCALES, PLEASING_FAMS, SCALES as _SC
 def palette(harm):
     sc, fa = set(), set()
     for seed in range(60, 72):

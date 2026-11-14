@@ -1,6 +1,7 @@
-"""Live input, control side: MIDI (MPE notes, bend, breath), the Organelle keys as notes, voice allocation,
-listening (focus pitch, key from a held note, breath raising the energy and holding a section),
-audio analysis into a class (quiet / pitched / plucked / textural), and memories."""
+"""Live input, control side: MIDI in (notes, MPE bend, breath, pressure, CCs, program change), the live
+voices' allocation, the CC MAP and LIVE Mix CC targets, listening (the pitch you hold steers the chords, a held
+note becomes the key, breath raises the energy and holds a section), audio analysis into a class (quiet /
+pitched / plucked / textural), memories, and the 100 ms clock (ac-now) that drives the timed checks."""
 from pdlib import Canvas, proc, X, V, T, Call, SendL, If, Loop, run_steps, Line, Arm, Toast, RNG
 from data import NOTE_NAMES, SEND_BUS, FLAVOURS
 

@@ -1,8 +1,11 @@
-"""Sound: pad voices (5 synthesis types), drone, textures, granular cloud, bells, input processing,
-FDN reverb and the master stage.
+"""Sound, core: the pad voice abstraction (acvoice.pd, its first 6 synthesis types here, the rest in
+gen_sounds), the live voice abstraction (amlive.pd), the original drone, textures, the granular cloud, the bells
+and motion, the input stage and its processing, and the master stage (buses, PUMP / DUCK / SWELL, the reverbs'
+input, width, SINK, the output). The reverbs themselves are in gen_verb.
 
-Buses (throw~/catch~): ac-mixL/R dry mix, ac-padL/R the pad voices, ac-send reverb input (mono),
-ac-src what the cloud resamples. Every layer that can be silent sits in a switch~ed subpatch."""
+Buses (throw~ / catch~): ac-mixL/R the mix, ac-bedL/R the harmony bed (drone, sub), ac-padL/R the pads, ac-liveL/R
+your notes and the dry input (after DUCK), ac-send* the reverb sends (one per SENDS knob), ac-src what the cloud
+resamples. Every layer that can be silent sits in a switch~ed subpatch (switched()): no cost while it is off."""
 from pdlib import Canvas
 from data import CLOUD_LEN, TEXG
 

@@ -1,3 +1,5 @@
+"""The patch's own README.txt (copied into the patch folder, shown on the Organelle's file list): a plain-text
+summary of the controls. PATCH_README is what gen.py writes; keep it in step with the manual."""
 PATCH_README = """AMBLE  -  generative ambient composer for the Organelle M
 =========================================================
 
