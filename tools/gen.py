@@ -66,7 +66,8 @@ def build(out=OUT):
         from data import PAGES
         from data import FILE_KNOBS
         kd = [d for p in PAGES for _, _, d in p]
-        vals = kd[:FILE_KNOBS] + [1, 0, -1, 0, 0.7, 48, 1, 1.2, 0, 1, 0.8, 0, 0, 48, 1] + kd[FILE_KNOBS:] + [0, 0, 0, 0] + [0, 0, 0, 2, 0, 0, 1, 5.5] + gen_setup.CC_DEFAULTS + [0, 0, 5] + [d for _, _, d in PAGES[5] + PAGES[6]] + [0, 0, 0, 0, 0, 0]
+        vals = kd[:FILE_KNOBS] + [1, 0, -1, 0, 0.7, 48, 1, 1.2, 0, 1, 0.8, 0, 0, 48, 1] + kd[FILE_KNOBS:gen_setup.SEND_KNOBS] + [0, 0, 0, 0] + [0, 0, 0, 2, 0, 0, 1, 5.5] + gen_setup.CC_DEFAULTS + [0, 0, 5] + [d for _, _, d in PAGES[5] + PAGES[6]] + [0, 0, 0, 0, 0, 0] + [0, 0, 1, 2]
+        assert len(vals) == len(gen_setup.SETTINGS), (len(vals), len(gen_setup.SETTINGS))
         open(sf, "w").write(" ".join(f"{v:g}" for v in vals) + ";\n")
     # Pd start-up options: the Organelle OS starts Pd with a 6 ms audio buffer and appends the patch folder's
     # pd-opts.txt, so a later -audiobuf wins. 25 ms gives Pd room for brief spikes (screen, section changes,

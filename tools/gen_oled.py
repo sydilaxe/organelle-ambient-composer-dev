@@ -22,13 +22,13 @@ ARRAYS = dict(acdisp=4, acdg=9, acinh=32, acino=32)
 MIX_FROM = 3       # the knob pages from here on (SENDS, MIX) show the MIX view
 # the play view's voice tags (2 x 4) and the MIX view's columns: (letter, knob, layer); the reverb last
 TAG_LAYERS = ["drone", "sub", "pad", "bell", "motion", "tex", "atm", "cloud"]
-TAG_LETTERS = dict(drone="D", sub="S", pad="P", bell="B", motion="M", tex="T", atm="A", cloud="C")
-MIX_COLS = [("D", "acmxd", "drone"), ("S", "acmxs", "sub"), ("P", "acmxp", "pad"), ("B", "acmxb", "bell"),
-            ("M", "acmxm", "motion"), ("T", "acmxt", "tex"), ("C", "acmxc", "cloud"), ("A", "acmxa", "atm"),
-            ("R", "acrvmix", "verb")]
-SEND_COLS = [("D", "acsndd", "drone"), ("P", "acsndp", "pad"), ("B", "acsndb", "bell"), ("M", "acsndm", "motion"),
-             ("T", "acsndt", "tex"), ("C", "acsndc", "cloud"), ("A", "acsnda", "atm"), ("I", "acsndi", None),
-             ("R", "acrvmix", "verb")]
+TAG_LETTERS = dict(drone="Dr", sub="Sb", pad="Pd", bell="Bl", motion="Mo", tex="Tx", atm="At", cloud="Cl", verb="Rv")
+MIX_COLS = [("Dr", "acmxd", "drone"), ("Sb", "acmxs", "sub"), ("Pd", "acmxp", "pad"), ("Bl", "acmxb", "bell"),
+            ("Mo", "acmxm", "motion"), ("Tx", "acmxt", "tex"), ("Cl", "acmxc", "cloud"), ("At", "acmxa", "atm"),
+            ("Rv", "acrvmix", "verb")]
+SEND_COLS = [("Dr", "acsndd", "drone"), ("Pd", "acsndp", "pad"), ("Bl", "acsndb", "bell"), ("Mo", "acsndm", "motion"),
+             ("Tx", "acsndt", "tex"), ("Cl", "acsndc", "cloud"), ("At", "acsnda", "atm"), ("In", "acsndi", None),
+             ("Rv", "acrvmix", "verb")]
 
 
 def Fill(x, y, w, h, c=1):
@@ -148,12 +148,12 @@ def oled():
         Box(52, f"{ypitch('aclvn[int(aci)] + acbendt[int(aclvc[int(aci)])]')} - 2", 6, 5)])])]
     mid += [If("acbreath > 0.02", [Fill(0, "52 - int(acbreath*32)", 2, "max(1, int(acbreath*32))")])]
     proc(c, "ac-oledmid", mid)
-    # the voices playing: a letter each (D S P B M T A C), lit while it sounds, struck through when it's out
+    # the voices playing: two letters each (Dr Sb Pd Bl / Mo Tx At Cl), lit while it sounds, struck through when it's out
     tags = []
     for i, n in enumerate(TAG_LAYERS):
         x, y = 64 + 16 * (i % 2), 21 + 8 * (i // 2)
-        tags += [If(f"acg{n}*acsl{n} > 0.02", [Inv(x - 1, y - 1, 9, 9)]),
-                 If(f"ace{n} == 0", [Fill(x - 1, y + 3, 9, 1)])]
+        tags += [If(f"acg{n}*acsl{n} > 0.02", [Inv(x - 1, y - 1, 14, 9)]),
+                 If(f"ace{n} == 0", [Fill(x - 1, y + 3, 14, 1)])]
     proc(c, "ac-oledtags", [If(normal, [Fill(62, 20, 33, 33, 0), Send("ac-oledtagl")] + tags)])
     tl = c.recv("ac-oledtagl")
     for i, n in enumerate(TAG_LAYERS):
@@ -248,7 +248,7 @@ def oled():
 
 def mixview(c, mixv):
     """the MIX view (on the MIX and SENDS pages): a bar per voice and the reverb - the live level filled, the
-    knob's level as a tick, the voice's letter below (the 4 the knobs turn inverted); a voice that is forced on
+    knob's level as a tick, the voice's two letters below (the 4 the knobs turn inverted); a voice that is forced on
     has a dot on top, one that is out a dash at the foot"""
     cols = []
     for i, ((ml, mk, mn), (sl, sk, sn)) in enumerate(zip(MIX_COLS, SEND_COLS)):
@@ -281,7 +281,7 @@ def mixview(c, mixv):
     for recv, colset in (("ac-oledmixl", MIX_COLS), ("ac-oledsndl", SEND_COLS)):
         r = c.recv(recv)
         for i, (lab, _, _) in enumerate(colset):
-            c.c(c.m(r, f"/oled/gPrintln 3 {4 + 14 * i} 55 8 1 {lab}"), 0, c.obj("s " + OSC), 0)
+            c.c(c.m(r, f"/oled/gPrintln 3 {2 + 14 * i} 55 8 1 {lab}"), 0, c.obj("s " + OSC), 0)
 
 
 def _print_fmt(c, src, fmt, x, y):

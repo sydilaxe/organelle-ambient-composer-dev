@@ -138,6 +138,10 @@ def live():
     c.col()
     proc(c, "ac-now", [V("acnow", "acnow + 100"), If("acrun", [V("acel", "acel + 100/actime"),
                                                                V("acsecel", "acsecel + 100")]), If("int(acnow) % 500 == 0", [Call("ac-listen")]), Call("ac-ana"),
+                            # a custom section's layers coming in or going out at 1/4, 1/2, 3/4 of it
+                            If("acrun && acsecc", [V("acsecqn", "min(3, int(4*acsecel/max(1, acsecdur*actime)))"),
+                                                   If("acsecqn != acsecq", [V("acsecq", "acsecqn"), Call("ac-secovr"),
+                                                                            V("acfade", __import__("gen_setup").SFADE), Call("ac-layers")])]),
                             # SETUP page 7 shows the breath level as it comes in
                             If("acsetup && acsetpg >= 6 && int(acnow) % 300 == 0", [Call("ac-oledsetup")])])
     # ---- notes

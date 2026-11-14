@@ -14,7 +14,7 @@ GLOBALS = dict(
     acseed=1, account=0, actonic=38, acsci=0, acn=7, acfamA=0, acfamB=1, acfam=0, acdeg=0, acpend=-1,
     acmode=1, acrun=1, acended=0, acstopped=0, acready=0, acsecrem=0, acftap=-1e+06, acctap=-1e+06, acsec=0, acnsec=8, acenergy=0.5, acdeff=0.5, acsecdur=60000, acchsec=20,
     acpage=0, acinmode=0, acfreeze=0, accapt=0, acvfreeze=0,
-    acmdrone=1, acmpad=1, acmtex=1, acmcloud=1, acmbell=1, acmmotion=1, acmsub=1, acmatm=1, acedrone=1, acsxdrone=0, acsldrone=1, acesub=1, acsxsub=0, acslsub=1, acepad=1, acsxpad=0, acslpad=1, acebell=1, acsxbell=0, acslbell=1, acemotion=1, acsxmotion=0, acslmotion=1, acetex=1, acsxtex=0, acsltex=1, aceatm=1, acsxatm=0, acslatm=1, acecloud=1, acsxcloud=0, acslcloud=1, acscount=0, acsecc=0, acsecsel=0, acslay=0, acspe=0,
+    acmdrone=1, acmpad=1, acmtex=1, acmcloud=1, acmbell=1, acmmotion=1, acmsub=1, acmatm=1, acedrone=1, acsxdrone=0, acsldrone=1, acesub=1, acsxsub=0, acslsub=1, acepad=1, acsxpad=0, acslpad=1, acebell=1, acsxbell=0, acslbell=1, acemotion=1, acsxmotion=0, acslmotion=1, acetex=1, acsxtex=0, acsltex=1, aceatm=1, acsxatm=0, acslatm=1, acecloud=1, acsxcloud=0, acslcloud=1, acscount=0, acsecc=0, acsecsel=0, acsecfol=1, acsecq=0, acsecqn=0, acst=0, acslay=0, acspe=0,
     acfdrone=1, acfpad=1, acftex=1, acfcloud=1, acfbell=1, acfmotion=0, actex1=0, actex2=1, actexA=0, actexB=1,
     acpal1=0, acpal2=1, acpal3=3, acpartI=0, acbellI=0, acsecbright=0.8, actidef=1, acpow=1,
     acpsum=1, acfirst=1, acmodflag=0, acD=0, acp0=0, acp1=0, acnewt=38, aci=0, acchg=0, acfade=8000,
@@ -316,7 +316,10 @@ def piece():
         V("acscount", "acnsec")])])
     # a section of the custom form: its layers' states and levels (auto and 100 % otherwise)
     proc(c, "ac-secovr", [V("acsecc", "acsform == 6 && acmode == 1")] + sum(
-        [[V(f"acsx{n}", f"acsecc*acsst[int(acsec)*8 + {i}]"), V(f"acsl{n}", f"if(acsecc, acslv[int(acsec)*8 + {i}], 1)")]
+        [[V("acst", f"acsst[int(acsec)*8 + {i}]"),
+          # in at 1/4 .. 3/4: off until that point of the section, then on; out: on, then off
+          V(f"acsx{n}", "acsecc*if(acst <= 2, acst, if(acst <= 5, if(acsecq >= acst - 2, 2, 1), "
+                        "if(acsecq >= acst - 5, 1, 2)))"), V(f"acsl{n}", f"if(acsecc, acslv[int(acsec)*8 + {i}], 1)")]
          for i, n in enumerate(SEC_LAYERS)], []))
     # FORM shape: applies at once while the piece waits ready (prepared again); custom also to a playing piece
     proc(c, "ac-formset", [If("acsform == 6", [Call("ac-customcopy")]),
@@ -361,7 +364,9 @@ def section():
         V("acdauto", "if(acrole == 5 && acr2 < 0.6, acdtype2, acdtype)"),
         V("acsecbright", "min(1, max(0.3, 0.55 + 0.45*acenergy + (acr2-0.5)*0.25))"),
     ]
-    rest += [Call("ac-secovr"), Call("ac-padpick")]
+    # (a held section's checks and the last section's timers end here; SETUP's section editor follows "now")
+    rest += [Send("ac-secstop"), V("acsecq", "0"), If("acsecfol", [V("acsecsel", "min(11, acsec)")]),
+             Call("ac-secovr"), Call("ac-padpick")]
     for i, lay in enumerate(LAYERS):
         extra = {"drone": " || acdens < 0.3", "cloud": " || accapt"}.get(lay, "")
         rest += [RNG, V("acf" + lay, f"acr1 < acrmask[int(acrole)*6+{i}]{extra}")]
@@ -434,9 +439,12 @@ def section():
         V("accheff", "if(acschar > 0, acschar - 1, if(acspad == 1, 0, acchar))"),
     ])
     # while you play (breath, or notes held), a section waits for you, up to 3 times 30 s
-    proc(c, "ac-nextsec", [If("acmode==1 && acsechold < 3 && (acnow - acbreatht < 4000 || acheld > 0)", [
-        V("acsechold", "acsechold + 1"), Arm("ac-nextsec", "30000*actime"), Toast("holding - you are playing")],
-        [V("acsechold", "0"), V("acsec", "acsec+1"), Call("ac-section")])])
+    # held (low B): looks again every 2 s, and moves on once released
+    proc(c, "ac-nextsec", [If("acsecfz", [Arm("ac-nextsec", "2000", stop="ac-secstop")], [
+        If("acmode==1 && acsechold < 3 && (acnow - acbreatht < 4000 || acheld > 0)", [
+            V("acsechold", "acsechold + 1"), Arm("ac-nextsec", "30000*actime", stop="ac-secstop"),
+            Toast("holding - you are playing")],
+           [V("acsechold", "0"), V("acsec", "acsec+1"), Call("ac-section")])])])
     proc(c, "ac-rvback", [Send("ac-rvin", "1 5000")])
     # the end of a composition: fade out, then switch the layers off
     fin_off = c.obj("delay")
