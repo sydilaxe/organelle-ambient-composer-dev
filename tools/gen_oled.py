@@ -227,7 +227,9 @@ def oled():
     c.c(d, 0, c.obj("s ac-oledform"), 0)
     c.col()
     # ---- the knob page pop-up (6 s after the last knob turn or aux tap)
-    proc(c, "ac-oledknob", [If(mixv, [Send("ac-mixknob"), Call("ac-scr4"), Call("ac-scr5")], [Call("ac-oledpop")])])
+    # (a value moved from elsewhere - a CC on another page's knob - shows as a message)
+    proc(c, "ac-oledknob", [If(mixv, [Send("ac-mixknob"), Call("ac-scr4"), Call("ac-scr5")],
+                               [If("int(aclastk/4) == acpage", [Call("ac-oledpop")], [Send("ac-mixknob")])])])
     Line("ac-mixknob", "list $1 $2", [("s", "aclastk", [lab for p in PAGES for lab, _, _ in p]),
                                        ("f", f"int(acparams[int(aclastk)]*100)")], "ac-toast")(c)
     proc(c, "ac-oledpop", [If(mixv, [V("acpopt", "0"), Call("ac-oledmix")]), If(normal.replace(" && acpopt == 0", ""), [

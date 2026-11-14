@@ -918,5 +918,16 @@ check(any("gPrintln 3 2 55 8 1 Dr" in l for l in o) and any("gPrintln 3 114 55 8
       and any("gPrintln 3 64 21 8 1 Dr" in l for l in o),
       "OLED: the MIX view's labels (Dr .. Rv) on MIX 1, the play view's voice tags")
 
+# 54. SETUP LIVE: the Mix CC bank (CC 20-27 levels, 28-35 in/out buttons on a press) and program change -> a slot
+log, _ = run([(50, "ac-setseed 7"), (100, "acmixcc 1"), (1000, "ac-ccin 22 127 1"), (2000, "ac-ccin 30 127 1"),
+              (2100, "ac-ccin 30 0 1"), (3000, "ac-ccin 30 127 1"), (3100, "ac-ccin 30 127 1")], 5)
+ts = [l.split("list ", 1)[-1] for l in log.splitlines() if l.startswith("ac-toast")]
+check(ts[-2:] == ["pads in", "pads out"] and "Pads 100" in ts,
+      f"Mix CCs: CC 22 sets the Pads level, CC 30 presses the pads key (once per press: {ts[-2:]})")
+log, _ = run([(50, "ac-setseed 9"), (100, "acpgm 1"), (1000, "ac-pgmin 3")], 3, d=d)
+check("ac-toast: list loaded slot 3" in log and log.splitlines()[-1] != "" and
+      [l for l in log.splitlines() if l.startswith("ac-setseed")][-1] == "ac-setseed: 777",
+      "Prog change 3 loads save slot 3")
+
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

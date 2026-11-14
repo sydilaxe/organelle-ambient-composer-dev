@@ -7,6 +7,7 @@ from data import INMODES, NOTE_NAMES, SEND_BUS, FLAVOURS
 NV = 4                                    # live voices
 
 GLOBALS = dict(
+    acmcix=-1, acmck=0, acmcb=0, acpgn=0,
     acnow=0, acext=0, acextt=-1e+06, acforce=-1, acroothold=0, acrootn=0, acsecfz=0, acauxheld=0, acauxused=0, acauxt=0,
     aclch=0, aclnote=0, aclvel=0, aclage=0, acvi=0, acheld=0, acfocus=-1, acfocust=0, acfkdone=0,
     acbreath=0, acbreatht=-1e+06, acbrmode=0, acbrt=-1e+06, acbrlast=0, acsechold=0, acfollow=0.7,
@@ -16,7 +17,7 @@ GLOBALS = dict(
     acclt=0, aci2=40, aclnt=-1e+06, acyn=0, acbrfx=-1,
     acctlch=1, acctlv=0, acctlv127=0, acccn=0, actg=0, acvtsel=-1, achold=0, acwi=0, acmemn=0, acmemw=0, acmemt=-1e+06, acmemr=0, acmems=0, acmemrate=1, acgmem=0, acrec=0,
 )
-ARRAYS = dict(acyh=NV, actim=17, aclev=17, aclsus=NV, acbrch=17, aclvn=NV, aclvc=NV, aclva=NV, acbendt=17, achpc=12, acmemp=4)
+ARRAYS = dict(acyh=NV, actim=17, aclev=17, aclsus=NV, acbrch=17, aclvn=NV, aclvc=NV, aclva=NV, acbendt=17, achpc=12, acmemp=4, acmcp=8)
 CLASSES = ["quiet", "pitched", "plucked", "texture"]
 
 
@@ -68,6 +69,14 @@ def midi_in():
         c.c(c.to((rt, o), "t b"), 0, c.obj("s ac-allnotesoff"), 0)
     # every other CC -> ac-ccin "cc value ch" (SETUP CC MAP)
     c.c(c.m((rt, 2), "$1 $2 $3"), 0, c.obj("s ac-ccin"), 0)
+    # a program change (1-16) loads that save slot, if SETUP LIVE allows it
+    pg = c.obj("pgmin")
+    c.c(pg, 0, c.obj("s ac-pgmin"), 0)
+    c.col()
+    tpg = c.to(c.recv("ac-pgmin"), "t b f")
+    c.c(tpg, 1, c.obj("v acpgn"), 0)
+    run_steps(c, (tpg, 0), [If("acpgm && acpgn >= 1 && acpgn <= 16", [V("acslot", "acpgn - 1"),
+                                                                        Call("ac-slotcheck"), Call("ac-loadpiece")])])
     return c
 
 
@@ -85,8 +94,20 @@ def cc_map():
     look = "-1"
     for j, n in reversed(list(enumerate(_S.CCS))):
         look = f"if(acccn == {n}, acmap{j}, {look})"
-    run_steps(c, (tb, 0), [X("acccn; acctlv127", "v aclastcc", "v aclastv"), V("actg", look),
-                           If("actg >= 0", [Call("ac-ctl")])])
+    # SETUP LIVE Mix CCs: 16 CCs from the base - 8 layer levels (the MIX knobs), then 8 in/out buttons
+    mixknob = _S.SEND_KNOBS
+    order = [0, 1, 2, 3, 4, 5, 7, 6]   # level CCs in layer-key order (drone .. atmosphere, cloud) -> MIX knob
+    lvl = "if(acmcix == 0, 0" + "".join(f", if(acmcix == {i}, {o}" for i, o in enumerate(order) if i) + ", 0" + ")" * 8
+    run_steps(c, (tb, 0), [X("acccn; acctlv127", "v aclastcc", "v aclastv"),
+                           V("acmcix", f"if(acmixcc > 0, acccn - {_S.MIXCC_BASE}, -1)"),
+                           If("acmcix >= 0 && acmcix < 16", [Call("ac-mixcc")], [
+                               V("actg", look), If("actg >= 0", [Call("ac-ctl")])])])
+    proc(c, "ac-mixcc", [
+        If("acmcix < 8", [V("acmck", f"{mixknob} + {lvl}"), T("acparams", "acmck", "acctlv127/127"),
+                          SendL("ac-param", ["acmck", "acctlv127/127"])],
+           [V("acmcb", "acmcix - 8"),
+            If("acctlv127 >= 64 && acmcp[int(acmcb)] < 64", [If(f"acmcb == {i}", [Call(f"ac-laykey{i}")]) for i in range(8)]),
+            T("acmcp", "acmcb", "acctlv127")])])
     c.col()
     up = c.to(c.recv("ac-pressin"), "unpack f f")
     c.c(up, 1, c.obj("v acctlv127"), 0)

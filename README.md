@@ -45,12 +45,22 @@ The layers and their rhythms:
 - **MIDI:** MPE notes, per-note bend (48 semitones; 2 on channel 1) and breath (CC 2, CC 11, channel or poly
   pressure) play 4 live voices in the piece's synthesis type. With a breath controller, breath sets the
   voices' level and brightness.
-- **The Organelle keys** play notes when Amble is standalone. When an external controller plays, they
-  become function keys; aux + key is a function at any time.
-- **Start / Stop** (A#, top octave): Stop fades out over 8 s and freezes the piece where it is; Start goes on from there.
-- **Resolve** (aux + C#; standalone aux + C# twice quickly, like Freeze): the harmony moves to the tonic as open fifths (root, 5th, octave, 12th) and stays there - no modulation, no dissonant chords - until you release it the same way. A CC mapped to **resolve** in SETUP CC MAP does it from a pedal (held at 64 and up).
-  An incoming MIDI Start / Stop does the same when Sync is set to follow clock. **Freeze** (the reverb tail and
-  the cloud) is aux + F# with an external controller, or aux + F# twice quickly standalone.
+- **Ready, then start:** Amble loads a piece and waits, silent; choose COMPOSE or DRIFT (aux + top A#) and
+  press top A# to start. Stop fades out over 8 s and freezes the piece where it is; Start goes on from there.
+  An incoming MIDI Start / Stop does the same when Sync is set to follow clock.
+- **The Organelle keys are functions**, one press each, so a hand can leave your instrument for a moment:
+  - low C to F#: the knob pages SHAPE, SPACE, PIECE, MIX 1, MIX 2, SENDS 1, SENDS 2;
+  - low G: hold for **Root** and press a key, play a MIDI note or turn knob 1;
+  - low G# **Resolve** (the tonic as open fifths, held), A chord change now, A# next section, B hold section;
+  - top C to G: the layers in or out (aux: back to auto); G# input mode (aux: capture), A **Freeze**,
+    A# start / stop (aux: COMPOSE / DRIFT), B new piece (aux: SAVES);
+  - aux + a low key opens that SETUP page.
+- **Your own form:** SETUP FORM, SECTIONS and SECTION MIX build a piece section by section: roles, lengths, pad
+  types, and per layer auto / off / on or coming in or going out at 1/4, 1/2, 3/4 of a section. With Section at
+  *now* they edit the section that plays. **SAVES** keeps 16 pieces; a program change can load one (SETUP LIVE),
+  and a bank of 16 CCs can drive the layer levels and in/out buttons from a controller.
+- **Two screens:** the play view (a live score with the voices that sound) and the MIX view (levels and sends),
+  which takes over while a MIX or SENDS page is open.
 - **Listening:**
   - A held or sung pitch pulls the next chord to contain it.
   - A note held for 6 s becomes the key centre.
@@ -87,7 +97,7 @@ emulator, so the font only approximates the Organelle's.
 **MUSIC** (SETUP page 6): **Key** (auto or C to B), **Scale** (auto or one of the 16) and **Chords** (auto or one voicing) apply at once with a chord change; a fixed choice stays (no modulation or scale change). **Pulse** (off, gentle, normal, strong) sets how much the drone and sub swell on every bar.
 
 **MIDI IN** (SETUP page 7):
-- **Notes to:** what MIDI notes and the Organelle keys play. **voice** (the live voice, as before); **chords** (the notes you hold are the pad chord; the composer waits until you let go); **drone** (the drone and sub move to your note); **bells** (a bell per note); **cloud** (each held note tunes a grain stream). The notes still steer the harmony.
+- **Notes to:** what MIDI notes play. **voice** (the live voice, as before); **chords** (the notes you hold are the pad chord; the composer waits until you let go); **drone** (the drone and sub move to your note); **bells** (a bell per note); **cloud** (each held note tunes a grain stream). The notes still steer the harmony.
 - **Breath to:** **voice+piece** (as before: the live voice's level and tone, and the piece's density), **voice**, **density**, **brightness**, **reverb** (the reverb sends) or **swell** (the whole level, like an expression pedal). Ten seconds without breath and it lets go.
 - **Pressure to:** what channel and poly pressure do (any CC MAP target; default breath).
 - **Breath in:** the breath level arriving now, to check your controller.

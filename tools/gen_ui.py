@@ -3,6 +3,7 @@ from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, run_steps, Line,
 from data import *
 from pdlib import Toast, Later
 from gen_setup import NSET
+import gen_setup as _S
 
 SECNAMES = ["emerge", "haze", "drift", "bloom", "swell", "dissolve"]
 DRIFTNAMES = ["haze", "drift", "bloom", "swell", "surge"]
@@ -112,7 +113,7 @@ def keys():
         # tap: in (always on) if it's silent now, out if it plays; aux + tap: back to auto (the piece decides)
         return [If("acauxheld", [V(var, "1"), Toast(label + " auto")],
                    [If(f"{g} > 0.01", [V(var, "0"), Toast(label + " out")], [V(var, "2"), Toast(label + " in")])]),
-                V("acfade", "2500"), Call("ac-layers")]
+                V("acfade", _S.LFADE), Call("ac-layers")]
 
     def page(p):
         return [V("acpage", str(p)), If("acsetup", [V("acsetup", "0"), Send("ac-save"), Call("ac-oledall")]),
@@ -125,7 +126,9 @@ def keys():
         [V("acsec", "acsec+1"), Call("ac-section"), Toast("next section")],
         [V("acsecfz", "1 - acsecfz"), If("acsecfz", [Toast("section held")], [Toast("section moves on")])],
     ]
-    top = [layer(*lk) for lk in LAYER_KEYS] + [
+    for i, lk in enumerate(LAYER_KEYS):
+        proc(c, f"ac-laykey{i}", layer(*lk))
+    top = [[Call(f"ac-laykey{i}")] for i in range(len(LAYER_KEYS))] + [
         [If("acauxheld", [Call("ac-capture")],
             [V("acinmode", "(acinmode+1) % 8"), Call("ac-inputupd"), Call("ac-inmodetoast"), Call("ac-scr5")])],
         [Call("ac-freezetoggle")],

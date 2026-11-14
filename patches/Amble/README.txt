@@ -55,7 +55,7 @@ REVERB (page SPACE)
   Auto lets the piece choose (and the climax may shimmer); each section
   change makes the reverb bloom up.
 
-KNOBS (aux cycles the pages; knobs pick up smoothly)
+KNOBS (low C..F# open the pages, aux cycles them; knobs pick up smoothly)
   SHAPE  1 Dens  how much plays     2 Tide  time between chord changes
          3 Colr  brightness         4 In    external audio amount
   SPACE  1 Mix   reverb mix         2 Verb  Auto/Bloom1/Bloom2/Hall/Shimmer
@@ -67,13 +67,14 @@ KNOBS (aux cycles the pages; knobs pick up smoothly)
   SENDS 2  reverb sends: 1 Textures  2 Cloud  3 Atmosphere  4 Input
   Each send runs from off (dry) to full; 50 % is the designed balance.
   Mix (SPACE) is the overall reverb return.
+  MIX 1  levels: 1 Drone  2 Sub  3 Pads  4 Bells
+  MIX 2  levels: 1 Motion  2 Textures  3 Cloud  4 Atmosphere
+  Each level runs from silent to +6 dB; 50 % is the designed balance.
 
 PLAYING IT
-  Standalone, the Organelle keys PLAY NOTES (4 voices in the piece's own
-  synthesis type). Functions are aux + key.
-  When an external controller plays (DM48X, any keyboard), it takes over:
-  the keys become function keys without aux. After 2 minutes with no
-  external notes the keys play again.
+  Amble starts READY and silent: choose COMPOSE or DRIFT (aux + top A#),
+  then top A# starts it. You play from MIDI controllers (DM48X, any
+  keyboard); the Organelle keys are always functions, one press each.
   MPE: each note on its own channel, per-note bend (48 semitones; channel 1:
   2), breath = CC 2 / CC 11 / channel or poly pressure. With breath the notes
   follow your breath (level and brightness).
@@ -85,24 +86,28 @@ THE COMPOSER LISTENS
     waits for you (up to 3 x 30 s)
   - silence: the piece leads
 
-FUNCTION KEYS (aux + key standalone, plain keys with external MIDI)
-  Low octave C..B   next key centre
-  C   COMPOSE / DRIFT   C#  chord change now (aux: Resolve)   D  next section
-  D#  drone on/off   E pads   F textures   F# cloud   G bells
-  G#  capture 8 s of input (cloud + a memory)
-  A   input mode: auto / reso / cloud / tape / ghost / bands / vocode /
-      morph
+THE ORGANELLE KEYS (functions; aux + a low key = that SETUP page, C = 1)
+  Low octave
+  C   SHAPE page   C#  SPACE page   D  PIECE page
+  D#  MIX 1 page   E   MIX 2 page   F  SENDS 1 page   F#  SENDS 2 page
+  G   ROOT: hold it and press a key, play a MIDI note or turn knob 1 -
+      that note is the next key (while G is up, MIDI notes play)
+  G#  RESOLVE: the tonic as open fifths, held - no modulation, no
+      dissonant chords - until pressed again (a CC mapped to resolve
+      holds it from a pedal)
+  A   chord change now   A#  next section
+  B   hold section (stays past its length; again: moves on)
+  Top octave
+  C..G  layers: drone, sub, pads, bells, motion, textures, atmosphere,
+        cloud - tap: in (if silent) / out (if playing); aux + tap: auto
+  G#  input mode: auto / reso / cloud / tape / ghost / bands / vocode /
+      morph; aux: capture 8 s of input (cloud + a memory)
+  A   FREEZE: the reverb tail and the cloud hold still; again to release
   A#  START / STOP: stop fades out (8 s) and freezes the piece where it is
-      (section, chord, time left); start fades back in and goes on.
-      After FIN it starts a new piece. MIDI Start / Stop do the same
-      when Sync = follow clock.
-  B   new piece
-  FREEZE (the reverb tail and the cloud): aux + F# with an external
-      controller; standalone, aux + F# twice quickly
-  RESOLVE (the tonic as open fifths, held - no modulation, no dissonant
-      chords - until released the same way): aux + C# with an external
-      controller; standalone, aux + C# twice quickly. A CC mapped to
-      resolve (SETUP CC MAP) holds it from a pedal.
+      (section, chord, time left); start goes on. After FIN it starts a
+      new piece. MIDI Start / Stop do the same when Sync = follow clock.
+      Aux: COMPOSE / DRIFT
+  B   new piece; aux: the SAVES page
   Aux alone: next knob page.  Footswitch: chord change now
 
 AUDIO INPUT (In knob = amount, always 0 when Amble loads; samples, guitar,
@@ -129,8 +134,8 @@ THE SCREEN (a live score)
   line 2      key and scale; time left (elapsed in DRIFT); messages
   left        the 4 pad voices as dots on a pitch ladder (they glide),
               your held notes as boxes, tonic ticks, breath bar
-  middle      meters: drone, pads, textures, cloud, bells, motion,
-              reverb, and the input level
+  middle      the voices (Dr Sb / Pd Bl / Mo Tx / At Cl): two letters
+              while one sounds, a dot while it rests, a dash when it's out
   right       the motion layer's Euclidean pattern with its cursor, the
               tempo, the reverb (B1 B2 HALL SHIM)
   input       while external audio plays the right column shows it instead:
@@ -138,11 +143,16 @@ THE SCREEN (a live score)
               input mode and what Amble hears (pitch / pluck / textr), a dot
               while it records a memory; a pitch it hears is a line across
               the pitch ladder. The rhythm column returns 5 s after.
-  bottom      section role and voicing; K = keys play, M = external MIDI,
-              E = following an external clock; FIN at the end
+  bottom      section role and voicing; M = MIDI, ME = following an
+              external clock; STOPPED, or FIN at the end
   Turning a knob shows its page for 6 s.
+THE MIX VIEW (while a MIX or SENDS page is open)
+  a bar per voice and Rv (reverb): the level now, the knob as a tick, two
+  letters below (the four the knobs turn inverted); a dot on top = on (a
+  layer key), a dash at the foot = out; the header shows a knob as it turns
 
-SETUP (hold aux 1 s; aux tap = next page (8); hold aux 1 s to leave, save)
+SETUP (hold aux 1 s, or aux + a low key; aux tap = next page (14); hold aux
+1 s to leave, save)
   1 MIDI out   off / tempo only / tempo+notes / notes only
      tempo: MIDI clock, 24 a beat at the piece's tempo, Start/Stop with it
      notes, by channel from the base channel (page 2):
@@ -152,7 +162,7 @@ SETUP (hold aux 1 s; aux tap = next page (8); hold aux 1 s to leave, save)
              close position from the Arp octave - for arpeggiators
   2 Sync       internal / follow clock (external clock drives the rhythm;
                Start restarts the bar and the piece, Stop stops it)
-  3 Keys       auto / play notes / functions
+  3 Mode       COMPOSE / DRIFT (the next piece; saved)
   4 Bloom      clean / vintage (13-bit, as the unit)
   page 2: Follow you (how much chords follow what you play), MPE bend
   range (12/24/48/96), MIDI out base channel, breath curve.
@@ -182,7 +192,7 @@ SETUP (hold aux 1 s; aux tap = next page (8); hold aux 1 s to leave, save)
     Pulse      off / gentle / normal / strong - the drone and sub swell
                on every bar
   page 7, MIDI IN:
-    Notes to   what MIDI notes and the keys play: voice (the live voice) /
+    Notes to   what MIDI notes play: voice (the live voice) /
                chords (your held notes are the pad chord) / drone (drone
                and sub on your note) / bells (a bell per note) / cloud
                (each note tunes a grain stream)
@@ -204,6 +214,32 @@ SETUP (hold aux 1 s; aux tap = next page (8); hold aux 1 s to leave, save)
     Glide      off / fast / short / medium / long / slow - how the pad
                voices slide to a new chord (slow = up to 75 % of the time
                between changes; off = they jump, all together)
+    Sub        auto / pedal / root / both
+  page 10, FORM:
+    Form       auto / arch / build / waves / twin / journey / custom (your
+               sections, pages 11-12)
+    Tempo      auto / a fixed tempo 40-140 bpm
+    Meter      auto / 3-7 beats
+    Atmos      auto / one atmosphere
+  page 11, SECTIONS (editing one turns the form to custom):
+    Section    now (follows the playing section) / 1-12
+    Role       the section's role, or end (the piece ends there)
+    Length     short / normal / long
+    Pads       the section's pad type (auto = SOUNDS)
+  page 12, SECTION MIX:
+    Section    now / 1-12      Layer  drone .. cloud
+    Play       auto / off / on / in 1/4, 1/2, 3/4 (silent, then it swells in
+               to its level) / out 1/4, 1/2, 3/4
+    Level      0-200 % in this section (on top of MIX)
+  page 13, SAVES (also aux + top B): 16 slots in saves.txt (an update
+  keeps them). Slot; Save - turn knob 2 fully up; Load - turn knob 3 fully
+  up (stopped: it waits ready; playing: it plays now); the Seed.
+  page 14, LIVE:
+    Mix CCs    off / CC 20-35 / CC 102-117: 8 layer levels, then 8 in/out
+               buttons, for a controller's faders and pads
+    Prog change  off / loads a slot (program 1-16)
+    Key fade   0.5-20 s: a layer key bringing a layer in or out
+    Entry fade 2-40 s: a section's layer coming in or going out
 
 CPU GUARD: Amble measures its own load each second. Above 78 % it gets
 lighter in steps ("CPU high - lighter"): 1 cloud and atmosphere off,
@@ -224,7 +260,7 @@ voice has its own place and slowly orbits around it, grains and bells land
 anywhere, the motion arpeggio sweeps across, the reverbs are decorrelated.
 Width grows with the form (narrower as a piece emerges, widest at the
 climax). It stays mono-compatible: summed to mono it loses about 1 dB.
-  Knob values and SETUP are saved in settings.txt.
+  Knob values and SETUP are saved in settings.txt; pieces in saves.txt.
 
 LED: blue composing, green drifting, white flash on chord changes.
 seed.txt counts start-ups so no two sessions begin the same way.
