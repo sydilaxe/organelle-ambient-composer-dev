@@ -13,6 +13,7 @@ import gen_strikes as ST
 import gen_perform as P
 import gen_saves as SV
 import gen_midi as MI
+import gen_log as LG
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "patches", "Amble")
@@ -35,7 +36,7 @@ def main_patch():
     m.comment("control", 20, 200)
     for i, sub in enumerate((B.globals_(), B.rng(), B.seed(), B.piece(), B.section(), B.change(), B.layers(),
                              B.players(), B.capture(), B.verb(), B.stereo(), B.rhythm(), L.midi_in(), L.cc_map(), L.live(), L.memories(), L.tables(),
-                             O.oled(), P.perform(), S.settings(), S.setup(), SV.saves(), MI.midi_out(), MI.clock_in(), S.cpu_guard(),
+                             O.oled(), P.perform(), LG.perflog(), S.settings(), S.setup(), SV.saves(), MI.midi_out(), MI.clock_in(), S.cpu_guard(),
                              U.knobs(), U.keys(), U.screen())):
         m.sub(sub, 20 + (i % 4) * 110, 225 + (i // 4) * 30)
     m.comment("sound", 20, 340)
@@ -61,6 +62,12 @@ def build(out=OUT):
     if not os.path.exists(seedf):
         open(seedf, "w").write("0;\n")
     open(os.path.join(out, "factory.txt"), "w").write(SV.factory_rows())
+    # logs/: the performance log and the profile (SETUP 4), written on the Organelle, to copy off and upload
+    os.makedirs(os.path.join(out, "logs"), exist_ok=True)
+    open(os.path.join(out, "logs", "README.txt"), "w").write(
+        "Amble's performance logs (SETUP 4: CPU guard ... log) and profiles (SETUP 4: knob 3 fully up) land here.\n"
+        "perf-BBBBPP.txt: a line every 5 s (start-up BBBB, part PP); profile-BBBB.txt: each part's load alone.\n"
+        "Read them with tools/perf_report.py, or send them along with what you were doing.\n")
     sv = os.path.join(out, "saves.txt")       # (the release zip leaves it out, so an update keeps your saves)
     if not os.path.exists(sv):
         open(sv, "w").write("")

@@ -33,12 +33,14 @@ python3 shots.py               OLED screenshots into ../docs/shots
 | `manual.py`, `readme_text.py` | the PDF manual and the patch's README.txt, from the same data |
 | `harness.py`, `ci_check.py` | running the patch offline in Pd with timed events, and the checks |
 | `shots.py`, `oledemu.py` | screenshots: the OLED messages of an offline run drawn into PNGs |
+| `gen_log.py` | the performance log (`logs/perf-*.txt`, every 5 s) and the profile run (`logs/profile-*.txt`) |
+| `perf_report.py` | reads those logs from a device: spikes, what each thing costs, what to optimise or enrich |
 
 ## Names in the patch
 
 - **Values** (global state) are `[value]`s named `ac<word>`, no dash, so `[expr]` can read them: `acdens`,
   `acsecsel`. Their defaults are in each module's `GLOBALS`; arrays in `ARRAYS`; arrays filled at start in
-  `DATA_TABLES` (gen_brain collects every module's).
+  `DATA_TABLES` (gen_brain collects every module's, and stops the build if two declare one name: pick a new one).
 - **Messages** are `[send]` / `[receive]` names `ac-<word>`, with a dash: `ac-layers`, `ac-change`. A *proc* is a
   receiver that runs steps (`proc(c, "ac-layers", [...])`; `Call("ac-layers")` runs it).
 - **Knobs**: the 32 knob values (8 pages x 4, `data.PAGES`) are also in the array `acparams`; turning one (or a

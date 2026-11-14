@@ -52,7 +52,13 @@ import gen_live as _L
 import gen_oled as _O
 import gen_setup as _S
 import gen_perform as _P
-for _m in (_L, _O, _S, _P):
+import gen_log as _LG
+for _m in (_L, _O, _S, _P, _LG):
+    # every value is declared once: two modules declaring one name share it, and one's private counter silently
+    # becomes the other's state (the profile's step counter was the live input's acpst; a macro's knob, the rhythm's acmk)
+    _same = set(GLOBALS) & set(_m.GLOBALS)
+    assert not _same, f"{_m.__name__}: values also declared elsewhere: {sorted(_same)}"
+    assert not set(ARRAYS) & set(_m.ARRAYS), f"{_m.__name__}: arrays declared twice: {set(ARRAYS) & set(_m.ARRAYS)}"
     GLOBALS.update(_m.GLOBALS)
     ARRAYS.update(_m.ARRAYS)
 
@@ -473,7 +479,7 @@ def section():
         X("1; 0; max(1000, acsecdur*actime - acsecel)", "v acstopped", "v acrun", "v acsecrem"),
         Send("ac-master", "0 8000"),            # a long fade: the sound and its reverb die away slowly
         Send("ac-chgstop"), Send("ac-secstop"), Call("ac-clockstop"),
-        Toast("stopped - A# to start"), Call("ac-scr"), Send("ac-led"),
+        Toast("stopped - A# to start"), Call("ac-scr"), Send("ac-led"), If("aclogon", [Send("ac-logwrite")]),
     ])])
     proc(c, "ac-start", [If("acstopped", [
         If("acready", [Toast("start - playing")], [Toast("playing again")]),

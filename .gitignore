@@ -4,3 +4,5 @@ dist/
 *.wav
 demos/
 *.mp3
+patches/Amble/logs/perf-*.txt
+patches/Amble/logs/profile-*.txt

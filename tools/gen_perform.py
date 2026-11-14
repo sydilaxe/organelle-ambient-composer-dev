@@ -14,7 +14,7 @@ VERB = S.KNOBS.index("acrvtype")  # (a choice: switches at the start of a glide)
 L8 = ["acmdrone", "acmsub", "acmpad", "acmbell", "acmmotion", "acmtex", "acmatm", "acmcloud"]
 
 GLOBALS = dict(acmph=0, acmt0=0, acmdur=0, acmtt=0, acmorphing=0, acancs=0, acbases=0, acchanged=0, acchd=0,
-               acmk=0, acmdd=0, acplay=0, acdgt=1, acdgl=1, acpb=0, acjk=0, acjnext=0, acjall=0, acjdi=-1, acjbi=-1,
+               acmacrok=0, acmdd=0, acplay=0, acdgt=1, acdgl=1, acpb=0, acjk=0, acjnext=0, acjall=0, acjdi=-1, acjbi=-1,
                acjmi=-1, acjt=0, acjpadw=0, acjon=0, acccnext=0, acccv=0, acchk=0, acslotcur=-1)
 ARRAYS = dict(acmfrom=NK, acmto=NK, acmtouch=NK, acanc=NK, acbase=NK, accur=NK, acancm=8, acbasem=8, accurm=8,
               acmtk=len(S.MTARGETS), acjpi=4, acjpt=12 * len(S.JPAD_SETS), acjpn=len(S.JPAD_SETS), acccl=16)
@@ -146,15 +146,15 @@ def perform():
         one = []
         for t, d in (("ta", "da"), ("tb", "db")):
             one += [If(f"acmc{m}{t} > 0", [
-                V("acmk", f"acmtk[int(acmc{m}{t})]"), V("acmdd", f"2*acmc{m}{d} - 1"),
+                V("acmacrok", f"acmtk[int(acmc{m}{t})]"), V("acmdd", f"2*acmc{m}{d} - 1"),
                 If(f"acmc{m}mode == 0", [
                     # offset: away from the stored value while the macro is up
                     V("acmorphing", "1"),
-                    SendL("ac-param", ["acmk", "max(0, min(1, acparams[int(acmk)] + acmdd*acmcin))"]),
+                    SendL("ac-param", ["acmacrok", "max(0, min(1, acparams[int(acmacrok)] + acmdd*acmcin))"]),
                     V("acmorphing", "0")], [
                     # latch: drags the stored value, which stays
-                    T("acparams", "acmk", f"max(0, min(1, acparams[int(acmk)] + acmdd*(acmcin - acmc{m}p)))"),
-                    SendL("ac-param", ["acmk", "acparams[int(acmk)]"])])])]
+                    T("acparams", "acmacrok", f"max(0, min(1, acparams[int(acmacrok)] + acmdd*(acmcin - acmc{m}p)))"),
+                    SendL("ac-param", ["acmacrok", "acparams[int(acmacrok)]"])])])]
         steps += [If(f"acmcn == {m}", one + [X("acmcin; acmcin", f"v acmc{m}v", f"v acmc{m}p")])]
     proc(c, "ac-macro", steps + [Send("ac-oledsetupq")])
     # ---- SINK, SWELL, DUCK

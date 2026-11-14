@@ -16,7 +16,7 @@ GLOBALS = dict(acmout=1, acsync=0, acvintage=0, acoutch=1, accurve=1.2, acsk=0, 
                acrtb=0, acoutroot=-1, acclkon=0, actrange=0,
                acmparts=0, acarpoct=48, acoutbass=-1, acload=0, acloadtest=0, acshedt=0, acldraw=0, acguard=1,
                ackeyc=0, acsclc=0, acchdc=0, acpulc=2, acroute=0, acbrto=0, acpressto=1, acccsel=0, aclastcc=0, aclastv=0, acvibr=5.5,
-               acmap0=2, acmap1=1, acmap2=1, acmap3=1, acmap4=6, acmap5=0, acmap6=3, acsbell=0, acsmot=0, acglide=5, acmodesel=0, acssub=0, acsform=0, acstempo=0, acsmeter=0, acsatm=0, acnsx=0, acchx=0, acslot=0, acslotfull=0, acsvp49=1, acsvp50=1, acsetpgl=-1, acmixcc=0, acpgm=0, aclfd=1, acsfd=2,
+               acmap0=2, acmap1=1, acmap2=1, acmap3=1, acmap4=6, acmap5=0, acmap6=3, acsbell=0, acsmot=0, acglide=5, acmodesel=0, acssub=0, acsform=0, acstempo=0, acsmeter=0, acsatm=0, acnsx=0, acchx=0, acslot=0, acslotfull=0, acsvp49=1, acsvp50=1, acsvpp=1, acsetpgl=-1, acmixcc=0, acpgm=0, aclfd=1, acsfd=2,
                acmorph=0, acrecall=0, acancg=2, accmp=0, acpump=0, acpumpd=0.5, acduck=0, acduckr=2, acmcsel=0, acmcn=0, acmcin=0,
                acmc0mode=0, acmc0ta=0, acmc0da=0.75, acmc0tb=0, acmc0db=0.75, acmc0v=0, acmc0p=0, acmc1mode=0, acmc1ta=0, acmc1da=0.75, acmc1tb=0, acmc1db=0.75, acmc1v=0, acmc1p=0, acmc2mode=0, acmc2ta=0, acmc2da=0.75, acmc2tb=0, acmc2db=0.75, acmc2v=0, acmc2p=0, acmc3mode=0, acmc3ta=0, acmc3da=0.75, acmc3tb=0, acmc3db=0.75, acmc3v=0, acmc3p=0,
                acsname=0, acstonic=-1, acsscale=0, acspark=0, acsparko=1, acslnm=0, acslkey=-1, acslsc=0, acjour=0, acjpad=0, acjdrone=0, acjstrike=0, acrvpre=0, acrvera=3, acccout=0, acccch=1, acccbase=0, acccrate=1)
@@ -37,6 +37,8 @@ SETTINGS = KNOBS[:FILE_KNOBS] + ["acmout", "acsync", "acforce", "acvintage", "ac
 IN_IDX = [n for p in PAGES for _, n, _ in p].index("acinput")     # the In knob's slot in acparams
 MOUT = ["off", "tempo only", "tempo+notes", "notes only"]
 PARTS = ["all", "harmony", "arp only"]
+# SETUP page 4, CPU guard: on or off, and with the performance log (logs/, see gen_log) or without
+SGUARD = ["off", "on", "off, log", "on, log"]
 OUTPUTS = ["stereo wide", "mono", "split"]   # split: pads + drone left, everything else right (mono stems)
 NSET = 21                                  # SETUP pages
 SETUP_NAMES = ["GENERAL", "PLAYING", "OUTPUT", "NOTES OUT", "SOUNDS", "MUSIC", "MIDI IN", "CC MAP", "VOICES", "FORM",
@@ -215,7 +217,8 @@ def settings():
                            Call("ac-sendupd"),
                            SendL("ac-vintage", ["acvintage"]),
                            SendL("ac-lvvibr", ["acvibr"]), V("acmode", "acmodesel == 0"),
-                           Call("ac-rvcolour"), Call("ac-sinkupd"), Call("ac-pumpupd"), Call("ac-sparkupd"), Later("ac-jourupd", 400)])
+                           Call("ac-rvcolour"), Call("ac-sinkupd"), Call("ac-pumpupd"), Call("ac-sparkupd"), Later("ac-jourupd", 400),
+                           Later("ac-logupd", 500)])
     rt = c.to(c.recv("ac-pset"), "route " + " ".join(str(i) for i in range(len(KNOBS))))
     for i, n in enumerate(KNOBS):
         c.c(rt, i, c.obj("v " + n), 0)
@@ -263,7 +266,7 @@ def setup_pages():
             ("list 1 MIDI notes $1", [("s", "acmparts", PARTS)]),
             ("list 2 Arp octave C$1", [("f", "acarpoct/12 - 1")]),
             ("list 3 CPU $1% lite $2", [("f", "int(acload*100)"), ("f", "acshed")]),
-            ("list 4 CPU guard $1", [("s", "acguard", ["off", "on"])]),
+            ("list 4 CPU guard $1", [("s", "acguard", SGUARD)]),
         ]),
         ("SOUNDS", [
             ("list 1 Pads $1", [("s", "acspad", SPADS)]),
@@ -399,7 +402,7 @@ def setup():
         """the condition: knob `row` (1-4) turned on SETUP page `page` (its name)"""
         return f"{item} == {SETUP_NAMES.index(page) * 4 + row - 1}"
     run_steps(c, (tb, 0), [
-        If("acsetpg != acsetpgl", [X("1; 1; acsetpg", "v acsvp49", "v acsvp50", "v acsetpgl")]),
+        If("acsetpg != acsetpgl", [X("1; 1; 1; acsetpg", "v acsvp49", "v acsvp50", "v acsvpp", "v acsetpgl")]),
         If(at("GENERAL", 1), [V("acmout", "int(acsv*3.99)"), If("acmout == 0 || acmout == 3", [Call("ac-clockstop")],
                                                                [Call("ac-clockstart")]),
                             If("acmout < 2", [Call("ac-notesoff")], [Call("ac-outchord")])]),
@@ -416,8 +419,10 @@ def setup():
         If(at("OUTPUT", 4), [V("actrange", f"int(acsv*{len(TEMPOS) - 0.01})"), Call("ac-settempo")]),
         If(at("NOTES OUT", 1), [V("acmparts", f"int(acsv*{len(PARTS) - 0.01})"), Call("ac-notesoff"), Call("ac-outchord")]),
         If(at("NOTES OUT", 2), [V("acarpoct", "24 + 12*int(acsv*4.99)"), Call("ac-notesoff"), Call("ac-outchord")]),
-        If(at("NOTES OUT", 4), [V("acguard", "acsv > 0.5"),
-                             If("acguard == 0 && acshed > 0", [V("acshed", "0"), Call("ac-layers"), Call("ac-inputupd")])]),
+        # knob 3 turned fully up (re-armed below 90 %): the profile run (gen_log)
+        If(at("NOTES OUT", 3), [If("acsv > 0.9 && acsvpp <= 0.9", [Call("ac-profile")]), V("acsvpp", "acsv")]),
+        If(at("NOTES OUT", 4), [V("acguard", f"int(acsv*{len(SGUARD) - 0.01})"), Call("ac-logupd"),
+                             If("acguard % 2 == 0 && acshed > 0", [V("acshed", "0"), Call("ac-layers"), Call("ac-inputupd")])]),
     ] + [
         # SOUNDS: act only when the choice changes, so turning the knob within one choice does not re-pick
         If(at("SOUNDS", 1 + j), [V("acsnew", f"int(acsv*{len(opts) - 0.01})"), If(f"acsnew != {var}", [
@@ -575,7 +580,7 @@ def cpu_guard():
     run_steps(c, (up, 0), [V("acload", "max(acloadtest, 0.6*acload + 0.4*acldraw)"), Call("ac-cpucheck")])
     c.col()
     proc(c, "ac-cpucheck", [
-        If("acguard && acload > 0.78 && acshed < 3 && acnow - acshedt > 4000", [
+        If("acguard % 2 && acload > 0.78 && acshed < 3 && acnow - acshedt > 4000", [
             X("acshed + 1; acnow", "v acshed", "v acshedt"), Call("ac-layers"), Call("ac-inputupd"),
             Toast("CPU high - lighter"),
         ]),

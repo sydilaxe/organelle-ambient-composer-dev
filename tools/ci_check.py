@@ -1130,5 +1130,31 @@ auto = [r for r in rows if r.startswith("3 ")]
 check(auto and auto[0].split(" ", 1)[1].replace("\\ ", " ").split()[1] in [n for n, _ in _SC] and "4 Ember" in rows
       and "5 Deep" in rows, f"slot names: auto (key and scale), a chosen word, a factory piece ({sorted(rows)})")
 
+# 69. the performance log (CPU guard "on, log"): a header and a line every 5 s in logs/perf-*.txt; the profile run:
+#     every part, a line each, in logs/profile-*.txt, and the piece back as it was (plays again); the report reads both
+import glob, os, subprocess
+import gen_log as LG
+d = build_tmp()
+run([(50, "ac-setseed 7"), (100, "acguard 3"), (110, "ac-logupd bang"), (63000, "ac-stop bang")], 66, d=d)
+pf = glob.glob(os.path.join(d, "logs", "perf-*.txt"))
+pl = [l for l in open(pf[0]).read().split(";") if l.strip()] if pf else []
+check(len(pl) >= 12 and pl[0].split() == [n for n, _ in LG.FIELDS] and len(pl[3].split()) == len(LG.FIELDS)
+      and pl[3].split()[4] == "1", f"perf log: {len(pf)} file, {len(pl)} lines (header + one per 5 s), playing")
+log, a = run([(50, "ac-setseed 7"), (500, "ac-profile bang"), (470000, "ac-start bang")], 480, d=d)
+pr = glob.glob(os.path.join(d, "logs", "profile-*.txt"))
+rows = [l.split() for l in open(pr[0]).read().split(";") if l.strip()] if pr else []
+names = [r[0] for r in rows[1:]]
+tail = a[-int(5 * 44100):]
+check(not errors(log) and names == [n for n, _ in LG._parts()] and all(len(r) == 3 for r in rows)
+      and rms_db(tail) > -50, f"profile: {len(names)} parts of {len(LG._parts())}, written, plays after "
+      f"({rms_db(tail):.0f} dB)")
+rep = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "perf_report.py"),
+                      os.path.join(d, "logs")], capture_output=True, text=True)
+check(rep.returncode == 0 and "The profile" in rep.stdout and "The session" in rep.stdout, "perf_report reads both")
+log, _ = run([(50, "ac-setseed 7"), (300, "acsetup 1"), (310, "acsetpg 3"), (400, "ac-setknob 2 0.5"),
+              (500, "ac-setknob 2 1"), (600, "ac-setknob 2 0.95")], 12, prints=("ac-toast",))
+starts = sum("profile 1/" in l for l in log.splitlines() if l.startswith("ac-toast")) // 2
+check(starts == 1, f"SETUP 4 knob 3 fully up starts the profile once ({starts})")
+
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

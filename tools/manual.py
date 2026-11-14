@@ -138,8 +138,11 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
     "MIDI notes": (", ".join(S.PARTS), "Which notes go out: all; harmony (chords, tonic, bass); or the arp chord "
                                        "only."),
     "Arp octave": ("C1-C5", "Where the arp chord starts (MIDI out, base channel + 5)."),
-    "CPU": ("shown only", "Amble's CPU load now, and the CPU guard's level (lite 0-3)."),
-    "CPU guard": ("off, on", "When on, Amble gets lighter under overload (see CPU)."),
+    "CPU": ("shown; knob fully up = profile", "Amble's CPU load now, and the CPU guard's level (lite 0-3). Turning "
+            "its knob fully up runs the profile: the piece stops and every part plays alone for 6 s, silently, about "
+            "7 minutes in all; each part's load goes into logs/profile-NNNN.txt (see CPU)."),
+    "CPU guard": ("off, on, off + log, on + log", "When on, Amble gets lighter under overload (see CPU). With log, "
+                  "a line every 5 s goes into logs/perf-NNNNPP.txt: the load, the worst moment, what was playing."),
     "Pads": ("auto, raw, " + ", ".join(DT.FLAVOURS), "The pad types. auto: the piece's palette, new picks each "
              "section. raw: the dry, buzzy types of the first demos (vox, part, fold, pulsr), no character effect. "
              "A type name: all four pad voices (and the notes you play) use it. Applies at once, crossfaded. "
@@ -642,7 +645,16 @@ def story():
                "drone, sub, bells, motion and reverb are never changed. SETUP page 4 shows the load and the "
                "guard's level and can turn the guard off. The CPU reading is an average over a second; short spikes "
                "inside it are absorbed by the audio buffer, which Amble sets to 25 ms in <b>pd-opts.txt</b> "
-               "(the Organelle starts Pd with 6 ms).")]
+               "(the Organelle starts Pd with 6 ms)."),
+          para("<b>Logs.</b> To find what costs what on your Organelle, set the CPU guard to <i>on, log</i> and "
+               "play as usual: every 5 s a line goes into <b>logs/perf-NNNNPP.txt</b> in the patch folder - the "
+               "average and the worst 100 ms of the load, and what was on (layers, pad types, engines, journey, "
+               "effects, the page). A file holds 10 minutes; it is written each minute and when the piece stops. "
+               "For each part's cost alone, turn SETUP 4's CPU knob fully up: the <b>profile</b> (about 7 minutes, "
+               "silent) writes <b>logs/profile-NNNN.txt</b>, then the piece is back as it was, stopped. Copy the "
+               "logs folder off the card; tools/perf_report.py reads it and says what is cheap enough to make "
+               "richer and what is worth optimising. Logging itself is light: a sum every 100 ms and a small file "
+               "written once a minute.")]
 
     s += [Paragraph("12  Troubleshooting", H1),
           table([["Symptom", "What to do"],
