@@ -1,8 +1,14 @@
-"""Organelle controls: knobs (two pages, pickup), keys, aux, footswitch, screen lines, LED, toasts."""
-from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, run_steps, Line, lookup
+"""The Organelle's own controls: the knobs (8 pages, with pickup), the 24 keys (all functions: knob pages,
+harmony, form, layers, transport, ANCHOR, quick save / recall), aux, the footswitch, the text screen lines, the LED.
+
+The key layout is LOW_KEYS / TOP_KEYS (the manual documents them in that order); keys() wires them, and the
+gestures that use a key's release (low A tap / hold, top B tap / hold / + key, aux + top A) are handled at the top
+of keys()."""
+from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, run_steps, Line
 from data import *
-from pdlib import Toast, Later, Arm
+from pdlib import Toast, Arm
 from gen_setup import NSET
+from data import MIX_KNOBS
 import gen_setup as _S
 
 SECNAMES = ["emerge", "haze", "drift", "bloom", "swell", "dissolve"]
@@ -21,20 +27,28 @@ SIDE = {  # what to do after a knob changes a value (index = page*4 + knob)
 }
 for _i in range(12, SEND_KNOBS):              # the SENDS pages
     SIDE[_i] = [Call("ac-sendupd")]
-for _i in range(SEND_KNOBS, 4 * len(PAGES)):  # the MIX pages: the layer levels (coalesced: knobs send fast)
+for _i in range(SEND_KNOBS, MIX_KNOBS):      # the MIX pages: the layer levels (coalesced: knobs send fast)
     SIDE[_i] = [Send("ac-mixch")]
+SIDE[28] = [Call("ac-sinkupd")]              # PERFORM: Sink, Blur, Swell (Harm applies at the next choice)
+SIDE[29] = [Call("ac-revupd")]
+SIDE[30] = [Send("ac-densch"), Call("ac-brightupd"), Call("ac-swellupd")]
 NP = len(PAGES)
 # The Organelle keys are always functions (notes come from MIDI). Low octave: the knob pages, then harmony and form;
 # top octave: the layers, then input, Freeze and the transport. Aux + a low key opens that SETUP page (C = 1).
 # The manual (tools/manual.py) documents these, in this order.
-PAGE_KEYS = [0, 1, 2, 5, 6, 3, 4]       # low C..F#: SHAPE, SPACE, PIECE, MIX 1, MIX 2, SENDS 1, SENDS 2
-LOW_KEYS = ["SHAPE page", "SPACE page", "PIECE page", "MIX 1 page", "MIX 2 page", "SENDS 1 page", "SENDS 2 page",
+PAGE_KEYS = [0, 1, 2, 5, 6, 3, 7]       # low C..F#: SHAPE, SPACE, PIECE, MIX 1, MIX 2, SENDS (1, again 2), PERFORM
+SAVES_PAGE = 12                         # SETUP SAVES (aux + top B)
+LOW_KEYS = ["SHAPE page", "SPACE page", "PIECE page", "MIX 1 page", "MIX 2 page", "SENDS page (again: 1 / 2)",
+            "PERFORM page",
             "Root (hold)", "Resolve", "chord change now", "next section", "hold section"]
 LAYER_KEYS = [("acmdrone", "drone", "acgdrone"), ("acmsub", "sub", "acgsub"), ("acmpad", "pads", "acgpad"),
               ("acmbell", "bells", "acgbell"), ("acmmotion", "motion", "acgmotion"), ("acmtex", "textures", "acgtex"),
               ("acmatm", "atmosphere", "acgatm"), ("acmcloud", "cloud", "acgcloud")]
 TOP_KEYS = [f"{n} in/out | aux: auto" for _, n, _ in LAYER_KEYS] + [
-    "input mode | aux: capture", "Freeze", "start / stop | aux: COMPOSE / DRIFT", "new piece | aux: SAVES"]
+    "input mode | aux: capture", "Freeze | aux: ANCHOR", "start / stop | aux: COMPOSE / DRIFT",
+    "new piece | hold: COMPARE | + key: load | aux: SAVES"]
+SAVE_KEY = 83                           # top B: tap = new piece; held, a key loads its slot (aux: saves to it)
+ANCHOR_KEY = 81                         # top A: aux + tap = ANCHOR (set, then glide back), aux + hold = anchor here
 FKEYS = LOW_KEYS + TOP_KEYS
 ROOT_KEY = 60 + LOW_KEYS.index("Root (hold)")
 CHORD_KEY = 60 + LOW_KEYS.index("chord change now")
@@ -85,7 +99,9 @@ def knobs():
     for i, n in enumerate(names):
         tb = c.to((rt, i), "t b f")
         c.c(tb, 1, c.obj("v " + n), 0)
-        run_steps(c, (tb, 0), SIDE.get(i, []) + [V("aclastk", str(i)), Call("ac-oledknob"), Send("ac-dirty")])
+        # (a value a morph or a macro offset moves is not your hand: it neither shows nor stops the morph)
+        run_steps(c, (tb, 0), SIDE.get(i, []) + [If("acmorphing == 0", [T("acmtouch", i, "1"), V("aclastk", str(i)),
+                                                                        Call("ac-oledknob")]), Send("ac-dirty")])
         c.col(150)
     # the scaled length shown on the screen
     return c
@@ -102,9 +118,24 @@ def keys():
     c.c(kb, 1, c.obj("v ackn"), 0)
     run_steps(c, (kb, 0), [If("ackv > 0", [
         V("acauxused", "acauxheld || acauxused"),
-        If(f"acroothold && ackn != {ROOT_KEY}", [V("acrootn", "int(ackn) % 12"), Call("ac-rootset")],
-           [SendL("ac-fkey", ["ackn"])])],
+        # top B held: the next key is a slot (low C..B = 1-12, top C..D# = 13-16) - loaded, or with aux saved
+        If(f"ackn == {SAVE_KEY}", [X("1; 0; 0", "v acbdown", "v acbused", "v acbcmp"),
+                                   Arm("ac-cmphold", "600", stop="ac-bstop")],
+           [If("acbdown", [V("acbused", "1"), Send("ac-bstop"), If("ackn >= 60 && ackn <= 75", [
+               V("acslot", "ackn - 60"), Call("ac-slotcheck"),
+               If("acauxheld", [Call("ac-savepiece")], [Call("ac-loadpiece")])])],
+              [If(f"acroothold && ackn != {ROOT_KEY}", [V("acrootn", "int(ackn) % 12"), Call("ac-rootset")],
+                  [SendL("ac-fkey", ["ackn"])])])])],
         [If(f"ackn == {ROOT_KEY}", [V("acroothold", "0")]),
+         # top B let go: a tap is a new piece (aux: the SAVES page); a hold was COMPARE, which ends
+         If(f"ackn == {SAVE_KEY} && acbdown", [Send("ac-bstop"),
+            If("acbcmp", [Call("ac-cmpoff")], [If("acbused == 0", [
+                If("acauxheld", [V("acsetup", "1"), V("acsetpg", str(SAVES_PAGE)), Call("ac-oledsetup")],
+                   [Call("ac-newkey")])])]),
+            X("0; 0", "v acbdown", "v acbcmp")]),
+         # top A let go (aux + A): a tap glides back to the anchor (or sets it); a hold already anchored here
+         If(f"ackn == {ANCHOR_KEY} && acanp", [Send("ac-ancstop"), If("acanheld == 0", [Call("ac-anchortap")]),
+                                              X("0; 0", "v acanp", "v acanheld")]),
          # low A let go: a tap changes to the next chord now; a hold already picked others (ac-reroll)
          If(f"ackn == {CHORD_KEY}", [Send("ac-rrstop"), If("acrr == 0", [Call("ac-chordnow")]), V("acrr", "-1")])])])
     mo = c.ch(c.recv("ac-fkey"), "- 60", "moses 12")
@@ -122,7 +153,11 @@ def keys():
         return [V("acpage", str(p)), If("acsetup", [V("acsetup", "0"), Send("ac-save"), Call("ac-oledall")]),
                 Call("ac-oledpop")]
 
-    low = [page(p) for p in PAGE_KEYS] + [
+    low = [page(p) for p in PAGE_KEYS]
+    # low F: SENDS 1, and again SENDS 2
+    low[5] = [V("acpage", "if(acpage == 3 && acsetup == 0, 4, 3)"),
+              If("acsetup", [V("acsetup", "0"), Send("ac-save"), Call("ac-oledall")]), Call("ac-oledpop")]
+    low += [
         [V("acroothold", "1"), Toast("root: play a note or turn knob 1")],
         [Call("ac-resolvetoggle")],
         [V("acrr", "0"), Arm("ac-reroll", "500", stop="ac-rrstop")],
@@ -135,9 +170,10 @@ def keys():
     top = [[Call(f"ac-laykey{i}")] for i in range(len(LAYER_KEYS))] + [
         [If("acauxheld", [Call("ac-capture")],
             [V("acinmode", "(acinmode+1) % 8"), Call("ac-inputupd"), Call("ac-inmodetoast"), Call("ac-scr5")])],
-        [Call("ac-freezetoggle")],
+        [If("acauxheld", [X("1; 0", "v acanp", "v acanheld"), Arm("ac-ancheld", "800", stop="ac-ancstop")],
+            [Call("ac-freezetoggle")])],
         [If("acauxheld", [Call("ac-modetoggle")], [Call("ac-startstop")])],
-        [If("acauxheld", [V("acsetup", "1"), V("acsetpg", str(NSET - 1)), Call("ac-oledsetup")], [Call("ac-newkey")])],
+        [],          # top B: on its release (above)
     ]
     assert len(low) == len(LOW_KEYS) and len(top) == len(TOP_KEYS)
     for i, f in enumerate(low):
@@ -152,6 +188,9 @@ def keys():
         c.c(tsel, i, b, 0)
         run_steps(c, (b, 0), f)
         c.col(170)
+    # top B held 0.6 s with no key: COMPARE (the slot as saved) until it is let go
+    proc(c, "ac-cmphold", [If("acbdown && acbused == 0", [V("acbcmp", "1"), Call("ac-cmpon")])])
+    proc(c, "ac-ancheld", [V("acanheld", "1"), Call("ac-anchorset")])
     proc(c, "ac-rootset", [V("acpend", "acrootn"), Send("ac-keytoast"), Call("ac-chordnext")])
     # low A held: another next chord now, and again every 0.7 s while it is held
     proc(c, "ac-reroll", [V("acrr", "1"), Call("ac-chordnext"), Arm("ac-reroll", "700", stop="ac-rrstop")])

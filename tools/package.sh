@@ -8,6 +8,7 @@ rm -rf dist && mkdir -p dist/stage
 cp -r "patches/Amble" dist/stage/
 printf '0;\n' > "dist/stage/Amble/seed.txt"
 rm -f "dist/stage/Amble/saves.txt"      # your saves stay when you copy a new version over the old one
+rm -f dist/stage/Amble/logs/perf-*.txt dist/stage/Amble/logs/profile-*.txt   # your logs stay too
 printf 'Amble %s\n' "$VERSION" > "dist/stage/Amble/VERSION.txt"
 # the manual, generated from the same source as the patch (fails if a control has no description)
 python3 tools/manual.py "$VERSION" "dist/Amble-manual-${VERSION}.pdf"

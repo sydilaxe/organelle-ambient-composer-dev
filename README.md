@@ -49,17 +49,21 @@ The layers and their rhythms:
   press top A# to start. Stop fades out over 8 s and freezes the piece where it is; Start goes on from there.
   An incoming MIDI Start / Stop does the same when Sync is set to follow clock.
 - **The Organelle keys are functions**, one press each, so a hand can leave your instrument for a moment:
-  - low C to F#: the knob pages SHAPE, SPACE, PIECE, MIX 1, MIX 2, SENDS 1, SENDS 2;
+  - low C to F#: the knob pages SHAPE, SPACE, PIECE, MIX 1, MIX 2, SENDS (again: SENDS 2), PERFORM;
   - low G: hold for **Root** and press a key, play a MIDI note or turn knob 1;
   - low G# **Resolve** (the tonic as open fifths, held), A chord change now (hold it to pick another next chord),
     A# next section, B hold section;
-  - top C to G: the layers in or out (aux: back to auto); G# input mode (aux: capture), A **Freeze**,
-    A# start / stop (aux: COMPOSE / DRIFT), B new piece (aux: SAVES);
+  - top C to G: the layers in or out (aux: back to auto); G# input mode (aux: capture), A **Freeze** (aux:
+    ANCHOR), A# start / stop (aux: COMPOSE / DRIFT), B new piece (hold: COMPARE, hold + key: load a slot);
   - aux + a low key opens that SETUP page.
 - **Your own form:** SETUP FORM, SECTIONS and SECTION MIX build a piece section by section: roles, lengths, pad
   types, and per layer auto / off / on or coming in or going out at 1/4, 1/2, 3/4 of a section. With Section at
   *now* they edit the section that plays. **SAVES** keeps 16 pieces; a program change can load one (SETUP LIVE),
   and a bank of 16 CCs can drive the layer levels and in/out buttons from a controller.
+- **Performing:** a PERFORM knob page (low F#) with Sink, Blur, Swell and Harm (0 = pleasing harmony only, up =
+  other relationships drift in); ANCHOR (aux + top A) to come back to a sound; quick save and recall (hold top B
+  and press a key), COMPARE (hold top B), loads that morph in; factory pieces in empty slots 1-6; JOURNEY (the
+  pads, drone, bells and motion travelling through their engines); PUMP, DUCK, four macros and CC OUT.
 - **Two screens:** the play view (the chord now and the next one coming, a live score, the voices that sound) and
   the MIX view (levels and sends, the column you turn framed with its value), which takes over while a MIX or
   SENDS page is open.
@@ -88,7 +92,7 @@ emulator, so the font only approximates the Organelle's.
 | **Score** | The form strip (one bar per section, height = energy, current one inverted, a playhead). Key and scale, with the time left. The pad voices gliding on a pitch ladder, with your held notes as boxes and a breath bar. Meters for every layer, the reverb and the input. The motion layer's Euclidean pattern with a moving cursor, the tempo and the reverb type. The section role and voicing, and K/M/E tags for who is playing and the clock. |
 | **Input** | While external audio plays, the right-hand column becomes an input panel: the last 6 s of the input as a waveform with its onsets ticked above, the input mode, and what Amble hears (pitch, pluck, texture), with a dot while it records a memory. A sung or played pitch is drawn as a line across the pitch ladder, so you see it against the pad voices. The rhythm column comes back 5 s after the input stops. |
 | **Knob page** | Shown for 6 s after you turn a knob or tap aux. |
-| **SETUP** | Hold aux for 1 s; aux taps turn the 9 pages. Page 1: MIDI out (off, tempo only, tempo + notes, notes only), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Page 3: output, width, pan motion, tempo range. Page 4: which MIDI notes go out, arp octave, the CPU load, the CPU guard (on or off). Page 5, **SOUNDS**: pad type, drone, texture and character, each auto or your choice (see below). Page 6, **MUSIC**: key, scale, chord voicing (auto or fixed) and the bar pulse. Page 7, **MIDI IN**: where notes go, what breath does, what pressure does, the breath level. Page 8, **CC MAP**: what each CC does. Page 9, **VOICES**: the engines of the bells and the motion, and **Glide** (off, fast, short, medium, long, slow: how the pad voices slide to a new chord; off = they jump). Saved in `settings.txt` with the knob values (except In, which always starts at 0). |
+| **SETUP** | Hold aux for 1 s; aux taps turn the 9 pages. Page 1: MIDI out (off, tempo only, tempo + notes, notes only), Sync (internal or follow clock), Keys (auto, play, functions), Bloom (clean or vintage). Page 2: how much the chords follow you, MPE bend range, MIDI out channel, breath curve. Page 3: output, width, pan motion, tempo range. Page 4: which MIDI notes go out, arp octave, the CPU load (its knob fully up runs the profile), the CPU guard (off, on, either with a log). Page 5, **SOUNDS**: pad type, drone, texture and character, each auto or your choice (see below). Page 6, **MUSIC**: key, scale, chord voicing (auto or fixed) and the bar pulse. Page 7, **MIDI IN**: where notes go, what breath does, what pressure does, the breath level. Page 8, **CC MAP**: what each CC does. Page 9, **VOICES**: the engines of the bells and the motion, and **Glide** (off, fast, short, medium, long, slow: how the pad voices slide to a new chord; off = they jump). Saved in `settings.txt` with the knob values (except In, which always starts at 0). |
 
 **SOUNDS** (SETUP page 5) lets you choose the sounds yourself, mid-piece, to audition them. Each item is **auto** (the piece chooses, as before) or your choice, applied at once (crossfaded) and kept for every later section:
 - **Pads:** auto; **raw** (the dry, buzzy types of the first demos: vox, partials, fold and pulsar, with no character effect); or one type for all four pad voices (fm, vox, bow, part, fold, pulsr, saws, pwm, digi, sync, tine).
@@ -214,26 +218,22 @@ CPU, measured offline: about 3 % of one x86 core with every layer, an atmosphere
 The patch is **generated** by Python, so it can be rebuilt and tested. Edit the generator, not the `.pd`
 files.
 
-- `gen.py` builds `patches/Amble`.
-- `pdlib.py` writes Pd files. It also has a small step language that compiles to `[expr]` chains.
-- `gen_brain.py`: piece, form, sections, chord changes, clock and motion, reverb control.
-- `gen_live.py`: MIDI in, live voices, listening, audio analysis and class, memories.
-- `gen_ui.py`: knobs, keys, screen.
-- `gen_dsp.py`: voices, layers, input, master.
-- `gen_sounds.py`: the electric pad types, drone designs, sub, electric textures, character effects and vocoder.
-- `gen_oled.py`: the OLED score.
-- `gen_setup.py`: SETUP, settings, MIDI clock and notes out, clock in.
-- `gen_verb.py`: the reverbs.
-- `data.py`: the tables.
-- `harness.py` runs the patch offline (`pd -batch`).
-- `ci_check.py` is the test suite (115 checks).
-- `shots.py` renders OLED screenshots with `oledemu.py`.
-- `ref/` holds Conduit's Bloom in C, the reference for the reverb tests.
+**[`tools/README.md`](tools/README.md)** is the guide to the source: what each file builds, the naming conventions,
+where to find a key, a knob, a SETUP row or a CC target, and how to add one. In short:
+
+- `gen.py` builds `patches/Amble`; `pdlib.py` writes Pd files (and the step language the control logic is in).
+- `gen_brain.py` composes; `gen_perform.py` is performing (morph, ANCHOR, macros, JOURNEY, CC OUT, GLINT).
+- `gen_ui.py`, `gen_oled.py`: the keys, knobs and screens. `gen_setup.py`, `gen_saves.py`, `gen_midi.py`: SETUP,
+  saves, MIDI out and clock in. `gen_live.py`: MIDI in, live voices, listening.
+- `gen_dsp.py`, `gen_sounds.py`, `gen_strikes.py`, `gen_verb.py`: the sound. `data.py`: the tables.
+- `harness.py` runs the patch offline (`pd -batch`); `ci_check.py` is the test suite (212 checks, by section);
+  `shots.py` renders OLED screenshots with `oledemu.py`; `ref/` holds Conduit's Bloom in C, the reverb tests'
+  reference.
 
 ```
 cd tools
 ./build.sh            # regenerate the patch
-python3 ci_check.py   # offline checks in Pure Data (needs gcc for the Bloom reference)
+python3 ci_check.py   # offline checks in Pure Data (needs gcc for the Bloom reference); --list, or section numbers
 ```
 
 Requirements: Python 3 with numpy and scipy, Pure Data 0.53+, gcc, and ffmpeg for the demos.
@@ -266,6 +266,11 @@ The Organelle-M runs Amble on one core, so a few things keep it from crackling:
   lighter in steps: 1, cloud and atmosphere off; 2, textures and the pad character off; 3, the automatic
   vocoder off. Below 50 % for 20 s it steps back. The pads, drone, sub, bells, motion and reverb never change.
   SETUP page 4 shows the load and the guard's level, and can turn the guard off.
+- **Performance logs.** Set the CPU guard to *on, log* and play: every 5 s a line goes into `logs/perf-NNNNPP.txt` in
+  the patch folder (the load, its worst 100 ms, and what was on). Turn SETUP 4's CPU knob fully up for a profile:
+  every part alone for 6 s (about 7 minutes, silent) into `logs/profile-NNNN.txt`. Copy `logs/` off the card and run
+  `python3 tools/perf_report.py path/to/logs`: the spikes and what caused them, what each thing costs while playing,
+  and what is cheap enough to make richer or worth optimising.
 
 ## Releases
 

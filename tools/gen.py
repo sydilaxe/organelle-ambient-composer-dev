@@ -10,6 +10,10 @@ import gen_oled as O
 import gen_setup as S
 import gen_sounds as SN
 import gen_strikes as ST
+import gen_perform as P
+import gen_saves as SV
+import gen_midi as MI
+import gen_log as LG
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "patches", "Amble")
@@ -32,7 +36,7 @@ def main_patch():
     m.comment("control", 20, 200)
     for i, sub in enumerate((B.globals_(), B.rng(), B.seed(), B.piece(), B.section(), B.change(), B.layers(),
                              B.players(), B.capture(), B.verb(), B.stereo(), B.rhythm(), L.midi_in(), L.cc_map(), L.live(), L.memories(), L.tables(),
-                             O.oled(), S.settings(), S.setup(), S.saves(), S.midi_out(), S.clock_in(), S.cpu_guard(),
+                             O.oled(), P.perform(), LG.perflog(), S.settings(), S.setup(), SV.saves(), MI.midi_out(), MI.clock_in(), S.cpu_guard(),
                              U.knobs(), U.keys(), U.screen())):
         m.sub(sub, 20 + (i % 4) * 110, 225 + (i // 4) * 30)
     m.comment("sound", 20, 340)
@@ -43,7 +47,7 @@ def main_patch():
                              D.cloud_write(), D.bells(), D.motion(), D.motion_fm(), D.inp(), D.reso(), D.tape(), D.bands(),
                              D.mem_rec(), D.mem_play(), D.master())
                              + tuple(f() for f in SN.NEW_DRONES + SN.NEW_TEXTURES + SN.ATMOS) + (SN.sub(), SN.vocoder())
-                             + tuple(ST.engines()) + (ST.wavetables(),)):
+                             + tuple(ST.engines()) + (ST.wavetables(), P.glint())):
         m.sub(sub, 20 + (i % 4) * 110, 400 + (i // 4) * 30)
     m.obj(f"array define acbuf {D.CLOUD_LEN}", 20, 900)
     return m
@@ -57,6 +61,13 @@ def build(out=OUT):
     seedf = os.path.join(out, "seed.txt")
     if not os.path.exists(seedf):
         open(seedf, "w").write("0;\n")
+    open(os.path.join(out, "factory.txt"), "w").write(SV.factory_rows())
+    # logs/: the performance log and the profile (SETUP 4), written on the Organelle, to copy off and upload
+    os.makedirs(os.path.join(out, "logs"), exist_ok=True)
+    open(os.path.join(out, "logs", "README.txt"), "w").write(
+        "Amble's performance logs (SETUP 4: CPU guard ... log) and profiles (SETUP 4: knob 3 fully up) land here.\n"
+        "perf-BBBBPP.txt: a line every 5 s (start-up BBBB, part PP); profile-BBBB.txt: each part's load alone.\n"
+        "Read them with tools/perf_report.py, or send them along with what you were doing.\n")
     sv = os.path.join(out, "saves.txt")       # (the release zip leaves it out, so an update keeps your saves)
     if not os.path.exists(sv):
         open(sv, "w").write("")
@@ -66,7 +77,7 @@ def build(out=OUT):
         from data import PAGES
         from data import FILE_KNOBS
         kd = [d for p in PAGES for _, _, d in p]
-        vals = kd[:FILE_KNOBS] + [1, 0, -1, 0, 0.7, 48, 1, 1.2, 0, 1, 0.8, 0, 0, 48, 1] + kd[FILE_KNOBS:gen_setup.SEND_KNOBS] + [0, 0, 0, 0] + [0, 0, 0, 2, 0, 0, 1, 5.5] + gen_setup.CC_DEFAULTS + [0, 0, 5] + [d for _, _, d in PAGES[5] + PAGES[6]] + [0, 0, 0, 0, 0, 0] + [0, 0, 1, 2]
+        vals = kd[:FILE_KNOBS] + [1, 0, -1, 0, 0.7, 48, 1, 1.2, 0, 1, 0.8, 0, 0, 48, 1] + kd[FILE_KNOBS:gen_setup.SEND_KNOBS] + [0, 0, 0, 0] + [0, 0, 0, 2, 0, 0, 1, 5.5] + gen_setup.CC_DEFAULTS + [0, 0, 5] + [d for _, _, d in PAGES[5] + PAGES[6]] + [0, 0, 0, 0, 0, 0] + [0, 0, 1, 2] + [d for _, _, d in PAGES[7]] + [0, 0, 2, 0, 0.5, 0, 2] + [0, 0, 0.75, 0, 0.75] * 4 + [0, 0, 0, 0, 0, 3, 0, 1, 0, 1] + [0, 1]
         assert len(vals) == len(gen_setup.SETTINGS), (len(vals), len(gen_setup.SETTINGS))
         open(sf, "w").write(" ".join(f"{v:g}" for v in vals) + ";\n")
     # Pd start-up options: the Organelle OS starts Pd with a 6 ms audio buffer and appends the patch folder's

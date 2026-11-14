@@ -56,7 +56,6 @@ def flav_digi():
               "the right side rings a hair higher and holds at a slower clock")
     f, b = _flav_inlets(s, 2)
     car = s.to(f, "osc~")
-    lev = s.recv("ac-weird")
     outs = []
     for k, (rm, clk) in enumerate(((1.0, 1.0), (1.012, 0.83))):
         rr = s.to(f, f"*~ {1.4142 * rm}")
@@ -164,7 +163,33 @@ def flav_glass():
     return s
 
 
-NEW_FLAVS = (flav_saws, flav_pwm, flav_digi, flav_sync, flav_tine, flav_sine, flav_glass)
+def flav_beat():
+    s, ln = switched("beat", "$0-fw13")
+    s.comment("Beat (after Frasil's PARTIALS): five partials, a touch stretched toward a bell, each pulsing at its own "
+              "pace; a formant wanders across them (and brightness lifts it), so the spectrum moves while the note "
+              "stays; odd partials to the left, even to the right")
+    f, b = _flav_inlets(s, 2)
+    # the formant's place (harmonic 1.5 .. 5): a slow sweep, lifted by brightness
+    pk = add(s, s.ch(s.obj("osc~ 0.043"), "*~ 1.2", "+~ 2.6"), s.to(b, "*~ 1.4"))
+    L, R = s.obj("*~ 0.5"), s.obj("*~ 0.5")
+    for n, rate, (gl, gr) in ((1, 0.31, (1, 1)), (2, 0.53, (0.3, 1.3)), (3, 0.79, (1.3, 0.3)), (4, 1.13, (0.35, 1.25)),
+                              (5, 1.61, (1.25, 0.35))):
+        st = n * (1 + 0.0035 * n * (n - 1))                 # a touch stretched
+        o = s.ch(s.to(f, f"*~ {st:.4f}"), "osc~")
+        beat = s.ch(s.obj(f"osc~ {rate}"), "*~ 0.4", "+~ 0.6")
+        d = s.ch(s.to(pk, f"-~ {n}"), "abs~")
+        near = s.obj("/~")                                  # 1 / (1 + 0.8 d^2): the formant's lift
+        s.c(s.obj("sig~ 1"), 0, near, 0)
+        den = s.ch(mul(s, d, d), "*~ 0.8", "+~ 1")
+        s.c(den, 0, near, 1)
+        p = mul(s, mul(s, o, beat), s.to(near, f"*~ {1 / n ** 0.5:.3f}"))
+        s.c(s.to(p, f"*~ {gl}"), 0, L, 0)
+        s.c(s.to(p, f"*~ {gr}"), 0, R, 0)
+    _out(s, L, ln, R)
+    return s
+
+
+NEW_FLAVS = (flav_saws, flav_pwm, flav_digi, flav_sync, flav_tine, flav_sine, flav_glass, flav_beat)
 
 
 # ---------------------------------------------------------------- drone designs 1..3 (0 is the original)
@@ -232,7 +257,36 @@ def drone_fm():
     return s
 
 
-NEW_DRONES = (drone_analog, drone_organ, drone_fm)
+def drone_frost():
+    s, ln = switched("drone-frost", "ac-g-drone4")
+    s.comment("Frost drone (after Frasil's CHOIR and BREATH): three detuned saws - centre, a little flat on the left, "
+              "a little sharp on the right - each drifting on its own, through a resonant low-pass that follows the "
+              "note and the brightness; under them noise through three resonators on the note (x1, x2, x3), glassy")
+    f = _drone_freq(s)
+    br = s.ch(s.recv("ac-bright"), "line~")
+    saws = []
+    for cents, rate in ((0, 0.023), (-7, 0.031), (7, 0.037)):
+        dr = s.ch(s.obj(f"osc~ {rate}"), "*~ 0.0025", f"+~ {2 ** (cents / 1200):.5f}")   # +-4 cents of drift
+        saws.append(s.ch(mul(s, f, dr), "phasor~", "-~ 0.5"))
+    cf = s.to(mul(s, f, add(s, s.to(br, "*~ 5"), s.ch(s.obj("osc~ 0.019"), "*~ 0.6", "+~ 2"))), "clip~ 60 6000")
+    outs = []
+    for side in (0, 1):
+        sm = add(s, s.to(saws[0], "*~ 0.6"), saws[1 + side])
+        v = s.obj("vcf~ 2.5")
+        s.c(sm, 0, v, 0)
+        s.c(cf, 0, v, 1)
+        outs.append(s.to((v, 1), "*~ 0.55"))
+    nz = s.obj("noise~")
+    for k, (h, q) in enumerate(((1, 30), (2, 40), (3, 50))):
+        r = s.obj(f"vcf~ {q}")
+        s.c(nz, 0, r, 0)
+        s.c(s.to(f, f"*~ {h}"), 0, r, 1)
+        s.c(s.to(r, f"*~ {0.5 / h:.3f}"), 0, outs[k % 2], 0)
+    _drone_out(s, outs[0], ln, outs[1])
+    return s
+
+
+NEW_DRONES = (drone_analog, drone_organ, drone_fm, drone_frost)
 
 
 def sub():

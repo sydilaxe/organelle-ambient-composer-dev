@@ -1,25 +1,26 @@
-"""The OLED as a live score (128 x 64), drawn with /oled/g* messages to mother (oscOut).
+"""The OLED (128 x 64), drawn with /oled/g* messages to mother (oscOut). Three views:
 
-   y 0-7    the form: one bar per section (height = energy, width = length), the current one inverted,
-            a playhead; in DRIFT the energy and the section's progress
-   y 9-18   key, scale, voicing (toasts take this line for 2.5 s) and the time left (elapsed in DRIFT)
-   y 20-52  left: the 4 pad voices as dots on a pitch ladder (they glide), your held notes as boxes,
-            tonic ticks, breath bar; middle: 7 meters (drone, pads, textures, cloud, bells, motion,
-            reverb) and the input level; right: the motion layer's Euclidean pattern with a moving
-            cursor, and the tempo; while external audio plays, an INPUT panel instead: the last 6 s of
-            the input's level as a waveform (onsets ticked above), the input mode and what Amble hears
-            (pitch / pluck / textr), a dot while it records a memory; a sung or played pitch is drawn
-            as a line across the pitch ladder
-   y 53-63  section role, reverb, KEYS/MIDI, INT/EXT (FIN at the end)
-A knob or page change shows the knob page for 2 s; SETUP takes the whole screen."""
+PLAY (the knob pages SHAPE, SPACE, PIECE, PERFORM):
+   y 0-7    the form: a bar per section (height = energy, width = length), the current one inverted, a playhead;
+            in DRIFT the energy and the section's progress
+   y 9-17   the chord now > the next chord (toasts take this line for 2.5 s); a dot at the right when the sound
+            differs from its slot
+   y 19     a bar shrinking to the next chord change
+   y 21-39  left: the 4 pad voices as dots on a pitch ladder, your held notes as boxes, tonic ticks, breath;
+            right: the motion's Euclidean pattern and the tempo, or the INPUT panel while audio comes in
+   y 41-49  the voices: two letters while each sounds, a dot while it rests, a dash when it is out
+   y 54-62  key and scale, then the role or what is latched (HLD FRZ ANC LTE); READY / STOPPED / FIN
+   y 63     a morph's (or an anchor glide's) progress
+MIX (the SENDS and MIX pages): a bar per voice, the knob as a tick, the column turned framed with its value.
+SETUP: the page's name and its 4 rows (gen_setup draws them).
+A knob turned on a PLAY page shows its page for 6 s."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Line
-from data import ROLES, PAGE_NAMES, FAMILIES, PAGES, NOTE_NAMES, SCALES
+from data import ROLES, PAGE_NAMES, PAGES, NOTE_NAMES, SCALES
 
 OSC = "oscOut"
-GLOBALS = dict(acpopt=0, actoastt=0, acfr=0, acel=0, acsecel=0, acox=0, acoxs=0, acmcur=-1, acrvlvl=0, acoled=1,
-               acsetup=0, acsetpg=0, acyy=0, acinv=0, acinlast=-1e+06, acinon=0, acinhi=0, aclastk=0, acmixc=-1)
+GLOBALS = dict(acpopt=0, actoastt=0, acfr=0, acel=0, acsecel=0, acox=0, acoxs=0, acmcur=-1, acrvlvl=0, acsetup=0, acsetpg=0, acinv=0, acinlast=-1e+06, acinon=0, acinhi=0, aclastk=0, acmixc=-1, acfx=0)
 ARRAYS = dict(acdisp=4, acdg=8, acinh=32, acino=32)
-MIX_FROM = 3       # the knob pages from here on (SENDS, MIX) show the MIX view
+MIXV = "(acpage >= 3 && acpage <= 6)"     # the knob pages that show the MIX view: SENDS, MIX
 # the play view's voice tags (2 x 4) and the MIX view's columns: (letter, knob, layer); the reverb last
 TAG_LAYERS = ["drone", "sub", "pad", "bell", "motion", "tex", "atm", "cloud"]
 TAG_LETTERS = dict(drone="Dr", sub="Sb", pad="Pd", bell="Bl", motion="Mo", tex="Tx", atm="At", cloud="Cl", verb="Rv")
@@ -78,14 +79,17 @@ def oled():
     c.c(lb, 0, met, 0)
     c.c(met, 0, c.obj("s ac-frame"), 0)
     c.col()
-    normal = f"acsetup == 0 && acpopt == 0 && acpage < {MIX_FROM}"
-    mixv = f"acsetup == 0 && acpage >= {MIX_FROM}"
+    normal = f"acsetup == 0 && acpopt == 0 && {MIXV} == 0"
+    mixv = f"acsetup == 0 && {MIXV}"
     proc(c, "ac-frame", [
         V("acfr", "acfr + 1"),
         If("acpopt > 0 && acnow >= acpopt", [V("acpopt", "0"), Call("ac-oledall")]),
         If("actoastt > 0 && acnow >= actoastt", [V("actoastt", "0"), Call("ac-scr2"), Call("ac-oledtime"),
                                                   If(mixv, [Call("ac-oledmixhead")])]),
         If(mixv, [If("int(acfr) % 2 == 0", [Call("ac-oledmixbars")])]),
+        # a morph (a load, ANCHOR): a line along the foot, as far as it has come
+        If(normal + " && (acmph || acmtt < 1.1)", [Fill(0, 63, 128, 1, 0), If("acmph", [Fill(0, 63, "max(1, int(128*acmtt))", 1)]),
+                                                 V("acmtt", "if(acmph, acmtt, 2)")]),
         If(normal, [
             Call("ac-oledmid"),
             If("int(acfr) % 2 == 0", [Call("ac-oledinput")]),
@@ -120,12 +124,14 @@ def oled():
     # ---- line 2: key / scale / voicing (ac-txt2), and the time; toasts take the line for 2.5 s
     gated_text(c, "ac-oledtop", normal + " && actoastt == 0", 0, 9, clear=(0, 9, 128, 10))
     proc(c, "ac-toast", [V("actoastt", "acnow + 2500")])
-    gated_text(c, "ac-toast", f"acsetup == 0 && acpage < {MIX_FROM}", 0, 9, clear=(0, 9, 128, 10))
+    gated_text(c, "ac-toast", f"acsetup == 0 && {MIXV} == 0", 0, 9, clear=(0, 9, 128, 10))
     gated_text(c, "ac-toast", mixv, 0, 0, clear=(0, 0, 128, 9))
     c.col()
     # under the chords: a bar that shrinks to the next chord change
     proc(c, "ac-oledtime", [If(normal, [
         Fill(0, 19, 128, 1, 0),
+        # the dot: the piece differs from the slot it came from (or was saved to)
+        Fill(124, 11, 3, 3, "acchanged && acslotcur >= 0"),
         If("acrun", [Fill(0, 19, "max(1, int(128*min(1, max(0, 1 - (acnow - acchgt)/max(1, acchsec*1000*actime)))))", 1)]),
     ])])
     c.col()
@@ -163,7 +169,7 @@ def oled():
     proc(c, "ac-oledrhythm", [If(normal + " && acinv == 0", [
         Fill(96, 21, 32, 19, 0), V("acmcur", "-1"),
         Loop("acmn", "aci", [If(hit, [Fill(*cell("aci"), 3, 3)],
-                                [Fill(f"98 + (int(aci) % 8)*4", f"23 + int(int(aci)/8)*5", 1, 1)])]),
+                                [Fill("98 + (int(aci) % 8)*4", "23 + int(int(aci)/8)*5", 1, 1)])]),
         # 3-digit tempi drop the "m" so they stay inside the screen
         X("int(acbpm + 0.5)", lambda c, src: _print_bpm(c, src)),
     ])])
@@ -208,12 +214,17 @@ def oled():
     Line("ac-oledbot", "list $1 $2", [("s", "int(actonic) % 12", NOTE_NAMES), ("s", "acsci", [n for n, _ in SCALES])],
          "ac-oledbot2")(c)
     text_at(c, "ac-oledbot2", 0, 54)
-    run_steps(c, (c.recv("ac-oledbot"), 0), [If("acsecfz || acvfreeze", [
-        If("acsecfz", [Send("ac-oledhold")]), If("acvfreeze", [Send("ac-oledfrz")])], [Send("ac-oledrole")])])
+    # (what is latched packs from the left of the right half: HLD held section, FRZ Freeze, ANC an anchor set,
+    #  LTE the CPU guard lightening the sound; at most three)
+    flags = [("acsecfz", "HLD"), ("acvfreeze", "FRZ"), ("acancs", "ANC"), ("acshed > 0", "LTE")]
+    fl = [V("acfx", "68")]
+    for cond, word in flags:
+        fl += [If(f"({cond}) && acfx < 120", [SendL(OSC, ["acfx"], f"/oled/gPrintln 3 $1 54 8 1 {word}"),
+                                             V("acfx", "acfx + 20")])]
+    run_steps(c, (c.recv("ac-oledbot"), 0), [If(" || ".join(f"({cond})" for cond, _ in flags), fl,
+                                                [Send("ac-oledrole")])])
     Line("ac-oledrole", "list $1", [("s", "acrole", ROLES)], "ac-oledrole2")(c)
     text_at(c, "ac-oledrole2", 72, 54)
-    c.c(c.m(c.recv("ac-oledhold"), "/oled/gPrintln 3 74 54 8 1 HOLD"), 0, c.obj("s " + OSC), 0)
-    c.c(c.m(c.recv("ac-oledfrz"), "/oled/gPrintln 3 106 54 8 1 FRZ"), 0, c.obj("s " + OSC), 0)
     c.c(c.m(c.recv("ac-oledfin"), "/oled/gPrintln 3 0 54 8 1 FIN - B: new piece"), 0, c.obj("s " + OSC), 0)
     c.c(c.m(c.recv("ac-oledstop"), "/oled/gPrintln 3 0 54 8 1 STOPPED - A#: start"), 0, c.obj("s " + OSC), 0)
     c.c(c.m(c.recv("ac-oledready"), "/oled/gPrintln 3 0 54 8 1 READY - A#: start"), 0, c.obj("s " + OSC), 0)
@@ -230,7 +241,7 @@ def oled():
                                       Send("ac-mixknob"), Call("ac-scr4"), Call("ac-scr5"), Call("ac-oledmixbars")],
                                [If("int(aclastk/4) == acpage", [Call("ac-oledpop")], [Send("ac-mixknob")])])])
     Line("ac-mixknob", "list $1 $2", [("s", "aclastk", [lab for p in PAGES for lab, _, _ in p]),
-                                       ("f", f"int(acparams[int(aclastk)]*100)")], "ac-toast")(c)
+                                       ("f", "int(acparams[int(aclastk)]*100)")], "ac-toast")(c)
     proc(c, "ac-oledpop", [If(mixv, [V("acpopt", "0"), Call("ac-oledmix")]), If(normal.replace(" && acpopt == 0", ""), [
         V("acpopt", "acnow + 6000"),
         Fill(0, 9, 128, 55, 0),

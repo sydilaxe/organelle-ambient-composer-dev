@@ -1,8 +1,11 @@
-"""Sound: pad voices (5 synthesis types), drone, textures, granular cloud, bells, input processing,
-FDN reverb and the master stage.
+"""Sound, core: the pad voice abstraction (acvoice.pd, its first 6 synthesis types here, the rest in
+gen_sounds), the live voice abstraction (amlive.pd), the original drone, textures, the granular cloud, the bells
+and motion, the input stage and its processing, and the master stage (buses, PUMP / DUCK / SWELL, the reverbs'
+input, width, SINK, the output). The reverbs themselves are in gen_verb.
 
-Buses (throw~/catch~): ac-mixL/R dry mix, ac-padL/R the pad voices, ac-send reverb input (mono),
-ac-src what the cloud resamples. Every layer that can be silent sits in a switch~ed subpatch."""
+Buses (throw~ / catch~): ac-mixL/R the mix, ac-bedL/R the harmony bed (drone, sub), ac-padL/R the pads, ac-liveL/R
+your notes and the dry input (after DUCK), ac-send* the reverb sends (one per SENDS knob), ac-src what the cloud
+resamples. Every layer that can be silent sits in a switch~ed subpatch (switched()): no cost while it is off."""
 from pdlib import Canvas
 from data import CLOUD_LEN, TEXG
 
@@ -287,8 +290,13 @@ def voice():
     from gen_sounds import NEW_FLAVS
     nf = 6 + len(NEW_FLAVS)
     ft = v.to(v.recv("ac-v$1-flav"), "t " + " ".join(["f"] * nf))
+    # (the crossfade takes acflxf ms: 4 s, longer on a JOURNEY)
     for i in range(nf):
-        v.c(v.m(v.to((ft, i), f"== {i}"), "$1 4000"), 0, v.obj(f"s $0-fw{i}"), 0)
+        e = v.to((ft, i), f"expr $f1 == {i}; acflxf")
+        pk = v.obj("pack f f")
+        v.c(e, 1, pk, 1)
+        v.c(e, 0, pk, 0)
+        v.c(pk, 0, v.obj(f"s $0-fw{i}"), 0)
     v.col()
     bodyL, bodyR = v.obj("*~"), v.obj("*~")
     v.c(amp, 0, bodyL, 1)
@@ -537,30 +545,6 @@ def bells():
     return s
 
 
-def inp():
-    s = Canvas("input", w=1600)
-    s.comment("External audio: dry blend, mono feed for resonators / tape / cloud, envelope (ghost mode, onsets)")
-    iL, iR = s.obj("r~ inL"), s.obj("r~ inR")
-    s.c(s.ch(add(s, iL, iR), "*~ 0.5", "hip~ 50"), 0, s.obj("s~ ac-in"), 0)
-    dry = s.ch(s.recv("ac-g-dry"), "line~")
-    for sig, bus in ((iL, "ac-mixL"), (iR, "ac-mixR")):
-        s.c(mul(s, sig, dry), 0, s.obj("throw~ " + bus), 0)
-    s.col()
-    s.c(s.recv("ac-ghost"), 0, s.obj("v acghost"), 0)
-    env = s.ch(add(s, iL, iR), "env~ 2048 1024", "expr max(0, min(1, ($f1-45)/40))")
-    te = s.to(env, "t f f f")
-    s.c(s.ch(s.m(s.to((te, 2), "expr $f1*acghost"), "$1 50"), "line~"), 0, s.obj("s~ ac-envb"), 0)
-    ons = s.ch((te, 1), "expr $f1 - acinprev > 0.12 && $f1 > 0.25", "sel 1")
-    s.c(te, 0, s.obj("v acinprev"), 0)
-    sp = s.obj("spigot 1")
-    s.c(ons, 0, sp, 0)
-    tb = s.to(sp, "t b b")
-    s.c(tb, 0, s.obj("s ac-inonset"), 0)
-    s.c(s.m((tb, 1), "0"), 0, sp, 1)
-    s.c(s.m(s.to((tb, 1), "delay 300"), "1"), 0, sp, 1)
-    return s
-
-
 def reso():
     s, ln = switched("resonate", "ac-g-res")
     s.comment("Resonate: the input rings 4 comb strings tuned to the current chord (they glide on changes)")
@@ -636,7 +620,8 @@ def master():
     s.c(s.to(pm, "*~ 0.5"), 0, s.obj("s~ ac-padsig"), 0)
     # reverb send level: with the Mix knob at its default (45 %) the reverb sits about 6 dB under the dry sound,
     # at 100 % about level with it (measured in a playing piece; it was 17-27 dB under before)
-    rin = s.obj("*~ 1.23")
+    # (x 1.45 since the pleasing harmony: its voicings sit lower and drier, about 1.4 dB less reverb on average)
+    rin = s.obj("*~ 1.45")
     # the send buses, each scaled by its SENDS knob (0..2: 50 % on the knob = the designed balance)
     from data import SEND_BUS
     for name, bus in SEND_BUS.items():
@@ -652,7 +637,20 @@ def master():
     rv = mul(s, mul(s, rin, s.ch(s.recv("ac-rvin"), "line~")), s.ch(s.recv("ac-rvfz"), "line~"))
     import gen_verb
     bl = s.sub(gen_verb.bloom())
-    rvlp = s.ch(rv, "lop~ 8000", "lop~ 9000")          # both reverbs run at 22.05 kHz
+    # SETUP REVERB: a pre-delay, then the era of the converters (a band limit and a bit depth; now = neither)
+    s.to(rv, "delwrite~ $0-rvpre 250")
+    pre = s.obj("delread~ $0-rvpre 0")
+    s.c(s.recv("ac-rvpre"), 0, pre, 0)
+    elp = s.to(pre, "lop~ 20000")
+    s.c(s.recv("ac-rvlop"), 0, elp, 1)
+    xq = s.to(elp, "*~ 1e+06")
+    s.c(s.recv("ac-rvq"), 0, xq, 1)
+    fl = s.obj("-~")
+    s.c(xq, 0, fl, 0)
+    s.c(s.to(xq, "wrap~"), 0, fl, 1)
+    era = s.to(fl, "/~ 1e+06")
+    s.c(s.recv("ac-rvq"), 0, era, 1)
+    rvlp = s.ch(era, "lop~ 8000", "lop~ 9000")          # both reverbs run at 22.05 kHz
     s.c(rvlp, 0, bl, 0)
     hl = s.sub(gen_verb.hall())
     s.c(rvlp, 0, hl, 0)
@@ -679,14 +677,31 @@ def master():
     s.c(s.recv("ac-brsw"), 0, sw, 0)
     s.c(s.m(s.obj("loadbang"), "1"), 0, sw, 0)
     mg = mul(s, s.ch(s.recv("ac-master"), "line~"), sw)
-    # the buses: mix (everything else) and bed (drone, sub; the pads and their character join it below)
+    # the buses: mix (everything else) and bed (drone, sub; the pads and their character join it below); live (your
+    # notes and the dry input) comes in after DUCK, so the piece dips under you and you don't
     cmL, cmR = s.obj("catch~ ac-mixL"), s.obj("catch~ ac-mixR")
     cbL, cbR = s.obj("catch~ ac-bedL"), s.obj("catch~ ac-bedR")
+    clL, clR = s.obj("catch~ ac-liveL"), s.obj("catch~ ac-liveR")
+    # PUMP: the bed (drone, sub, pads) ducked on its grid; DUCK and SWELL: the whole piece
+    pump = s.obj("vline~")
+    s.c(s.recv("ac-pumpenv"), 0, pump, 0)
+    s.c(s.m(s.obj("loadbang"), "1"), 0, pump, 0)
+    dg = s.obj("line~")
+    s.c(s.recv("ac-dgain"), 0, dg, 0)
+    s.c(s.m(s.obj("loadbang"), "1"), 0, dg, 0)
     outs = []
-    for cm, cb, p, w in ((cmL, cbL, pdL, wL), (cmR, cbR, pdR, wR)):
+    for cm, cb, p, w, lv in ((cmL, cbL, pdL, wL, clL), (cmR, cbR, pdR, wR, clR)):
+        bp = s.obj("*~")
+        s.c(cb, 0, bp, 0)
+        s.c(p, 0, bp, 0)
+        s.c(pump, 0, bp, 1)
+        piece = s.obj("*~")
+        for x in (cm, bp, w):
+            s.c(x, 0, piece, 0)
+        s.c(dg, 0, piece, 1)
         sm = s.obj("hip~ 8")
-        for x in (cm, cb, p, w):
-            s.c(x, 0, sm, 0)
+        s.c(piece, 0, sm, 0)
+        s.c(lv, 0, sm, 0)
         outs.append(mul(s, sm, mg))
     comp = s.ch(s.m(s.ch(add(s, outs[0], outs[1]), "env~ 1024 512", "expr pow(10, -max(0, ($f1-82)*0.75)/20)"),
                     "$1 25"), "line~")
@@ -708,15 +723,24 @@ def master():
     for x in (cbL, cbR, pdL, pdR):
         s.c(x, 0, bed, 0)
     rest = s.obj("*~ 0.5")
-    for x in (cmL, cmR):
+    for x in (cmL, cmR, clL, clR):
         s.c(x, 0, rest, 0)
     gain = mul(s, mg, comp)
     stems = [mul(s, s.ch(add(s, st, s.to(w, "*~ 0.7")), "hip~ 8"), gain) for st, w in ((bed, wL), (rest, wR))]
     spl = s.ch(s.recv("ac-split"), "line~")
     nrm = s.ch(spl, "*~ -1", "+~ 1")
-    for o, stem, bus in ((add(s, mid, sw), stems[0], "outL"), (oR, stems[1], "outR")):
+    # SINK: everything under a low-pass (12 kHz down to 120 Hz), crossfaded in; the filter runs only while it's up
+    import gen_perform
+    sk = s.sub(gen_perform.sink())
+    sg = s.ch(s.recv("ac-g-sink"), "line~")
+    for j, (o, stem, bus) in enumerate(((add(s, mid, sw), stems[0], "outL"), (oR, stems[1], "outR"))):
         fin = add(s, mul(s, o, nrm), mul(s, stem, spl))
-        s.c(s.ch(fin, "clip~ -0.98 0.98"), 0, s.obj("throw~ " + bus), 0)
+        s.c(fin, 0, sk, j)
+        dif = s.obj("-~")
+        s.c((sk, j), 0, dif, 0)
+        s.c(fin, 0, dif, 1)
+        out = add(s, fin, mul(s, dif, sg))
+        s.c(s.ch(out, "clip~ -0.98 0.98"), 0, s.obj("throw~ " + bus), 0)
     return s
 
 def motion_fm():
@@ -914,7 +938,7 @@ def live_voice():
     gr = v.ch(q, "-~ 0.25", "cos~", "*~ 1.414", "clip~ 0 1")
     L = mul(v, v.to(bodyL, "*~ 0.42"), gl)
     R = mul(v, v.to(bodyR, "*~ 0.42"), gr)
-    throws_to("ac-sendp")(v, L, R, mix=1.0, send=0.6, src=0.5)
+    throws_to("ac-sendp")(v, L, R, mix=1.0, send=0.6, src=0.5, bus="live")    # (your notes: not ducked)
     return v
 
 
@@ -957,10 +981,23 @@ def inp():
     s = Canvas("input", w=2000)
     s.comment("External audio: dry blend; gate + automatic gain -> ac-in (resonators, bands, tape, cloud, memories); "
               "level, brightness, pitch and onsets for the listener")
+    # the whole input stage computes only while In is up (ac-insw 1): its outputs fade to zero first, so
+    # what the s~ hold while it is off is silence
+    isw = s.obj("switch~")
+    s.c(s.m(s.obj("loadbang"), "0"), 0, isw, 0)
+    ist = s.to(s.recv("ac-insw"), "t f f")
+    gate = s.ch(s.m((ist, 1), "$1 50"), "line~")
+    ioff = s.obj("delay 200")
+    isel = s.to((ist, 0), "sel 0")
+    s.c(isel, 0, ioff, 0)
+    s.c(s.m(ioff, "0"), 0, isw, 0)
+    ion = s.to((isel, 1), "t b b")
+    s.c(s.m((ion, 1), "stop"), 0, ioff, 0)
+    s.c(s.m((ion, 0), "1"), 0, isw, 0)
     iL, iR = s.obj("r~ inL"), s.obj("r~ inR")
     mono = s.ch(add(s, iL, iR), "*~ 0.5", "hip~ 50")
     dry = s.ch(s.recv("ac-g-dry"), "line~")
-    for sig, bus in ((iL, "ac-mixL"), (iR, "ac-mixR")):
+    for sig, bus in ((iL, "ac-liveL"), (iR, "ac-liveR")):
         s.c(mul(s, sig, dry), 0, s.obj("throw~ " + bus), 0)
     # the dry input into the reverb too (SENDS 2, Inp)
     s.c(s.to(mul(s, mono, dry), "*~ 0.3"), 0, s.obj("throw~ ac-sendi"), 0)
@@ -975,7 +1012,7 @@ def inp():
     s.c(agcs, 0, sm, 0)
     s.c(sm, 0, agcs, 1)
     g = s.ch(s.m(agcs, "$1 300"), "line~")
-    ain = mul(s, mono, g)
+    ain = mul(s, mul(s, mono, g), gate)
     s.c(ain, 0, s.obj("s~ ac-in"), 0)
     hf = s.ch(mono, "hip~ 3000", "env~ 2048 1024")
     hd = s.obj("expr $f1 - acinlvl")
@@ -986,7 +1023,7 @@ def inp():
     s.c(s.recv("ac-ghost"), 0, s.obj("v acghost"), 0)
     env = s.to((lvl, 0), "expr max(0, min(1, ($f1-45)/40))")
     te = s.to(env, "t f f f")
-    s.c(s.ch(s.m(s.to((te, 2), "expr $f1*acghost"), "$1 50"), "line~"), 0, s.obj("s~ ac-envb"), 0)
+    s.c(mul(s, s.ch(s.m(s.to((te, 2), "expr $f1*acghost"), "$1 50"), "line~"), gate), 0, s.obj("s~ ac-envb"), 0)
     ons = s.ch((te, 1), "expr $f1 - acinprev > 0.12 && $f1 > 0.25", "sel 1")
     s.c(te, 0, s.obj("v acinprev"), 0)
     sp = s.obj("spigot 1")
