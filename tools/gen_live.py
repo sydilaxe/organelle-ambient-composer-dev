@@ -188,7 +188,7 @@ def live():
                V("acp1", "if(acp1<43, acp1+12, if(acp1>86, acp1-12, acp1))"),
                V("acp1", "if(acp1<43, acp1+12, if(acp1>86, acp1-12, acp1))"),
                T("acnew", k, "acp1"), T("acch", k, "acp1"),
-               SendL(f"ac-v{k}-pitch", [f"acnew[{k}]", "300", "0"])]
+               SendL(f"ac-v{k}-pitch", [f"acnew[{k}]", "300*(acglide > 0)", "0"])]
     proc(c, "ac-youchord", steps + [If("acyn > 0", ch + [Call("ac-change2")])])
     # back to the composer's drone and grains when the notes stop (or Notes to changes)
     proc(c, "ac-routehome", [SendL("ac-dronep", ["actonic", "1500"]), SendL("ac-subp", ["mtof(actonic - 12)", "1500"]),

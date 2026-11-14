@@ -6,7 +6,7 @@ MIDI out base channel, breath curve. Page 3: output, width, pan motion, tempo ra
 parts go out as MIDI notes, the arp chord octave. Page 5 (SOUNDS): pad type, drone, texture, character
 (auto or your choice, applied at once). Page 6 (MUSIC): key, scale, chord voicing (auto or fixed), the bar pulse.
 Page 7 (MIDI IN): where notes go, what breath does, what pressure does, the breath level. Page 8 (CC MAP):
-what each CC does, the last CC in, the vibrato rate. Page 9 (VOICES): the bells' and the motion's engines. Aux tap = the other page, hold aux 1 s = leave (and save)."""
+what each CC does, the last CC in, the vibrato rate. Page 9 (VOICES): the bells' and the motion's engines, the pads' glide. Aux tap = the other page, hold aux 1 s = leave (and save)."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Line, Arm, Toast
 from gen_oled import Fill, OSC, FLIP, gated_text
 from data import PAGES, TEMPOS, FILE_KNOBS, STRIKES, FLAVOURS, DRONES, TEXTURES, CHARACTERS, SCALES, FAMILIES, NOTE_NAMES
@@ -15,7 +15,7 @@ GLOBALS = dict(acmout=1, acsync=0, acvintage=0, acoutch=1, accurve=1.2, acsk=0, 
                acrtb=0, acoutroot=-1, acclkon=0, acsaved=0, actrange=0,
                acmparts=0, acarpoct=48, acoutbass=-1, acload=0, acloadtest=0, acshedt=0, acldraw=0, acguard=1,
                ackeyc=0, acsclc=0, acchdc=0, acpulc=2, acroute=0, acbrto=0, acpressto=1, acccsel=0, aclastcc=0, aclastv=0, acvibr=5.5,
-               acmap0=2, acmap1=1, acmap2=1, acmap3=1, acmap4=6, acmap5=0, acmap6=3, acsbell=0, acsmot=0)
+               acmap0=2, acmap1=1, acmap2=1, acmap3=1, acmap4=6, acmap5=0, acmap6=3, acsbell=0, acsmot=0, acglide=5)
 ARRAYS = dict(acout=4, acarp=4)
 NP = len(PAGES)
 KNOBS = [n for p in PAGES for _, n, _ in p]
@@ -24,7 +24,7 @@ SETTINGS = KNOBS[:FILE_KNOBS] + ["acmout", "acsync", "acforce", "acvintage", "ac
                                                   "actrange", "acmparts", "acarpoct", "acguard"] + KNOBS[FILE_KNOBS:] + \
            ["acspad", "acsdrone", "acstex", "acschar"] + \
            ["ackeyc", "acsclc", "acchdc", "acpulc", "acroute", "acbrto", "acpressto", "acvibr"] + \
-           [f"acmap{j}" for j in range(7)] + ["acsbell", "acsmot"]
+           [f"acmap{j}" for j in range(7)] + ["acsbell", "acsmot", "acglide"]
 IN_IDX = [n for p in PAGES for _, n, _ in p].index("acinput")     # the In knob's slot in acparams
 MOUT = ["off", "tempo only", "tempo+notes", "notes only"]
 PARTS = ["all", "harmony", "arp only"]
@@ -59,6 +59,10 @@ BENDS = [12, 24, 48, 96]
 # SETUP page 9, VOICES: the engine of the bells and of the motion (auto = the piece's)
 SBELLS = ["auto"] + STRIKES
 SMOTS = ["auto"] + STRIKES
+# how the pad voices move to a new chord: off = they jump; slow = the full glide (25-75 % of the time between
+# changes, at least 1.5 s); the steps between scale that glide
+GLIDES = ["off", "fast", "short", "medium", "long", "slow"]
+GLIDE_X = "if(acglide == 0, 0, if(acglide == 1, 0.05, if(acglide == 2, 0.15, if(acglide == 3, 0.3, if(acglide == 4, 0.6, 1)))))"
 
 
 def settings():
@@ -139,7 +143,7 @@ def setup_rows():
             ("list 3 Chords $1", [("s", "acchdc", SCHORDS)]),
             ("list 3 Pressure to $1", [("s", "acpressto", TARGETS)]),
             ("list 3 Last CC $1 = $2", [("f", "aclastcc"), ("f", "aclastv")]),
-            ("list 3 -", None)),
+            ("list 3 Glide $1", [("s", "acglide", GLIDES)])),
         (4, ("list 4 Bloom $1", [("s", "acvintage", ["clean", "vintage"])]),
             ("list 4 Breath curve $1", [("f", "int(accurve*100)")]), ("list 4 Tempo $1 $2-$3", [("s", "actrange", [n for n, _, _ in TEMPOS]),
                                           ("f", "actlo[int(actrange)]"), ("f", "acthi[int(actrange)]")]),
@@ -223,6 +227,9 @@ def setup():
         If(f"{item} == {32 + j}", [V("acsnew", f"int(acsv*{len(opts) - 0.01})"), If(f"acsnew != {var}", [
             V(var, "acsnew"), V("acfade", "600"), Call("ac-layers")])])
         for j, (var, opts) in enumerate((("acsbell", SBELLS), ("acsmot", SMOTS)))
+    ] + [
+        # the glide applies from the next chord change
+        If(f"{item} == 34", [V("acglide", f"int(acsv*{len(GLIDES) - 0.01})")]),
     ] + [
         Call("ac-oledsetup"), Send("ac-dirty"),
     ])

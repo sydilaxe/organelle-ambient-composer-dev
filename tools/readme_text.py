@@ -201,6 +201,9 @@ SETUP (hold aux 1 s; aux tap = next page (8); hold aux 1 s to leave, save)
   page 9, VOICES (auto = the piece's; a choice applies at once):
     Bells      auto / bars / fm / blip / wood / wave / metal
     Motion     auto / bars / fm / blip / wood / wave / metal
+    Glide      off / fast / short / medium / long / slow - how the pad
+               voices slide to a new chord (slow = up to 75 % of the time
+               between changes; off = they jump, all together)
 
 CPU GUARD: Amble measures its own load each second. Above 78 % it gets
 lighter in steps ("CPU high - lighter"): 1 cloud and atmosphere off,

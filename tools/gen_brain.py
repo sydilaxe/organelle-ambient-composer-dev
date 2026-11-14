@@ -631,8 +631,10 @@ def change():
     for k in range(4):
         steps += [RNG,
                   SendL(f"ac-v{k}-pitch", [f"acnew[{k}]",
-                                           "if(acfirst, 0, max(1500, (0.25+0.5*acr1)*acchsec*1000*actime))",
-                                           "if(acfirst, 0, acr2*0.35*acchsec*1000*actime)"]),
+                                           # the glide (SETUP Glide scales it; off = the voices jump), and the
+                                           # voice's delay (off: all at once)
+                                           f"if(acfirst, 0, ({_S.GLIDE_X})*max(1500, (0.25+0.5*acr1)*acchsec*1000*actime))",
+                                           "if(acfirst || acglide == 0, 0, acr2*0.35*acchsec*1000*actime)"]),
                   T("acch", k, f"acnew[{k}]")]
         steps += [SendL(f"ac-res{k}", [f"1000/mtof(43 + fmod(acnew[{k}]-43, 24))", "2500"])]
     steps += [Later("ac-grains", 13), Later("ac-change2", 29, stop="ac-chgstop")]

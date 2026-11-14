@@ -117,6 +117,9 @@ SETUP_DESC = {   # label as it appears on the screen -> (choices, what it does)
               "Notes to = bells); auto = the piece's (mostly bars or metal). Applies at once, crossfaded."),
     "Motion": ("auto, " + ", ".join(DT.STRIKES), "The engine of the motion arpeggio, through its tempo echoes; "
                "auto = the piece's (mostly fm or blip). Applies at once, crossfaded."),
+    "Glide": (", ".join(S.GLIDES), "How the pad voices move to a new chord. slow: each glides over 25-75 % of the "
+              "time between changes (at least 1.5 s), one voice after another; long, medium, short and fast are "
+              "60, 30, 15 and 5 % of that; off: they jump, all at once. From the next chord change."),
     "Key": ("auto, C-B", "The home key. A fixed key stays: no modulation, no key plan, no key from you (a top-octave "
             "key still moves it). Applies at once with a chord change."),
     "Scale": ("auto, " + ", ".join(n for n, _ in DT.SCALES), "The scale. A fixed scale stays (no chance scale "

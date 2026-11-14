@@ -601,8 +601,8 @@ run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 
 vals = open(os.path.join(d, "settings.txt")).read().split()
 log, _ = run([(100, "aux 1"), (150, "aux 0"), (300, "aux 1"), (350, "aux 0"), (500, "aux 1"), (550, "aux 0"),
               (700, "knob2 0.5"), (750, "knob2 0.52")], 3, d=d)
-# (every SETTINGS value is saved: 56 since the bells' and motion's engines joined, page 9)
-check(len(vals) == len(GS.SETTINGS) == 56 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
+# (every SETTINGS value is saved: 57 since the bells' and motion's engines and the glide joined, page 9)
+check(len(vals) == len(GS.SETTINGS) == 57 and float(vals[27]) == 0 and "ac-txt4: list Drone 0 Pads" in log,
       "SENDS: a send is saved after the SETUP values and comes back after a restart")
 
 # 29. the patch asks the Organelle OS for a larger audio buffer (pd-opts.txt is appended to Pd's options)
@@ -854,6 +854,21 @@ log, _ = run([(50 + 300 * i, f"ac-setseed {sd}") for i, sd in enumerate((3, 11, 
 picks = {int(float(l.split()[1])) for l in log.splitlines() if l.startswith("EP:")}
 check(len({p // 10 for p in picks}) >= 2 and len({p % 10 for p in picks}) >= 2,
       f"Auto: pieces pick different bell and motion engines ({sorted(picks)})")
+
+# Glide (page 9 row 3): off = the voices jump to a new chord together; slow = the full glide; short in between
+def glides(label):
+    log, _ = run([(45, "actime 0.15"), (50, "ac-setseed 7"), (300, "acsetup 1"), (310, "acsetpg 8"),
+                  (400, f"ac-setknob 2 {(GS.GLIDES.index(label) + 0.5) / len(GS.GLIDES)}"), (500, "acsetup 0"),
+                  (900, "h-mark bang"), (1000, "ac-change bang")], 2,
+                 prints=tuple(f"ac-v{k}-pitch" for k in range(4)) + ("h-mark", "ac-sett3"))
+    after = log.split("h-mark: bang")[1]
+    ps = [l.split()[1:] for l in after.splitlines() if "-pitch:" in l]
+    return [float(p[1]) for p in ps], [float(p[2]) for p in ps], f"3 Glide {label}" in log
+g0, d0, s0 = glides("off")
+gs, _, s1 = glides("short")
+g5, _, s5 = glides("slow")
+check(s0 and s1 and s5 and len(g0) == 4 and max(g0) == 0 and max(d0) == 0 and 0 < max(gs) < min(g5),
+      f"Glide: off jumps together ({g0}, delays {d0}), short {[int(x) for x in gs]} < slow {[int(x) for x in g5]} ms")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)
