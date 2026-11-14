@@ -77,8 +77,12 @@ PAGES = [
     # reverb sends per group, off .. full (50 % = the designed balance, 100 % = twice that)
     [("Drone", "acsndd", 0.5), ("Pads", "acsndp", 0.5), ("Bells", "acsndb", 0.5), ("Motn", "acsndm", 0.5)],
     [("Tex", "acsndt", 0.5), ("Cloud", "acsndc", 0.5), ("Atmo", "acsnda", 0.5), ("Inp", "acsndi", 0.5)],
+    # layer levels, off .. +6 dB (50 % = the designed balance)
+    [("Drone", "acmxd", 0.5), ("Sub", "acmxs", 0.5), ("Pads", "acmxp", 0.5), ("Bells", "acmxb", 0.5)],
+    [("Motn", "acmxm", 0.5), ("Tex", "acmxt", 0.5), ("Cloud", "acmxc", 0.5), ("Atmo", "acmxa", 0.5)],
 ]
-PAGE_NAMES = ["SHAPE", "SPACE", "PIECE", "SENDS 1", "SENDS 2"]
+PAGE_NAMES = ["SHAPE", "SPACE", "PIECE", "SENDS 1", "SENDS 2", "MIX 1", "MIX 2"]
+SEND_KNOBS = 20      # knobs up to the end of the SENDS pages (the MIX pages are saved at the end of settings.txt)
 # the send groups: knob value name -> the reverb send bus its sources throw to (pads are sent from the master)
 #   (the notes you play use the pad synthesis types and share the Pads send)
 SEND_BUS = {"acsndd": "ac-sendd", "acsndp": "ac-sendp", "acsndb": "ac-sendb", "acsndm": "ac-sendm",

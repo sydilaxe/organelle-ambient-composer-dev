@@ -12,9 +12,9 @@ NS = len(SCALES)
 
 GLOBALS = dict(
     acseed=1, account=0, actonic=38, acsci=0, acn=7, acfamA=0, acfamB=1, acfam=0, acdeg=0, acpend=-1,
-    acmode=1, acrun=1, acended=0, acstopped=0, acsecrem=0, acftap=-1e+06, acctap=-1e+06, acsec=0, acnsec=8, acenergy=0.5, acdeff=0.5, acsecdur=60000, acchsec=20,
+    acmode=1, acrun=1, acended=0, acstopped=0, acready=0, acsecrem=0, acftap=-1e+06, acctap=-1e+06, acsec=0, acnsec=8, acenergy=0.5, acdeff=0.5, acsecdur=60000, acchsec=20,
     acpage=0, acinmode=0, acfreeze=0, accapt=0, acvfreeze=0,
-    acmdrone=1, acmpad=1, acmtex=1, acmcloud=1, acmbell=1, acmmotion=1,
+    acmdrone=1, acmpad=1, acmtex=1, acmcloud=1, acmbell=1, acmmotion=1, acmsub=1, acmatm=1, acedrone=1, acsxdrone=0, acsldrone=1, acesub=1, acsxsub=0, acslsub=1, acepad=1, acsxpad=0, acslpad=1, acebell=1, acsxbell=0, acslbell=1, acemotion=1, acsxmotion=0, acslmotion=1, acetex=1, acsxtex=0, acsltex=1, aceatm=1, acsxatm=0, acslatm=1, acecloud=1, acsxcloud=0, acslcloud=1, acscount=0, acsecc=0, acsecsel=0, acslay=0, acspe=0,
     acfdrone=1, acfpad=1, acftex=1, acfcloud=1, acfbell=1, acfmotion=0, actex1=0, actex2=1, actexA=0, actexB=1,
     acpal1=0, acpal2=1, acpal3=3, acpartI=0, acbellI=0, acsecbright=0.8, actidef=1, acpow=1,
     acpsum=1, acfirst=1, acmodflag=0, acD=0, acp0=0, acp1=0, acnewt=38, aci=0, acchg=0, acfade=8000,
@@ -27,20 +27,21 @@ GLOBALS = dict(
     acmtr=2, acbld=1, acblp=0.5, acvauto=1, acvsec=1, acvtype=1, acrvsize=1,
     # rhythm
     acbpm0=56, acbpm=56, actpos=0.5, acmeter=4, actick=0, acstep=0, acms=0, acmk=5, acmn=8, acmei=0, acmrot=0, acmdiv=1,
-    acmarp=0, acshed=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acdtype=0, acdtype2=1, acdcur=0, acsubm=0, acchar=0, accheff=0, acflstag=4200, acres=0, acbela=0, acmota=1, acdauto=0, actex1a=0, actex2a=1, acspad=0, acsdrone=0, acstex=0, acschar=0, acsnew=0, acchamt=0.5, acavoc=0, acgvoc=0, acdb=0, acgt4=0, acgt5=0, acgt6=0, acgt7=0, acgt8=0, acgt9=0, acgt10=0, acgt11=0, acgsub=0, acatm=0, acatmT=0, acatmT2=1, acfatm=0, acatmcur=0, acgatm=0, acscene=0, acmono=0, acwidth=1, acpanmot=0.8, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
+    acmarp=0, acshed=0, acmai=0, acmoct=12, acmswing=0, acgdlock=0, acmp=60, acdtype=0, acdtype2=1, acdcur=0, acsubm=0, acsubx=0, acchar=0, accheff=0, acflstag=4200, acres=0, acbela=0, acmota=1, acdauto=0, actex1a=0, actex2a=1, acspad=0, acsdrone=0, acstex=0, acschar=0, acsnew=0, acchamt=0.5, acavoc=0, acgvoc=0, acdb=0, acgt4=0, acgt5=0, acgt6=0, acgt7=0, acgt8=0, acgt9=0, acgt10=0, acgt11=0, acgsub=0, acatm=0, acatmT=0, acatmT2=1, acfatm=0, acatmcur=0, acgatm=0, acscene=0, acmono=0, acwidth=1, acpanmot=0.8, acfd=-1, acgbands=0, acgres=0, ackn=0, ackv=0,
 )
 for page in PAGES:
     for _, name, d in page:
         GLOBALS[name] = d
 
-ARRAYS = dict(acscale=16, acfamt=NF * 5, acch=4, acnew=4, acplan=16, acpdur=16, acmotif=8, acmotif0=8,
+ARRAYS = dict(acsroles=12, acslens=12, acssp=12, acsst=96, acslv=96, acscale=16, acfamt=NF * 5, acch=4, acnew=4, acplan=16, acpdur=16, acmotif=8, acmotif0=8,
               acmrhy=8, acmoves=12, acmods=12, acgrt=12, acfmrt=8, acpartt=24, acbellt=12, acdintt=5, acrhyt=5,
               acparams=4 * len(PAGES), acraw=4, acflav=4, acroles=16, acflpick=40, acbelpk=40, acmotpk=40, acfmrpick=40, acpapick=40, acscn=50,
               acscrole=24, acatmrole=8, ackeyp=16, acprog=8, acrmask=48, acrtide=8,
               acrtempo=8, acrpulse=8, acaway=8, aceuk=10, aceun=10, acmeters=6, acmratios=6, acbreath=4, actlo=5, acthi=5)
 
 # the piece tempo: its place (actpos) in the tempo range chosen in SETUP
-TEMPO0 = "actlo[int(actrange)] + int(actpos*(acthi[int(actrange)] - actlo[int(actrange)] + 1))"
+# (SETUP FORM Tempo: a fixed tempo instead, the same in every section)
+TEMPO0 = ("if(acstempo > 0, " + "if(acstempo == 1, 40, if(acstempo == 2, 48, if(acstempo == 3, 56, if(acstempo == 4, 64, if(acstempo == 5, 72, if(acstempo == 6, 80, if(acstempo == 7, 90, if(acstempo == 8, 100, if(acstempo == 9, 110, if(acstempo == 10, 120, 140))))))))))" + ", actlo[int(actrange)] + int(actpos*(acthi[int(actrange)] - actlo[int(actrange)] + 1)))")
 # the beat the slow layers feel: half speed above HALFTIME
 BPMH = f"(acbpm/(1 + (acbpm > {HALFTIME})))"
 
@@ -52,6 +53,7 @@ for _m in (_L, _O, _S):
     ARRAYS.update(_m.ARRAYS)
 
 DATA_TABLES = dict(
+    acsroles=[8] * 12, acslens=[1] * 12, acssp=[0] * 12, acsst=[0] * 96, acslv=[1] * 96,
     acflpick=pick_table(FLAVOUR_WEIGHTS), acbelpk=pick_table(BELL_ENGINE_WEIGHTS), acmotpk=pick_table(MOTION_ENGINE_WEIGHTS), acfmrpick=pick_table(FM_RATIO_WEIGHTS), acpapick=pick_table(PARTIAL_WEIGHTS),
     acscn=sum(SCENE_DATA, []), acscrole=sum(SCENE_ROLE, []), acatmrole=ATMOS_ROLE,
     acmoves=MOVES, acmods=MODS, acgrt=GRAIN_RATIOS, acfmrt=FM_RATIOS,
@@ -61,6 +63,11 @@ DATA_TABLES = dict(
     aceun=[n for k, n in EUCLID], acmeters=METERS, acmratios=MOTION_RATIOS, acbreath=BREATH_PERIODS,
     actlo=[lo for _, lo, _ in TEMPOS], acthi=[hi for _, _, hi in TEMPOS],
 )
+
+# the layers a custom section sets (SETUP page 12), in the order of the layer keys
+SEC_LAYERS = ["drone", "sub", "pad", "bell", "motion", "tex", "atm", "cloud"]
+ROLE_ENERGY = [0.15, 0.4, 0.55, 0.75, 1.0, 0.3, 0.5, 0.2]     # a custom section's energy, by role
+SEC_LENS = [0.6, 1.0, 1.5]                                     # short, normal, long
 
 # the form archetypes: energy at x (0..1 through the piece)
 ARCH_EXPR = ("if(acarch==0, pow(sin(3.14159*X), acpow), if(acarch==1, if(X<0.78, pow(X/0.78, 1.5), (1-X)/0.22), "
@@ -136,7 +143,10 @@ def seed():
     td = c.obj("text define acseedf")
     rt = c.obj("realtime")
     r = c.recv("ac-seedinit")
-    t = c.to(r, "t b b b")
+    # the start-up piece is prepared but waits (ready) for Start
+    rd = c.to(r, "t b b")
+    c.c(c.m((rd, 1), "1"), 0, c.obj("v acready"), 0)
+    t = c.to((rd, 0), "t b b b")
     c.c(t, 2, rt, 0)
     c.c(c.m((t, 1), "read seed.txt"), 0, td, 0)
     mo = c.ch((t, 0), "text size acseedf", "moses 1")
@@ -196,6 +206,7 @@ def piece():
         # (and the bells' and motion's engines for Auto, from the same draw: other picks stay as they were)
         X("acr2; acmeters[int(acr3*6)]; acbelpk[int(acr1*40)]; acmotpk[int(acr1*1600) % 40]", "v actpos", "v acmeter",
           "v acbela", "v acmota"),
+        V("acmeter", "if(acsmeter > 0, acsmeter + 2, acmeter)"),
         V("acbpm0", TEMPO0),
         SendL("ac-mtimbre", ["acmratios[int(acr4*6)]"]),
         RNG,
@@ -232,8 +243,28 @@ def piece():
         Call("ac-brightupd"), Call("ac-inputupd"),
         SendL("ac-weird", ["acweird"]), SendL("ac-motion", ["acmotion"]),
         V("actick", "-1"), Send("ac-clockgo"), Call("ac-clockstart"),
-        Later("ac-playgo", 60),
+        Later("ac-playgo", 60), Later("ac-readystop", 75),
     ])
+    # ready: a piece prepared (at start-up, or by new piece / mode while stopped) waits for Start, silent, at its
+    # beginning
+    proc(c, "ac-readystop", [If("acready", [
+        X("1; 0; acsecdur*actime", "v acstopped", "v acrun", "v acsecrem"),
+        Send("ac-master", "0 0"), Send("ac-chgstop"), Send("ac-secstop"), Call("ac-clockstop"),
+        Call("ac-scr"), Send("ac-led"),
+    ])])
+    proc(c, "ac-newkey", [If("acstopped", [V("acready", "1"), Call("ac-reseed"), Toast("new piece ready - A# start")],
+                             [Call("ac-reseed"), Toast("new piece")])])
+    # COMPOSE / DRIFT (aux + A#, SETUP page 1): while stopped, the piece is prepared again in that mode, ready;
+    # while playing, it switches at once
+    proc(c, "ac-modetoggle", [
+        V("acmode", "1-acmode"), V("acmodesel", "1-acmode"), Send("ac-dirty"),
+        If("acstopped", [V("acready", "1"), SendL("ac-setseed", ["acseed"]),
+                         If("acmode", [Toast("COMPOSE - A# start")], [Toast("DRIFT - A# start")])],
+           [V("acended", "0"), Send("ac-master", "1 3000"),
+            If("acmode==1", [V("acsec", "0"), Call("ac-plan"), Call("ac-section"), Call("ac-change"),
+                             Toast("COMPOSE new arc")],
+               [Call("ac-section"), Call("ac-change"), Toast("DRIFT endless")])]),
+        Call("ac-scr"), Send("ac-led")])
     proc(c, "ac-playgo", [Send(t) for t in ("ac-ctick", "ac-rtick", "ac-btick", "ac-dtick", "ac-ttick", "ac-etick")])
     # the form: an archetype's energy curve over 6-12 sections, then a role for each section
     arch = ARCH_EXPR.replace("X", "((aci+0.5)/acnsec)")
@@ -241,6 +272,7 @@ def piece():
         RNG,
         X("min(12, max(6, int((5 + 25*aclen)/2.6 + acr1*2))); int(acr2*%d); 0.6 + acr3*0.9; 0; 0; 1"
           % len(ARCHETYPES), "v acnsec", "v acarch", "v acpow", "v acpsum", "v acpkv", "v acpk"),
+        V("acarch", f"if(acsform > 0 && acsform <= {len(ARCHETYPES)}, acsform - 1, acarch)"),     # SETUP FORM
         Loop("acnsec", "aci", [
             RNG,
             T("acplan", "aci", f"if(aci==0, 0.1+acr2*0.1, if(aci==acnsec-1, 0.2, min(1, max(0.12, 0.12 + 0.85*{arch}"
@@ -260,7 +292,38 @@ def piece():
                                "if(acr1<0.5, acaway2, acaway1), if(acroles[int(aci)]==5, if(acr2<0.5, acaway2, 0), "
                                "if(acroles[int(aci)]==2, if(acr3<0.6, acaway1, 0), acaway1))))"),
         ]),
+        Call("ac-customapply"),
     ])
+    # SETUP FORM custom: your sections (pages 11-12) replace the generated plan - its roles, energies, lengths
+    en = str(ROLE_ENERGY[-1])
+    for i in range(len(ROLE_ENERGY) - 2, -1, -1):
+        en = f"if(acroles[int(aci)]=={i}, {ROLE_ENERGY[i]}, {en})"
+    proc(c, "ac-customapply", [If("acsform == 6", [
+        V("acscount", "12"),
+        Loop("12", "aci", [If("acsroles[int(aci)] == 8 && acscount == 12", [V("acscount", "max(1, aci)")])]),
+        V("acnsec", "acscount"), V("acpsum", "0"),
+        Loop("acnsec", "aci", [
+            T("acroles", "aci", "if(acsroles[int(aci)] == 8, 2, acsroles[int(aci)])"),
+            T("acplan", "aci", en),
+            T("acpdur", "aci", f"if(acslens[int(aci)] == 0, {SEC_LENS[0]}, if(acslens[int(aci)] == 1, {SEC_LENS[1]}, {SEC_LENS[2]}))"),
+            V("acpsum", "acpsum + acpdur[int(aci)]"),
+            T("ackeyp", "aci", "if(acroles[int(aci)]<=1 || acroles[int(aci)]>=6, 0, if(acroles[int(aci)]==5, acaway2, acaway1))"),
+        ]),
+    ])])
+    # the first edit of a section starts from the plan the piece has now
+    proc(c, "ac-customcopy", [If("acscount == 0", [
+        Loop("12", "aci", [T("acsroles", "aci", "if(aci < acnsec, acroles[int(aci)], 8)"), T("acslens", "aci", "1")]),
+        V("acscount", "acnsec")])])
+    # a section of the custom form: its layers' states and levels (auto and 100 % otherwise)
+    proc(c, "ac-secovr", [V("acsecc", "acsform == 6 && acmode == 1")] + sum(
+        [[V(f"acsx{n}", f"acsecc*acsst[int(acsec)*8 + {i}]"), V(f"acsl{n}", f"if(acsecc, acslv[int(acsec)*8 + {i}], 1)")]
+         for i, n in enumerate(SEC_LAYERS)], []))
+    # FORM shape: applies at once while the piece waits ready (prepared again); custom also to a playing piece
+    proc(c, "ac-formset", [If("acsform == 6", [Call("ac-customcopy")]),
+                           If("acstopped", [V("acready", "1"), SendL("ac-setseed", ["acseed"])],
+                              [If("acsform == 6", [Call("ac-customapply"), Toast("form: custom")],
+                                  [Toast("form: from the next piece")])])])
+
     # the piece's motif (5 scale degrees, a random walk) and its rhythm
     proc(c, "ac-motif0", [Loop("5", "aci", [
         RNG,
@@ -298,7 +361,7 @@ def section():
         V("acdauto", "if(acrole == 5 && acr2 < 0.6, acdtype2, acdtype)"),
         V("acsecbright", "min(1, max(0.3, 0.55 + 0.45*acenergy + (acr2-0.5)*0.25))"),
     ]
-    rest += [Call("ac-padpick")]
+    rest += [Call("ac-secovr"), Call("ac-padpick")]
     for i, lay in enumerate(LAYERS):
         extra = {"drone": " || acdens < 0.3", "cloud": " || accapt"}.get(lay, "")
         rest += [RNG, V("acf" + lay, f"acr1 < acrmask[int(acrole)*6+{i}]{extra}")]
@@ -332,6 +395,7 @@ def section():
         RNG,
         X("acatm && acr1 < acatmrole[int(acrole)]; if(acrole == 5 && acr2 < 0.5, acatmT2, acatmT)", "v acfatm",
           "v acatmcur"),
+        V("acatmcur", "if(acsatm > 0, acsatm - 1, acatmcur)"),      # SETUP FORM Atmos
         # reverb: Auto takes the piece's own, and sometimes Shimmer at the climax
         RNG,
         V("acvsec", "if(acrole==4 && acr1 < 0.4, 4, acvauto)"),
@@ -355,11 +419,13 @@ def section():
     # vox, partials, fold, pulsar; or one type for all four voices)
     steps = []
     for k in range(4):
-        steps += [RNG, X(f"if(acspad==0, if(acr1<0.4, acpal1, if(acr1<0.72, acpal2, if(acr1<0.9, acpal3, "
-                         f"int(acr2*{len(FLAVOURS)})))), if(acspad==1, {RAW_EXPR}, acspad-2))",
+        steps += [RNG, X(f"if(acspe==0, if(acr1<0.4, acpal1, if(acr1<0.72, acpal2, if(acr1<0.9, acpal3, "
+                         f"int(acr2*{len(FLAVOURS)})))), if(acspe==1, {RAW_EXPR}, acspe-2))",
                          lambda c, src, k=k: _flav(c, src, k))]
-    steps += [SendL("ac-lvtype", ["if(acvtsel >= 0, acvtsel, if(acspad>=2, acspad-2, if(acspad==1, 5, acpal1)))"])]
-    proc(c, "ac-padpick", steps + [V("acflstag", "4200")])
+    steps += [SendL("ac-lvtype", ["if(acvtsel >= 0, acvtsel, if(acspe>=2, acspe-2, if(acspe==1, 5, acpal1)))"])]
+    # (a custom section's pad type wins over SETUP SOUNDS)
+    proc(c, "ac-padpick", [V("acspe", "if(acsform == 6 && acmode == 1 && acssp[int(acsec)] > 0, acssp[int(acsec)], acspad)")]
+         + steps + [V("acflstag", "4200")])
     # SETUP SOUNDS overrides on what the section chose (auto = the section's own choice)
     proc(c, "ac-sndovr", [
         V("acdcur", "if(acsdrone > 0, acsdrone - 1, acdauto)"),
@@ -392,12 +458,13 @@ def section():
         Toast("stopped - A# to start"), Call("ac-scr"), Send("ac-led"),
     ])])
     proc(c, "ac-start", [If("acstopped", [
-        X("0; 1", "v acstopped", "v acrun"),
+        If("acready", [Toast("start - playing")], [Toast("playing again")]),
+        X("0; 1; 0", "v acstopped", "v acrun", "v acready"),
         SendL("ac-master", ["0.62 + 0.38*acenergy", "2500"]),
         Arm("ac-nextsec", "acsecrem", stop="ac-secstop"),
         Arm("ac-change", "max(2500, 0.5*acchsec*1000*actime)", stop="ac-chgstop"),
         Call("ac-clockstart"), Call("ac-outchord"),
-        Toast("playing again"), Call("ac-scr"), Send("ac-led"),
+        Call("ac-scr"), Send("ac-led"),
     ])])
     proc(c, "ac-startstop", [If("acstopped", [Call("ac-start")],
                                 [If("acended || acrun == 0", [Call("ac-reseed"), Toast("new piece")],
@@ -427,33 +494,40 @@ def layers():
     c.comment("Layer levels from density (knob x section energy), the section's layers, mutes, input mode")
     th = lambda t: f"min(1, max(0, (acdeff-{t})/0.15))"
     lay = [
-        ("drone", "acmdrone*(1-acended)*max(acfdrone*(0.55+0.45*min(1, acdeff*3)), (acroute==2)*0.9)"),
-        ("pad", f"acfpad*acmpad*(1-acended)*{th(0.06)}"),
-        ("tex", f"(acshed < 2)*acftex*acmtex*(1-acended)*{th(0.28)}"),
-        ("cloud", f"(acshed < 1)*acmcloud*(1-acended)*max(acfcloud*{th(0.42)}, max(((acinmode==2) || (acinmode==0)*(acinclass>=1))"
+        # each layer: acm<layer> 0 = off, 1 = auto (the section and density decide), 2 = on (always, full level)
+        ("drone", "(acedrone>0)*(1-acended)*max(max(acfdrone, acedrone==2)*(0.55+0.45*min(1, acdeff*3)), (acroute==2)*0.9)"),
+        ("pad", f"(acepad>0)*(1-acended)*max(acfpad*{th(0.06)}, acepad==2)"),
+        ("tex", f"(acshed < 2)*(acetex>0)*(1-acended)*max(acftex*{th(0.28)}, acetex==2)"),
+        ("cloud", f"(acshed < 1)*(acecloud>0)*(1-acended)*max(max(acfcloud*{th(0.42)}, acecloud==2), max(((acinmode==2) || (acinmode==0)*(acinclass>=1))"
                   f"*min(1, acinput*2)*0.8, (acroute==4)*0.85))"),
-        ("bell", f"acmbell*(1-acended)*max(acfbell*{th(0.45)}, max((acinmode==4)*min(1, acinput*2), (acroute==3)*0.9))"),
-        ("motion", f"acfmotion*acmmotion*(1-acended)*{th(0.3)}*min(1, acrhythm*2.5)"),
+        ("bell", f"(acebell>0)*(1-acended)*max(max(acfbell*{th(0.45)}, acebell==2), max((acinmode==4)*min(1, acinput*2), (acroute==3)*0.9))"),
+        ("motion", f"(acemotion>0)*(1-acended)*max(acfmotion*{th(0.3)}*min(1, acrhythm*2.5), acemotion==2)"),
     ]
-    steps = [V("acdeff", "min(1, if(acmode==1, acenergy*(0.35+1.3*acdens), acdens*(0.8+0.4*acenergy)) + 0.35*acbreath*"
+    # the effective state of each layer: your key (off / on) wins; on auto, a custom section's own (SETUP page 12)
+    steps = [V(f"ace{n}", f"if(acm{n} != 1, acm{n}, if(acsx{n} == 1, 0, if(acsx{n} == 2, 2, 1)))") for n in SEC_LAYERS]
+    steps += [V("acdeff", "min(1, if(acmode==1, acenergy*(0.35+1.3*acdens), acdens*(0.8+0.4*acenergy)) + 0.35*acbreath*"
                              "(acbrto == 0 || acbrto == 2))")]
     for name, e in lay:
         steps += [V("acg" + name, e)]
         if name == "drone":
-            steps += [SendL("ac-g-drone", ["acgdrone*(acdcur==0)", "acfade"])]
-            steps += [SendL(f"ac-g-drone{i}", [f"acgdrone*(acdcur=={i})", "acfade"]) for i in range(1, len(DRONES))]
-            steps += [V("acgsub", "acgdrone*acmdrone*(1-acended)"), SendL("ac-g-sub", ["acgsub", "acfade"])]
+            steps += [SendL("ac-g-drone", ["2*acmxd*acsldrone*acgdrone*(acdcur==0)", "acfade"])]
+            steps += [SendL(f"ac-g-drone{i}", [f"2*acmxd*acsldrone*acgdrone*(acdcur=={i})", "acfade"]) for i in range(1, len(DRONES))]
+            # the sub: auto follows the drone; on plays it alone too
+            steps += [V("acgsub", "(acesub>0)*(1-acended)*if(acesub==2, 1, acgdrone)"),
+                      SendL("ac-g-sub", ["2*acmxs*acslsub*acgsub", "acfade"])]
         elif name == "bell":    # the engine chosen in SETUP page 9, or the piece's (auto)
-            steps += [SendL(f"ac-g-bel{i}", [f"acgbell*(if(acsbell > 0, acsbell - 1, acbela) == {i})", "acfade"])
+            steps += [SendL(f"ac-g-bel{i}", [f"2*acmxb*acslbell*acgbell*(if(acsbell > 0, acsbell - 1, acbela) == {i})", "acfade"])
                       for i in range(len(STRIKES))]
         elif name == "motion":  # the echoes, and the engine through them
             steps += [SendL("ac-g-motion", ["acgmotion", "acfade"])]
-            steps += [SendL(f"ac-g-mot{i}", [f"acgmotion*(if(acsmot > 0, acsmot - 1, acmota) == {i})", "acfade"])
+            steps += [SendL(f"ac-g-mot{i}", [f"2*acmxm*acslmotion*acgmotion*(if(acsmot > 0, acsmot - 1, acmota) == {i})", "acfade"])
                       for i in range(len(STRIKES))]
         elif name != "tex":
-            steps += [SendL("ac-g-" + name, ["acg" + name, "acfade"])]
-    steps += [V("acgatm", "(acshed < 1)*acfatm*acmtex*(1-acended)*(0.55 + 0.45*min(1, acdeff*2))")]
-    steps += [SendL(f"ac-g-atm{i}", [f"acgatm*(acatmcur=={i})", "acfade*1.5"]) for i in range(len(ATMOS_NAMES))]
+            mx = {"pad": "acmxp", "cloud": "acmxc"}[name]
+            steps += [SendL("ac-g-" + name, [f"2*{mx}*acsl{name}*acg{name}", "acfade"])]
+    # the atmosphere: auto = the section's, and off with the textures (as before); on = always
+    steps += [V("acgatm", "(acshed < 1)*(aceatm>0)*(1-acended)*if(aceatm==2, 1, acfatm*(acetex>0))*(0.55 + 0.45*min(1, acdeff*2))")]
+    steps += [SendL(f"ac-g-atm{i}", [f"2*acmxa*acslatm*acgatm*(acatmcur=={i})", "acfade*1.5"]) for i in range(len(ATMOS_NAMES))]
     # the pad character: SETUP SOUNDS, else none for raw pads, else the piece's
     steps += [V("accheff", "if(acschar > 0, acschar - 1, if(acspad == 1, 0, acchar))")]
     steps += [SendL(f"ac-g-ch{i}", [f"(acshed < 2)*(accheff=={i})*min(1, acchamt*if(acrole==4, 1.3, 1))*min(1, acgpad*4)", "acfade"])
@@ -461,8 +535,11 @@ def layers():
     steps += [SendL("ac-chdry", ["1 - (acshed < 2)*((accheff==2)*0.9*acchamt + (accheff==4)*0.6*acchamt)", "acfade"])]
     for i in range(len(TEXTURES)):
         steps += [V(f"acgt{i}", f"acgtex*((actex1=={i}) || (actex2=={i}))"),
-                  SendL(f"ac-g-tex{i}", [f"acgt{i}", "acfade"])]
+                  SendL(f"ac-g-tex{i}", [f"2*acmxt*acsltex*acgt{i}", "acfade"])]
     proc(c, "ac-layers", steps)
+    # a MIX knob: the levels follow quickly (knobs send fast: one update per 40 ms at most)
+    dm = c.to(c.recv("ac-mixch"), "delay 40")
+    run_steps(c, (dm, 0), [V("acfade", "150"), Call("ac-layers")])
     d = c.to(c.recv("ac-densch"), "delay 150")
     run_steps(c, (d, 0), [V("acfade", "1500"), Call("ac-layers")])
     c.col()
@@ -559,7 +636,8 @@ def rhythm():
     c.c(c.recv("ac-clockgo"), 0, met, 0)
     proc(c, "ac-mtick", [If("acsync == 0", [Send("ac-tick")])])
     # the tempo of this section: the piece's place in the tempo range, x the role's tempo
-    proc(c, "ac-settempo", [V("acbpm0", TEMPO0), V("acbpm", "acbpm0 * acrtempo[int(acrole)]"), SendL("ac-bpm", ["acbpm"])])
+    proc(c, "ac-settempo", [V("acbpm0", TEMPO0), V("acbpm", "acbpm0 * if(acstempo > 0, 1, acrtempo[int(acrole)])"),
+                            SendL("ac-bpm", ["acbpm"])])
     c.col()
     proc(c, "ac-tick", [
         V("actick", "(actick + 1) % (24*acmeter*64)"),
@@ -641,13 +719,13 @@ def change():
     # Notes to chords: while you hold notes, they are the chord (the composer waits)
     proc(c, "ac-change", [If("acrun && (acroute != 1 || acheld == 0)", steps,
                              [If("acrun", [Arm("ac-change", "3000", stop="ac-chgstop")])])])
-    steps = []
+    steps = [V("acsubx", "if(acssub > 0, acssub - 1, acsubm)")]
     steps += [SendL(f"ac-band{k}", [f"mtof(min(120, acnew[{k % 4}] + {12 * (k // 4) + 12}))", "3000"]) for k in range(8)]
     steps += [
         # (Notes to drone: the drone stays on your note while you hold it)
         If("acroute != 2 || acheld == 0", [
             SendL("ac-dronep", ["actonic", "if(acfirst, 0, if(acmodflag, 9000, 200))"]),
-            SendL("ac-subp", ["mtof(if(acsubm==0 || (acsubm==2 && int(acsec) % 2 == 0), actonic - 12, "
+            SendL("ac-subp", ["mtof(if(acsubx==0 || (acsubx==2 && int(acsec) % 2 == 0), actonic - 12, "
                               "acnew[0] - 12*ceil((acnew[0] - 42)/12)))", "if(acfirst, 0, if(acmodflag, 9000, 1800))"])]),
         SendL("ac-ringf", ["mtof(acnew[1] + 12)", "3000"]),
         SendL("ac-radio", ["mtof(min(115, acnew[2] + 36))", "4000"]),

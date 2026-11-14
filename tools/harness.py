@@ -26,12 +26,13 @@ def build_tmp():
     return d
 
 
-def run(events, seconds, inp=None, prints=(), d=None, keep=False, extra=None):
-    """inp: None (silence), 'tone' (plucked tones), 'noise' (soft noise bursts)"""
+def run(events, seconds, inp=None, prints=(), d=None, keep=False, extra=None, autostart=True):
+    """inp: None (silence), 'tone' (plucked tones), 'noise' (soft noise bursts). autostart: the start-up piece
+    plays at once (as if Start were pressed); False = it waits, ready, as on the Organelle"""
     own = d is None
     if own:
         d = build_tmp()
-    ev = sorted(events, key=lambda e: e[0])
+    ev = sorted(([(0, "acready 0")] if autostart else []) + list(events), key=lambda e: e[0])
     lines, prev = [], 0
     for t, s in ev:
         lines.append(f"{t - prev} {s};")

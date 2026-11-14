@@ -7,7 +7,7 @@ from data import INMODES, NOTE_NAMES, SEND_BUS, FLAVOURS
 NV = 4                                    # live voices
 
 GLOBALS = dict(
-    acnow=0, acext=0, acextt=-1e+06, acforce=-1, acauxheld=0, acauxused=0, acauxt=0,
+    acnow=0, acext=0, acextt=-1e+06, acforce=-1, acroothold=0, acrootn=0, acsecfz=0, acauxheld=0, acauxused=0, acauxt=0,
     aclch=0, aclnote=0, aclvel=0, aclage=0, acvi=0, acheld=0, acfocus=-1, acfocust=0, acfkdone=0,
     acbreath=0, acbreatht=-1e+06, acbrmode=0, acbrt=-1e+06, acbrlast=0, acsechold=0, acfollow=0.7,
     acgbr=2, acnbr=48, aclbv=0, aclbs=0,
@@ -113,6 +113,13 @@ def cc_map():
         If("actg == 10", [SendL("ac-brsw", ["acctlv", "30"])]),
         # resolve: held while the CC is 64 or more (a pedal), released below
         If("actg == 12", [If("(acctlv >= 0.5) != acres", [V("acres", "acctlv >= 0.5"), Call("ac-resolveupd")])]),
+        # root: the CC's range spread over the 12 keys (an encoder or a slider); next section / chord now: on a
+        # press (64 and up); glide: its 6 steps
+        If("actg == 13", [V("acrootn", "int(acctlv*11.99)"), If("acrootn != acpend", [Call("ac-rootset")])]),
+        If("actg == 14", [If("acctlv >= 0.5 && acnsx == 0", [V("acsec", "acsec+1"), Call("ac-section"),
+                                                             Toast("next section")]), V("acnsx", "acctlv >= 0.5")]),
+        If("actg == 15", [If("acctlv >= 0.5 && acchx == 0", [Call("ac-chordnow")]), V("acchx", "acctlv >= 0.5")]),
+        If("actg == 16", [V("acglide", "int(acctlv*5.99)")]),
     ] + [If(f"actg == {t}", [T("acparams", knobs.index(n), "acctlv"), SendL("ac-param", [str(knobs.index(n)), "acctlv"])])
          for t, n in _S.TARGET_KNOB.items()])
     # a new note takes its channel's tone and level
@@ -173,8 +180,10 @@ def live():
     proc(c, "ac-noteoff", off)
     # hold (a CC mapped to hold, e.g. 64): a released note keeps sounding until hold lets go
     held_i = V("acvi", " + ".join(f"if(aclvn[{i}]==aclnote && aclvc[{i}]==aclch, {i + 1}, 0)" for i in range(NV)) + " - 1")
-    run_steps(c, (tb, 0), [If("aclvel > 0", on, [If("achold", [held_i, If("acvi >= 0", [T("aclsus", "acvi", "1")])],
-                                                     [Call("ac-noteoff")])])])
+    # while the Root key (low C#) is held, a note picks the next key instead of playing
+    run_steps(c, (tb, 0), [If("aclvel > 0 && acroothold", [V("acrootn", "int(aclnote) % 12"), Call("ac-rootset")],
+                              [If("aclvel > 0", on, [If("achold", [held_i, If("acvi >= 0", [T("aclsus", "acvi", "1")])],
+                                                     [Call("ac-noteoff")])])])])
     proc(c, "ac-holdoff", [If(f"aclsus[{i}] && aclvn[{i}] >= 0", [V("aclnote", f"aclvn[{i}]"), V("aclch", f"aclvc[{i}]"),
                                                                  T("aclsus", i, "0"), Call("ac-noteoff")])
                            for i in range(NV)])
@@ -195,8 +204,7 @@ def live():
                              Call("ac-grains")])
     proc(c, "ac-allnotesoff", [Loop(str(NV), "aci", [T("aclvn", "aci", "-1"), SendL("ac-lvoff", ["aci"])]),
                                V("acheld", "0"), V("acfocus", "-1")])
-    proc(c, "ac-extnote", [If("acext == 0", [Toast("MIDI in - keys are functions")]), V("acext", "1"),
-                           V("acextt", "acnow")])
+    proc(c, "ac-extnote", [V("acext", "1"), V("acextt", "acnow")])
     # ---- bend: remember per channel, retune the voices on that channel
     ub = c.to(c.recv("ac-livebend"), "unpack f f")
     c.c(ub, 1, c.obj("v aclbs"), 0)
@@ -240,8 +248,6 @@ def live():
         If("acfocus >= 0 && acnow - acfocust > 6000 && acfkdone == 0 && acfollow > 0.3 && ackeyc == 0 && "
            "acfocus != int(actonic) % 12 && acpend < 0", [
             V("acpend", "acfocus"), V("acfkdone", "1"), Call("ac-keyfromyou")]),
-        # an external controller that went quiet for 2 minutes gives the keys back
-        If("acext && acforce < 0 && acnow - acextt > 120000", [V("acext", "0"), Toast("keys play notes")]),
         # memories: capture what you play now and then, while the piece develops
         If("acrec == 0 && acact > 0.6 && (acpconf > 0.4 || acons > 0.6) && acnow - acmemt > 45000 && "
            "acrole >= 1 && acrole <= 4 && acinput > 0.05", [Call("ac-memrec")]),
