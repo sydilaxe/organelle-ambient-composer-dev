@@ -7,12 +7,12 @@ parts go out as MIDI notes, the arp chord octave. Page 5 (SOUNDS): pad type, dro
 (auto or your choice, applied at once). Page 6 (MUSIC): key, scale, chord voicing (auto or fixed), the bar pulse.
 Page 7 (MIDI IN): where notes go, what breath does, what pressure does, the breath level. Page 8 (CC MAP):
 what each CC does, the last CC in, the vibrato rate. Page 9 (VOICES): the bells' and the motion's engines, the pads' glide. Aux tap = the other page, hold aux 1 s = leave (and save)."""
-from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Line, Arm, Toast
-from gen_oled import Fill, OSC, FLIP, gated_text
+from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Line, Toast
+from gen_oled import Fill, FLIP, gated_text
 from data import PAGES, TEMPOS, FILE_KNOBS, SEND_KNOBS, SUBMODES, ARCHETYPES, ATMOS_NAMES, ROLES, STRIKES, FLAVOURS, DRONES, TEXTURES, CHARACTERS, SCALES, FAMILIES, NOTE_NAMES
 
 GLOBALS = dict(acmout=1, acsync=0, acvintage=0, acoutch=1, accurve=1.2, acsk=0, acsv=0, acextbpm=60,
-               acrtb=0, acoutroot=-1, acclkon=0, acsaved=0, actrange=0,
+               acrtb=0, acoutroot=-1, acclkon=0, actrange=0,
                acmparts=0, acarpoct=48, acoutbass=-1, acload=0, acloadtest=0, acshedt=0, acldraw=0, acguard=1,
                ackeyc=0, acsclc=0, acchdc=0, acpulc=2, acroute=0, acbrto=0, acpressto=1, acccsel=0, aclastcc=0, aclastv=0, acvibr=5.5,
                acmap0=2, acmap1=1, acmap2=1, acmap3=1, acmap4=6, acmap5=0, acmap6=3, acsbell=0, acsmot=0, acglide=5, acmodesel=0, acssub=0, acsform=0, acstempo=0, acsmeter=0, acsatm=0, acnsx=0, acchx=0, acslot=0, acslotfull=0, acsvp49=1, acsvp50=1, acsetpgl=-1, acmixcc=0, acpgm=0, aclfd=1, acsfd=2)
@@ -131,7 +131,7 @@ def settings():
               + [T("acparams", FILE_KNOBS + i, n) for i, n in enumerate(KNOBS[FILE_KNOBS:])] + [
                            Loop(str(len(KNOBS)), "aci", [SendL("ac-pset", ["aci", "acparams[int(aci)]"])]),
                            Call("ac-sendupd"),
-                           SendL("ac-vintage", ["acvintage"]), SendL("ac-brcurve", ["accurve"]),
+                           SendL("ac-vintage", ["acvintage"]),
                            SendL("ac-lvvibr", ["acvibr"]), V("acmode", "acmodesel == 0")])
     rt = c.to(c.recv("ac-pset"), "route " + " ".join(str(i) for i in range(len(KNOBS))))
     for i, n in enumerate(KNOBS):
@@ -244,9 +244,9 @@ def setup():
         If(f"{item} == 2", [If("(acsv > 0.5) != acmodesel", [Call("ac-modetoggle")])]),
         If(f"{item} == 3", [V("acvintage", "acsv > 0.5"), SendL("ac-vintage", ["acvintage"])]),
         If(f"{item} == 4", [V("acfollow", "acsv")]),
-        If(f"{item} == 5", [V("acnbr", f"if(acsv < 0.25, 12, if(acsv < 0.5, 24, if(acsv < 0.75, 48, 96)))")]),
+        If(f"{item} == 5", [V("acnbr", "if(acsv < 0.25, 12, if(acsv < 0.5, 24, if(acsv < 0.75, 48, 96)))")]),
         If(f"{item} == 6", [V("acoutch", "1 + int(acsv*12.99)")]),
-        If(f"{item} == 7", [V("accurve", "0.5 + 1.5*acsv"), SendL("ac-brcurve", ["accurve"])]),
+        If(f"{item} == 7", [V("accurve", "0.5 + 1.5*acsv")]),
         If(f"{item} == 8", [V("acmono", f"int(acsv*{len(OUTPUTS) - 0.01})"), Call("ac-stereo")]),
         If(f"{item} == 9", [V("acwidth", "0.5 + acsv"), Call("ac-stereo")]),
         If(f"{item} == 10", [V("acpanmot", "acsv"), Call("ac-stereo")]),
@@ -376,7 +376,6 @@ def midi_out():
     notes = "acmout >= 2"
     ch = lambda k: f"((acoutch - 1 + {k}) % 16 + 1)"      # base channel + k, wrapping at 16
     vel = "int(40 + 70*acenergy)"                         # chords and bass follow the piece's energy
-    harm = notes + " && acmparts <= 1"
     # the sub's note: the pedal under the tonic or the chord root as a bass line (as the sub plays it)
     bass = ("int(0.5 + if(acsubm==0 || (acsubm==2 && int(acsec) % 2 == 0), actonic - 12, "
             "acnew[0] - 12*ceil((acnew[0] - 42)/12)))")
@@ -514,7 +513,7 @@ def saves():
     c.c(c.ch((w, 2), "expr acslot + 1", "text search acsaves 0", "expr if($f1 < 0, 1e+06, $f1)"), 0, ts, 1)
     lp = c.obj("list prepend")
     c.c(c.to((w, 1), "expr acslot + 1"), 0, lp, 1)
-    c.c(c.ch((w, 1), "t b", f"array get acsavebuf"), 0, lp, 0)
+    c.c(c.ch((w, 1), "t b", "array get acsavebuf"), 0, lp, 0)
     c.c(c.to(lp, "list trim"), 0, ts, 0)
     c.c(c.m((w, 0), "write saves.txt"), 0, td, 0)
     c.col()

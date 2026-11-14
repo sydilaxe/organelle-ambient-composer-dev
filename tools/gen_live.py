@@ -1,21 +1,21 @@
 """Live input, control side: MIDI (MPE notes, bend, breath), the Organelle keys as notes, voice allocation,
 listening (focus pitch, key from a held note, breath raising the energy and holding a section),
 audio analysis into a class (quiet / pitched / plucked / textural), and memories."""
-from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Line, Arm, Toast, RNG
-from data import INMODES, NOTE_NAMES, SEND_BUS, FLAVOURS
+from pdlib import Canvas, proc, X, V, T, Call, SendL, If, Loop, run_steps, Line, Arm, Toast, RNG
+from data import NOTE_NAMES, SEND_BUS, FLAVOURS
 
 NV = 4                                    # live voices
 
 GLOBALS = dict(
     acmcix=-1, acmck=0, acmcb=0, acpgn=0,
-    acnow=0, acext=0, acextt=-1e+06, acforce=-1, acroothold=0, acrr=-1, acrootn=0, acsecfz=0, acauxheld=0, acauxused=0, acauxt=0,
+    acnow=0, acforce=-1, acroothold=0, acrr=-1, acrootn=0, acsecfz=0, acauxheld=0, acauxused=0, acauxt=0,
     aclch=0, aclnote=0, aclvel=0, aclage=0, acvi=0, acheld=0, acfocus=-1, acfocust=0, acfkdone=0,
     acbreath=0, acbreatht=-1e+06, acbrmode=0, acbrt=-1e+06, acbrlast=0, acsechold=0, acfollow=0.7,
     acgbr=2, acnbr=48, aclbv=0, aclbs=0,
     acinlvl=0, acinp=-1, acinpp=-1, acinclr=0, acpconf=0, acnoisy=0, acons=0, acact=0, acinclass=0,
     acinhf=-40, acpst=0, acharm=0, acharmp=0, acgdry=0,
     acclt=0, aci2=40, aclnt=-1e+06, acyn=0, acbrfx=-1,
-    acctlch=1, acctlv=0, acctlv127=0, acccn=0, actg=0, acvtsel=-1, achold=0, acwi=0, acmemn=0, acmemw=0, acmemt=-1e+06, acmemr=0, acmems=0, acmemrate=1, acgmem=0, acrec=0,
+    acctlch=1, acctlv=0, acctlv127=0, acccn=0, actg=0, acvtsel=-1, achold=0, acwi=0, acmemn=0, acmemw=0, acmemt=-1e+06, acmemr=0, acmems=0, acmemrate=1, acrec=0,
 )
 ARRAYS = dict(acyh=NV, actim=17, aclev=17, aclsus=NV, acbrch=17, aclvn=NV, aclvc=NV, aclva=NV, acbendt=17, achpc=12, acmemp=4, acmcp=8)
 CLASSES = ["quiet", "pitched", "plucked", "texture"]
@@ -33,10 +33,7 @@ def midi_in():
     pk2 = c.obj("pack f f f")
     for i in (2, 1, 0):
         c.c(nm, i, pk2, i)
-    t = c.to(pk2, "t l l")
-    c.c(t, 1, c.obj("s ac-livenote"), 0)
-    on = c.ch((t, 0), "unpack f f f", ao=0)
-    c.c(c.ch((on, 2), "sel 0"), 1, c.obj("s ac-extnote"), 0)
+    c.c(pk2, 0, c.obj("s ac-livenote"), 0)
     c.col()
     b = c.obj("bendin")
     bp = c.obj("pack f f")
@@ -229,7 +226,6 @@ def live():
                              Call("ac-grains")])
     proc(c, "ac-allnotesoff", [Loop(str(NV), "aci", [T("aclvn", "aci", "-1"), SendL("ac-lvoff", ["aci"])]),
                                V("acheld", "0"), V("acfocus", "-1")])
-    proc(c, "ac-extnote", [V("acext", "1"), V("acextt", "acnow")])
     # ---- bend: remember per channel, retune the voices on that channel
     ub = c.to(c.recv("ac-livebend"), "unpack f f")
     c.c(ub, 1, c.obj("v aclbs"), 0)

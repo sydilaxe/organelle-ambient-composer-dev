@@ -13,11 +13,10 @@
    y 53-63  section role, reverb, KEYS/MIDI, INT/EXT (FIN at the end)
 A knob or page change shows the knob page for 2 s; SETUP takes the whole screen."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Line
-from data import ROLES, PAGE_NAMES, FAMILIES, PAGES, NOTE_NAMES, SCALES
+from data import ROLES, PAGE_NAMES, PAGES, NOTE_NAMES, SCALES
 
 OSC = "oscOut"
-GLOBALS = dict(acpopt=0, actoastt=0, acfr=0, acel=0, acsecel=0, acox=0, acoxs=0, acmcur=-1, acrvlvl=0, acoled=1,
-               acsetup=0, acsetpg=0, acyy=0, acinv=0, acinlast=-1e+06, acinon=0, acinhi=0, aclastk=0, acmixc=-1)
+GLOBALS = dict(acpopt=0, actoastt=0, acfr=0, acel=0, acsecel=0, acox=0, acoxs=0, acmcur=-1, acrvlvl=0, acsetup=0, acsetpg=0, acinv=0, acinlast=-1e+06, acinon=0, acinhi=0, aclastk=0, acmixc=-1)
 ARRAYS = dict(acdisp=4, acdg=8, acinh=32, acino=32)
 MIX_FROM = 3       # the knob pages from here on (SENDS, MIX) show the MIX view
 # the play view's voice tags (2 x 4) and the MIX view's columns: (letter, knob, layer); the reverb last
@@ -163,7 +162,7 @@ def oled():
     proc(c, "ac-oledrhythm", [If(normal + " && acinv == 0", [
         Fill(96, 21, 32, 19, 0), V("acmcur", "-1"),
         Loop("acmn", "aci", [If(hit, [Fill(*cell("aci"), 3, 3)],
-                                [Fill(f"98 + (int(aci) % 8)*4", f"23 + int(int(aci)/8)*5", 1, 1)])]),
+                                [Fill("98 + (int(aci) % 8)*4", "23 + int(int(aci)/8)*5", 1, 1)])]),
         # 3-digit tempi drop the "m" so they stay inside the screen
         X("int(acbpm + 0.5)", lambda c, src: _print_bpm(c, src)),
     ])])
@@ -230,7 +229,7 @@ def oled():
                                       Send("ac-mixknob"), Call("ac-scr4"), Call("ac-scr5"), Call("ac-oledmixbars")],
                                [If("int(aclastk/4) == acpage", [Call("ac-oledpop")], [Send("ac-mixknob")])])])
     Line("ac-mixknob", "list $1 $2", [("s", "aclastk", [lab for p in PAGES for lab, _, _ in p]),
-                                       ("f", f"int(acparams[int(aclastk)]*100)")], "ac-toast")(c)
+                                       ("f", "int(acparams[int(aclastk)]*100)")], "ac-toast")(c)
     proc(c, "ac-oledpop", [If(mixv, [V("acpopt", "0"), Call("ac-oledmix")]), If(normal.replace(" && acpopt == 0", ""), [
         V("acpopt", "acnow + 6000"),
         Fill(0, 9, 128, 55, 0),

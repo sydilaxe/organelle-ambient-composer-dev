@@ -56,7 +56,6 @@ def flav_digi():
               "the right side rings a hair higher and holds at a slower clock")
     f, b = _flav_inlets(s, 2)
     car = s.to(f, "osc~")
-    lev = s.recv("ac-weird")
     outs = []
     for k, (rm, clk) in enumerate(((1.0, 1.0), (1.012, 0.83))):
         rr = s.to(f, f"*~ {1.4142 * rm}")

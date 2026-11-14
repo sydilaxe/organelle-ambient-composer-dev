@@ -80,7 +80,7 @@ check(rms_db(a[-10 * SR:]) < -90, "silent after the end")
 check(rms_db(a[2 * SR:12 * SR]) > -40, "the composition plays")
 
 # 5. controls: knob pickup, pages, keys
-ev = [(50, "ac-setseed 11"), (100, "ac-extnote 1"), (200, "knob4 0.5"), (210, "knob1 0.5"), (400, "knob4 0.8"), (500, "aux 1"), (550, "aux 0"),
+ev = [(50, "ac-setseed 11"), (200, "knob4 0.5"), (210, "knob1 0.5"), (400, "knob4 0.8"), (500, "aux 1"), (550, "aux 0"),
       (600, "knob1 0.1"), (800, "aux 1"), (850, "aux 0"), (900, "aux 1"), (950, "aux 0")]
 # root: hold low G and press E; then chord now (A), next section (A#), drone (top C), input (G#), stop (A#), new
 T = 1500
@@ -889,7 +889,8 @@ ev = [(45, "actime 0.05"), (50, "ac-setseed 7"), (300, "acsetup 1"), (310, "acse
       (400, "ac-setknob 0 0"), (450, f"ac-setknob 1 {k(2, 8)}"),
       (500, f"ac-setknob 2 {k(GS.SPLAY.index('in 1/2'), len(GS.SPLAY))}"), (600, "acsetup 0")]
 log, _ = run(ev, 12, prints=("ac-g-pad", "ac-sett1"))
-gp = [l.split()[1:] for l in log.splitlines() if l.startswith("ac-g-pad")]
+# (only after seed 7: the start-up piece before it depends on seed.txt's count)
+gp = [l.split()[1:] for l in log.split("ac-setseed: 7")[-1].splitlines() if l.startswith("ac-g-pad")]
 first_on = next((i for i, g in enumerate(gp) if float(g[0]) > 0), None)
 check("ac-sett1: 1 Section 1 now" in log and first_on is not None and first_on > 2
       and all(float(g[0]) == 0 for g in gp[:first_on]) and gp[first_on][1] == str(GS.SSFADE[2][1]),
@@ -946,6 +947,15 @@ held, after = part[:cut], part[cut:]
 check(len({h.split(" > ")[0] for h in held}) == 1 and len({h.split(" > ")[1] for h in held}) >= 2 and after
       and after[0].split(" > ")[0] == held[-1].split(" > ")[1],
       f"low A held picks other next chords ({held}), a tap plays the shown one ({after[:1]})")
+
+# 56. the input stage computes only while In is up: at In 0 it hears nothing (its level stays 0), raised it listens
+def lvprobe(c):
+    m = c.obj("metro 1000", 1200, 20)
+    c.c(c.obj("loadbang", 1200, 0), 0, m, 0)
+    c.c(c.to(m, "expr acinlvl"), 0, c.obj("print LV", 1200, 80), 0)
+log, _ = run([(50, "ac-setseed 7"), (5000, "acinput 0.5"), (5001, "ac-inputupd bang")], 9, inp="sine", extra=lvprobe)
+lv = [float(l.split()[1]) for l in log.splitlines() if l.startswith("LV:")]
+check(max(lv[1:4]) == 0 and min(lv[-3:]) > 40, f"input stage off at In 0, on when raised (levels {[int(x) for x in lv]})")
 
 print(f"\n{len(fails)} failure(s)")
 sys.exit(1 if fails else 0)

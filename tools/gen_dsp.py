@@ -537,30 +537,6 @@ def bells():
     return s
 
 
-def inp():
-    s = Canvas("input", w=1600)
-    s.comment("External audio: dry blend, mono feed for resonators / tape / cloud, envelope (ghost mode, onsets)")
-    iL, iR = s.obj("r~ inL"), s.obj("r~ inR")
-    s.c(s.ch(add(s, iL, iR), "*~ 0.5", "hip~ 50"), 0, s.obj("s~ ac-in"), 0)
-    dry = s.ch(s.recv("ac-g-dry"), "line~")
-    for sig, bus in ((iL, "ac-mixL"), (iR, "ac-mixR")):
-        s.c(mul(s, sig, dry), 0, s.obj("throw~ " + bus), 0)
-    s.col()
-    s.c(s.recv("ac-ghost"), 0, s.obj("v acghost"), 0)
-    env = s.ch(add(s, iL, iR), "env~ 2048 1024", "expr max(0, min(1, ($f1-45)/40))")
-    te = s.to(env, "t f f f")
-    s.c(s.ch(s.m(s.to((te, 2), "expr $f1*acghost"), "$1 50"), "line~"), 0, s.obj("s~ ac-envb"), 0)
-    ons = s.ch((te, 1), "expr $f1 - acinprev > 0.12 && $f1 > 0.25", "sel 1")
-    s.c(te, 0, s.obj("v acinprev"), 0)
-    sp = s.obj("spigot 1")
-    s.c(ons, 0, sp, 0)
-    tb = s.to(sp, "t b b")
-    s.c(tb, 0, s.obj("s ac-inonset"), 0)
-    s.c(s.m((tb, 1), "0"), 0, sp, 1)
-    s.c(s.m(s.to((tb, 1), "delay 300"), "1"), 0, sp, 1)
-    return s
-
-
 def reso():
     s, ln = switched("resonate", "ac-g-res")
     s.comment("Resonate: the input rings 4 comb strings tuned to the current chord (they glide on changes)")
@@ -957,6 +933,19 @@ def inp():
     s = Canvas("input", w=2000)
     s.comment("External audio: dry blend; gate + automatic gain -> ac-in (resonators, bands, tape, cloud, memories); "
               "level, brightness, pitch and onsets for the listener")
+    # the whole input stage computes only while In is up (ac-insw 1): its outputs fade to zero first, so
+    # what the s~ hold while it is off is silence
+    isw = s.obj("switch~")
+    s.c(s.m(s.obj("loadbang"), "0"), 0, isw, 0)
+    ist = s.to(s.recv("ac-insw"), "t f f")
+    gate = s.ch(s.m((ist, 1), "$1 50"), "line~")
+    ioff = s.obj("delay 200")
+    isel = s.to((ist, 0), "sel 0")
+    s.c(isel, 0, ioff, 0)
+    s.c(s.m(ioff, "0"), 0, isw, 0)
+    ion = s.to((isel, 1), "t b b")
+    s.c(s.m((ion, 1), "stop"), 0, ioff, 0)
+    s.c(s.m((ion, 0), "1"), 0, isw, 0)
     iL, iR = s.obj("r~ inL"), s.obj("r~ inR")
     mono = s.ch(add(s, iL, iR), "*~ 0.5", "hip~ 50")
     dry = s.ch(s.recv("ac-g-dry"), "line~")
@@ -975,7 +964,7 @@ def inp():
     s.c(agcs, 0, sm, 0)
     s.c(sm, 0, agcs, 1)
     g = s.ch(s.m(agcs, "$1 300"), "line~")
-    ain = mul(s, mono, g)
+    ain = mul(s, mul(s, mono, g), gate)
     s.c(ain, 0, s.obj("s~ ac-in"), 0)
     hf = s.ch(mono, "hip~ 3000", "env~ 2048 1024")
     hd = s.obj("expr $f1 - acinlvl")
@@ -986,7 +975,7 @@ def inp():
     s.c(s.recv("ac-ghost"), 0, s.obj("v acghost"), 0)
     env = s.to((lvl, 0), "expr max(0, min(1, ($f1-45)/40))")
     te = s.to(env, "t f f f")
-    s.c(s.ch(s.m(s.to((te, 2), "expr $f1*acghost"), "$1 50"), "line~"), 0, s.obj("s~ ac-envb"), 0)
+    s.c(mul(s, s.ch(s.m(s.to((te, 2), "expr $f1*acghost"), "$1 50"), "line~"), gate), 0, s.obj("s~ ac-envb"), 0)
     ons = s.ch((te, 1), "expr $f1 - acinprev > 0.12 && $f1 > 0.25", "sel 1")
     s.c(te, 0, s.obj("v acinprev"), 0)
     sp = s.obj("spigot 1")

@@ -4,7 +4,7 @@ Conventions: global state lives in [value]s named ac<word> (no dash, so [expr] c
 every [send]/[receive] name has a dash (ac-<word>), so values and sends never share a symbol."""
 from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, Loop, run_steps, Arm, Toast, RNG, Later
 from data import *
-from data import DRONES, CHARACTERS, ATMOS_NAMES, ATMOS_ROLE, SCENES, SCENE_DATA, SCENE_ROLE, \
+from data import DRONES, CHARACTERS, ATMOS_NAMES, ATMOS_ROLE, SCENE_DATA, SCENE_ROLE, \
     FLAVOUR_WEIGHTS, FM_RATIO_WEIGHTS, PARTIAL_WEIGHTS, pick_table, STRIKES, BELL_ENGINE_WEIGHTS, MOTION_ENGINE_WEIGHTS
 
 NF = len(FAMILIES)
@@ -14,12 +14,12 @@ GLOBALS = dict(
     acxt=48, acxscf=0, acxsci=0, acxdeg=0, acqt=0, acqd=0, acqr=0, acqn=0, acqi=0, acq3=0, acq4=0, acq6=0, acq7=0,
     acq8=0, acchn=0, acnxn=0, acchgt=0,
     acseed=1, account=0, actonic=38, acsci=0, acn=7, acfamA=0, acfamB=1, acfam=0, acdeg=0, acpend=-1,
-    acmode=1, acrun=1, acended=0, acstopped=0, acready=0, acsecrem=0, acftap=-1e+06, acctap=-1e+06, acsec=0, acnsec=8, acenergy=0.5, acdeff=0.5, acsecdur=60000, acchsec=20,
+    acmode=1, acrun=1, acended=0, acstopped=0, acready=0, acsecrem=0, acsec=0, acnsec=8, acenergy=0.5, acdeff=0.5, acsecdur=60000, acchsec=20,
     acpage=0, acinmode=0, acfreeze=0, accapt=0, acvfreeze=0,
     acmdrone=1, acmpad=1, acmtex=1, acmcloud=1, acmbell=1, acmmotion=1, acmsub=1, acmatm=1, acedrone=1, acsxdrone=0, acsldrone=1, acesub=1, acsxsub=0, acslsub=1, acepad=1, acsxpad=0, acslpad=1, acebell=1, acsxbell=0, acslbell=1, acemotion=1, acsxmotion=0, acslmotion=1, acetex=1, acsxtex=0, acsltex=1, aceatm=1, acsxatm=0, acslatm=1, acecloud=1, acsxcloud=0, acslcloud=1, acscount=0, acsecc=0, acsecsel=0, acsecfol=1, acsecq=0, acsecqn=0, acst=0, acslay=0, acspe=0,
     acfdrone=1, acfpad=1, acftex=1, acfcloud=1, acfbell=1, acfmotion=0, actex1=0, actex2=1, actexA=0, actexB=1,
     acpal1=0, acpal2=1, acpal3=3, acpartI=0, acbellI=0, acsecbright=0.8, actidef=1, acpow=1,
-    acpsum=1, acfirst=1, acmodflag=0, acD=0, acp0=0, acp1=0, acnewt=38, aci=0, acchg=0, acfade=8000,
+    acpsum=1, acfirst=1, acmodflag=0, acD=0, acp0=0, acp1=0, aci=0, acchg=0, acfade=8000,
     actime=1, acgdrone=0, acgpad=0, acgtex=0, acgcloud=0, acgbell=0, acgmotion=0,
     acgt0=0, acgt1=0, acgt2=0, acgt3=0,
     acbi=0, acbc=0, acdropi=0, acbright=0.5, acbp=0, acgdurv=300, acr1=0.5, acr2=0.5, acr3=0.5, acr4=0.5,
@@ -565,8 +565,10 @@ def layers():
     A = "(acinmode==0)"
     proc(c, "ac-inputupd", [
         # the pitch tracker runs only while there is input to hear
-        SendL("ac-trk", ["acinput > 0.01"]),
+        # (the input stage runs at any In above 0; the pitch tracker from 1 %)
+        SendL("ac-trk", ["acinput > 0.01"]), SendL("ac-insw", ["acinput > 0"]),
         If("acinput <= 0.01", [X("-1; 0", "v acinp", "v acinclr")]),
+        If("acinput <= 0", [X("0; 0", "v acinlvl", "v acinhf")]),
         V("acgres", f"acinput * if(acinmode==1, 1, {A}*if(acinclass==1, if(acavoc, 0.3, 0.8), if(acinclass==2, 0.4, 0)))"),
         V("acgvoc", f"acinput * ((acinmode==6) || (acinmode==7) || {A}*(acinclass==1)*acavoc*(acshed < 3))"),
         SendL("ac-g-voc", ["acgvoc", "1500"]),
@@ -612,7 +614,6 @@ def verb():
         V("acvtype", "if(acrvtype < 0.2, acvsec, 1 + min(3, int((acrvtype-0.2)/0.2)))"),
         SendL("ac-g-rvb", ["acvtype==1 || acvtype==2", "2500"]),
         SendL("ac-g-rvh", ["acvtype>=3", "2500"]),
-        SendL("ac-bltype", ["acvtype==2"]),
         SendL("ac-shim", ["(acvtype==4)*0.3", "3000"]),
         Call("ac-revupd"),
     ])
@@ -653,7 +654,7 @@ def rhythm():
         V("actick", "(actick + 1) % (24*acmeter*64)"),
         If("actick % 6 == 0", [
             V("acstep", "int(actick/6)"), Call("ac-step"),
-            If("actick % 24 == 0", [Call("ac-beat"), If("actick % (24*acmeter) == 0", [Call("ac-bar")])]),
+            If("actick % (24*acmeter) == 0", [Call("ac-bar")]),
         ]),
     ])
     proc(c, "ac-bar", [SendL("ac-dpulse", [f"60000/{BPMH}*acmeter"]), If("acgdlock && acgcloud > 0", [Send("ac-cloud-on")])])

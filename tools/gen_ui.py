@@ -1,7 +1,7 @@
 """Organelle controls: knobs (two pages, pickup), keys, aux, footswitch, screen lines, LED, toasts."""
-from pdlib import Canvas, proc, X, V, T, Send, Call, SendL, If, run_steps, Line, lookup
+from pdlib import Canvas, proc, X, V, Send, Call, SendL, If, run_steps, Line
 from data import *
-from pdlib import Toast, Later, Arm
+from pdlib import Toast, Arm
 from gen_setup import NSET
 import gen_setup as _S
 

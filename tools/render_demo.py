@@ -1,5 +1,5 @@
 """Render demo MP3s into ../demos (needs ffmpeg):  python3 render_demo.py"""
-import os, subprocess, tempfile
+import os, subprocess
 import numpy as np
 from harness import run, SR
 

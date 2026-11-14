@@ -11,9 +11,8 @@ Vintage: 13-bit input quantisation, as the unit's converter.
 
 Hall: an 8-line FDN (Hadamard feedback), two modulated lines, damping per line. Shimmer = the Hall
 with an octave-up pitch shifter in its feedback."""
-from pdlib import Canvas
 from gen_dsp import switched, mul, add
-from data import BLOOM_RATE, BLOOM_CHAIN, BLOOM_LEFT, BLOOM_RIGHT, BLOOM_PRE, HALL_MS
+from data import BLOOM_RATE, BLOOM_CHAIN, BLOOM_LEFT, BLOOM_RIGHT, HALL_MS
 
 
 def ap_bloom(c, src, name, ms, g=0.5, size_recv=None):
